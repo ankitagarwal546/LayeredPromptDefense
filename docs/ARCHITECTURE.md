@@ -102,3 +102,41 @@ adjudication needs them; disable with `store_outputs=False`.
 | New dataset | Add JSONL lines (see `evaluation/dataset.py` schema) |
 | New output evaluator (e.g. LLM judge) | Add alongside `OutputValidator`; keep it out of the generation path |
 | PDF/DOCX input | Extract text upstream of `SummarizeRequest`; document hidden-text handling first |
+
+
+## Update (2026-10-23): application layer, extraction, run store
+
+New components since the first version:
+
+| component | file | purpose |
+|---|---|---|
+| document extraction | `documents.py` | .txt/.md/.pdf/.docx -> plain text with limits and caveats; never executes content |
+| enforcement decision | `pipeline.py`, `schemas.py` | `allow` / `warn` / `block`, plus `layers_run` and `reached_model` |
+| logging | `logging_config.py` | idempotent setup; metadata-only lines |
+| dataset registry | `evaluation/registry.py` | named case sets (`dev`, `final`) and call estimates; clients never pass paths |
+| run store | `evaluation/store.py` | incremental `outcomes.jsonl`, resume, manual labels, safe run listing |
+| executor | `evaluation/execute.py` | the one place that runs and persists a matrix (CLI and API both call it) |
+| frontend | `frontend/` | static page served at `/app/` (text via `textContent` only) |
+| scripts | `scripts/` | `run_experiments.py`, `analyze_results.py`, `adjudicate.py`, `verify_environment.py`, `run_smoke_eval.py`, `tune_structural.py` |
+
+Flow of untrusted content (the thing to keep in mind when changing code):
+
+```
+upload bytes --> documents.extract_text (size/type checks, parse only) --> document_text  [UNTRUSTED]
+document_text --> L1 heuristic (reads) --> L2 classifier (reads; its own LLM call, also exposed to the text)
+              --> prompt builder: system message = trusted app text; user message = task + delimited document
+              --> LLM --> summary [UNTRUSTED output] --> (L4 validator) --> API / UI (rendered as text only)
+Trusted: server settings, request.defenses (set by the operator/user), system prompts, scoring criteria.
+The document never influences configuration, scoring criteria or which defenses run.
+```
+
+Evaluation data flow: `registry.build_case_set` -> `execute_run` -> `run_matrix` (pipeline gets NO criteria) -> `score_case`
+(validator with the case's criteria, after the fact) -> `RunWriter.append` (one line per case, flushed) -> `analyze_results.py`
+(applies `manual_labels.jsonl`). The API's `/evaluate` runs `execute_run` in a background thread, one job at a time; job state is in memory,
+run data persists on disk.
+
+API additions: `GET /config` (non-sensitive options), `POST /extract`, `POST /evaluate` + `GET /evaluate/{job_id}`, `GET /results`,
+`GET /results/{run_id}`, `GET /results/{run_id}/table.csv`, `GET /results/{run_id}/outcomes.csv` (no model output text).
+Error contract: 422 validation/extraction, 409 confirmation required or job already running, 502 provider failure, 503 real model not configured, 404 unknown run/job.
+
+Optional classifier backend: `TransformersClassifier` (local Hugging Face model via an injected predictor; chunked inference; no LLM calls).
