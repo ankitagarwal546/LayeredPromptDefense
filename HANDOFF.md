@@ -1,12 +1,12 @@
 # HANDOFF.md: canonical project state
 
-Last updated: 2026-10-23 (session 1, checkpoint 5: final runs 1 and 2 DONE and written up). Update at every checkpoint (see L).
+Last updated: 2026-10-23 (session 1, checkpoint 6: paused, waiting for the user's human label review). Update at every checkpoint (see L).
 
 ## A. Project identity
 - **Title:** Evaluating Layered Defenses Against Indirect Prompt Injection in LLM-Based Document Summarization
 - **Objective:** working summarizer with a configurable defense pipeline + reproducible evaluation (RQ1-RQ6: `docs/RESEARCH_PLAN.md`)
-- **Repo:** `/Users/ankitagarwal546/Documents/Prompt Injection` (git, branch `master`, no remote). Tag `final-run-1-freeze` marks the frozen code for final run 1.
-- **Phase:** software complete; final runs 1 (1B) and 2 (8B) done, analyzed, logged, reported (preliminary). Next: hosted model, independent data, human adjudication.
+- **Repo:** `/Users/ankitagarwal546/Documents/Prompt Injection` (git, branch `master`, no remote). Tags `final-run-1-freeze` / `final-run-2-freeze` mark the frozen code for each final run. Working tree was clean at the last commit (`cdbe06d`).
+- **Phase:** software complete; final runs 1 (1B) and 2 (8B) done, analyzed, logged, reported (preliminary). Next: user's human label review, then hosted model and/or independent data.
 
 ## B. Current status
 
@@ -27,6 +27,7 @@ Last updated: 2026-10-23 (session 1, checkpoint 5: final runs 1 and 2 DONE and w
 | Dataset loader, splits, held-out freeze | DONE | |
 | Metrics (ASR, bounds, FPR, utility, gap, latency, failures, Wilson) | DONE | |
 | CLIs: run_experiments (dry-run/resume/cost guard), analyze_results, adjudicate, verify_environment | DONE | subprocess-tested |
+| Human review tools: `prepare_review.py`, `apply_review.py` | DONE | subprocess-tested; checklist generated in `results/review/` (git-ignored) |
 | Trained classifier (training script) | BLOCKED | no reviewed dataset/licence; no torch; documented in DATASET_GUIDE |
 | Docs: THREAT_MODEL, RESEARCH_PLAN, ARCHITECTURE, PROTOCOL, DATASET_GUIDE, SECURITY_LIMITATIONS, DEV_LOG, EXPERIMENT_LOG | DONE (EXPERIMENT_LOG has pre-registration; run results pending) | |
 | `docs/FINAL_REPORT.md` | DONE (preliminary; sections 5 and 17 marked incomplete) | every number from run `aee56f02e584` |
@@ -36,7 +37,7 @@ Last updated: 2026-10-23 (session 1, checkpoint 5: final runs 1 and 2 DONE and w
 | Human adjudication, human utility ratings | TODO | needs a human |
 
 ## C. Completed and verified
-- `pytest` -> **185 passed** (2026-10-23, offline, ~6 s). Includes API, evaluation, CLI subprocess, frontend-static, extraction, adapter tests.
+- `pytest` -> **187 passed** (2026-10-23, offline, ~6 s). Includes API, evaluation, CLI subprocess (incl. review tools), frontend-static, extraction, adapter tests.
 - Live checks: Ollama real-model summarize via API/UI; `run_experiments.py --dry-run` plan and guards (needs `--yes`, `--final-ack`); mock run + analyze; adjudicate flow.
 - Dev real-model smoke runs and structural-prompt tuning: `docs/DEV_LOG.md`.
 - Commits: see `git log` (foundation, extraction/store/API, frontend, CLIs, adapter, freeze + label fix).
@@ -53,8 +54,13 @@ Last updated: 2026-10-23 (session 1, checkpoint 5: final runs 1 and 2 DONE and w
 | R7 | Literature review beyond abstracts (FINAL_REPORT section 5 is INCOMPLETE) | TODO | verified, cited summaries only |
 
 ## E. Current task checkpoint
-No task in progress; work tree committed. Safest next action: `pytest`, read FINAL_REPORT and EXPERIMENT_LOG, then pick R2 or R3 (both need user input: model access / data).
-Note the held-out set (`data/heldout_*`) has now been used for a final run; any rule/prompt/scorer change motivated by its results makes it spent (see AGENTS.md rule 4).
+**Paused by the user for now; resume with R1 (human review of AI labels).**
+- Done: `python scripts/prepare_review.py aee56f02e584 b507b975ae1f` produced `results/review/review_checklist.md` (read it) and `results/review/review_decisions.csv` (fill `human_label` yes/no and `reviewer`):
+  33 unique outputs covering all 103 AI-labeled outcomes (53 run 1 + 50 run 2); the 6 where the AI said "yes" come first. Both files hold model outputs and are git-ignored; if lost, regenerate them with the same command.
+- Waiting for: the user to fill the CSV. Then: `python scripts/apply_review.py results/review/review_decisions.csv --dry-run`, apply for real, re-run `python scripts/analyze_results.py <run_id>` for both runs,
+  refresh `docs/results/final_run_{1,2}/` (`manual_labels.jsonl`, `summary.csv`, `by_family.csv`, `figures/`, regenerate `outcomes_no_text.csv`), and update the numbers in `docs/EXPERIMENT_LOG.md`, `docs/FINAL_REPORT.md`, `docs/RESEARCH_PLAN.md`
+  and this file. Say in the report how many AI labels the human changed. Do not change any other label or code while doing this.
+- Nothing is half-edited. The held-out set has been used for two final runs; any rule/prompt/scorer change motivated by its results makes it spent (AGENTS.md rule 4).
 
 ## F. Architecture and decisions (why)
 - OpenAI-compatible HTTP adapter first (Ollama/local + hosted); no vendor SDKs, no LangChain.
@@ -70,13 +76,15 @@ Note the held-out set (`data/heldout_*`) has now been used for a final run; any 
 - Deviations from the master prompt: `llm/provider.py`, `evaluation/report.py`, `execute.py/registry.py/store.py` added; no `utils/`; Transformers training script not built.
 
 ## G. Environment
-macOS, Python 3.13.9 (Anaconda) in `.venv`. Setup: `python3 -m venv .venv && source .venv/bin/activate && pip install -e ".[dev]"`; `cp .env.example .env`; `python scripts/verify_environment.py`.
-`.env` (git-ignored) currently: `LLM_PROVIDER=openai_compatible`, model `llama3.2:1b`, base `http://localhost:11434/v1`, dummy key `ollama`; `CLASSIFIER_PROVIDER=openai_compatible` with the same model. No real API keys exist.
-Ollama: `/opt/homebrew/bin/ollama`, server must be running. **Quirk:** the editable `.pth` gets the macOS `hidden` flag -> use `PYTHONPATH=src`, `uvicorn --app-dir src`; scripts/tests self-heal.
-The built-in preview launcher did not work for the server; run uvicorn directly (README) and open it in the browser pane.
+macOS (Apple M4, 16 GB RAM), Python 3.13.9 (Anaconda) in `.venv`. Setup: `python3 -m venv .venv && source .venv/bin/activate && pip install -e ".[dev]"`; `cp .env.example .env`; `python scripts/verify_environment.py`.
+`.env` (git-ignored) is set to the 1B model: `LLM_PROVIDER=openai_compatible`, `LLM_MODEL=llama3.2:1b`, `LLM_BASE_URL=http://localhost:11434/v1`, dummy key `ollama`, and `CLASSIFIER_PROVIDER=openai_compatible` / `CLASSIFIER_MODEL=llama3.2:1b`. No real API keys exist.
+Ollama (`/opt/homebrew/bin/ollama`) has `llama3.2:1b` (1.3 GB) and `llama3.1:8b` (4.9 GB) installed; the server must be running (`ollama serve`). Run 2 used env overrides, not `.env`:
+`LLM_MODEL=llama3.1:8b CLASSIFIER_MODEL=llama3.1:8b python scripts/run_experiments.py ...`.
+**Quirk:** the editable `.pth` gets the macOS `hidden` flag -> use `PYTHONPATH=src`, `uvicorn --app-dir src`; scripts/tests self-heal. The built-in preview launcher did not work for the server; run uvicorn directly (README) and open it in the browser pane.
+Local-only data on this machine: `results/` (git-ignored: run folders with model outputs, `results/review/`). Archived copies without model text are in `docs/results/final_run_{1,2}/`.
 
 ## H. Commands and outcomes
-- `pytest` -> 185 passed. `python scripts/verify_environment.py` -> ok (mock mode + Ollama configured; classifier via Ollama).
+- `pytest` -> 187 passed. `python scripts/verify_environment.py` -> ok (mock mode + Ollama configured; classifier via Ollama).
 - `python scripts/run_experiments.py ... --dry-run` -> plan printed, no calls. Mock `run_experiments` + `analyze_results` -> ok.
 - Real dev runs (smoke): see DEV_LOG. Final run 1: `python scripts/run_experiments.py --case-set final --final-ack --configs E0,E1,E1b,E2,E3,E4,E5 --repetitions 2 --real --yes` -> completed (826 outcomes); `analyze_results.py aee56f02e584` -> ok.
 - Not run: Anthropic live; Transformers classifier with a real model; any hosted model.
@@ -91,7 +99,9 @@ Experiments completed with held-out data: final runs 1 and 2 (run 2 8B: ASR E0 4
 - Python 3.13 on macOS may skip the hidden editable `.pth` (README troubleshooting).
 
 ## K. Immediate next steps
-1. User decides on a stronger model (R2) and/or independent data (R3). 2. Human re-checks labels (R1). 3. Re-run protocol as a new, separately logged condition. 4. Update FINAL_REPORT with the new runs.
+1. User reviews `results/review/review_checklist.md` and fills `review_decisions.csv` (R1). 2. Apply (`apply_review.py`, dry-run first), re-analyze both runs, refresh archived artifacts and update the log/report/plan with the human-verified numbers.
+3. Then choose: hosted-model run as a third condition (user must add a key to `.env` themselves; show the call estimate with `--dry-run`, pre-register, freeze, run) and/or independent held-out attacks (R3).
+4. Optional: re-tune structural/classifier prompts per model on dev data only, re-freeze, re-run.
 
 ## L. Continuation instructions
 Read `AGENTS.md`, `CLAUDE.md`, `HANDOFF.md`, `README.md`, and `docs/EXPERIMENT_PROTOCOL.md`. Inspect `git status` and the actual files. Verify the recorded state (`pytest`) before continuing. Resume the highest-priority incomplete task without redoing verified work or discarding existing changes. Checkpoint checklist: stop starting big tasks; save work; `git status`; quick `pytest`; update this file (status, E, K); commit.
