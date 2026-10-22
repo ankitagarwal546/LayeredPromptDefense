@@ -197,6 +197,8 @@ def test_runner_never_labels_mock_results_as_evidence():
     assert result.metadata["evidence_status"].startswith("SMOKE TEST ONLY")
     assert evidence_status(False, {"synthetic_development_example"}).startswith("SMOKE TEST ONLY")
     assert evidence_status(False, {"synthetic_heldout_llm_authored"}).startswith("PRELIMINARY")
+    # dev attacks mixed with held-out data (the "final" case set) are preliminary, not smoke
+    assert evidence_status(False, {"synthetic_development_example", "synthetic_heldout_llm_authored"}).startswith("PRELIMINARY")
     assert evidence_status(True, {"synthetic_heldout_llm_authored"}).startswith("SMOKE TEST ONLY")
     assert not evidence_status(False, {"public_benchmark"}).startswith(("SMOKE", "PRELIMINARY"))
 

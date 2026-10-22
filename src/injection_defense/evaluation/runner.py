@@ -39,7 +39,7 @@ def evidence_status(model_is_mock: bool, dataset_provenances: set[str]) -> str:
     """Mock-model runs and synthetic-fixture runs are never labeled as evidence."""
     if model_is_mock:
         return f"{SMOKE_NOTICE} (mock model)"
-    if any("synthetic_development" in p for p in dataset_provenances):
+    if all("synthetic_development" in p for p in dataset_provenances):
         return f"{SMOKE_NOTICE} (development fixtures, not a benchmark)"
     if any(p.startswith("synthetic") for p in dataset_provenances):
         return PRELIMINARY_NOTICE
