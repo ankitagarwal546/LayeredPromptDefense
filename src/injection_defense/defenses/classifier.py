@@ -94,8 +94,78 @@ class UnavailableClassifier(Detector):
         return DetectionResult(layer=self.layer, status="unavailable", explanation=self.reason)
 
 
+class TransformersClassifier(Detector):
+    """Local inference with a pretrained Hugging Face text-classification model (Approach B).
+
+    No training happens here. `predict` maps one text chunk to [{"label": str, "score": float}, ...]
+    (the shape of a transformers text-classification pipeline), which keeps this class testable
+    without the library. Long documents are split into overlapping character chunks because such
+    models have short context windows; the document is flagged if any chunk reaches the threshold.
+    Local inference makes no LLM calls (model_calls stays 0), so latency, not calls, is its cost.
+    """
+
+    layer = "classifier"
+
+    def __init__(self, predict, model_name: str, *, positive_label: str = "INJECTION",
+                 threshold: float = 0.5, chunk_chars: int = 1500, overlap_chars: int = 150):
+        if not 0 < overlap_chars < chunk_chars:
+            raise ValueError("overlap_chars must be positive and smaller than chunk_chars")
+        self.predict, self.model_name = predict, model_name
+        self.positive_label, self.threshold = positive_label.upper(), threshold
+        self.chunk_chars, self.overlap_chars = chunk_chars, overlap_chars
+
+    def _chunks(self, text: str) -> list[str]:
+        step = self.chunk_chars - self.overlap_chars
+        return [text[i : i + self.chunk_chars] for i in range(0, max(len(text) - self.overlap_chars, 1), step)]
+
+    def detect(self, text: str) -> DetectionResult:
+        chunks = self._chunks(text)
+        best = 0.0
+        try:
+            for chunk in chunks:
+                scores = {str(p["label"]).upper(): float(p["score"]) for p in self.predict(chunk)}
+                if self.positive_label not in scores:
+                    return self._error(f"model output has no {self.positive_label!r} label (got {sorted(scores)})")
+                best = max(best, scores[self.positive_label])
+        except Exception:  # model/runtime failures must surface as an error result, never as "benign"
+            return self._error("classifier inference failed")
+        flagged = best >= self.threshold
+        return DetectionResult(
+            layer=self.layer, status="evaluated", flagged=flagged, score=best, model_name=self.model_name,
+            explanation=f"Max {self.positive_label} score {best:.3f} over {len(chunks)} chunk(s); threshold {self.threshold:g}",
+        )
+
+    def _error(self, message: str) -> DetectionResult:
+        return DetectionResult(layer=self.layer, status="error", explanation=message, model_name=self.model_name)
+
+
+def _create_transformers_classifier(settings: Settings) -> Detector:
+    if not settings.classifier_model:
+        return UnavailableClassifier("No classifier configured (CLASSIFIER_MODEL is empty)")
+    try:
+        from transformers import pipeline
+    except ImportError:
+        return UnavailableClassifier("transformers is not installed; pip install -e '.[ml]'")
+    try:
+        # May download weights from the Hugging Face Hub on first use: only reached when the
+        # operator explicitly set CLASSIFIER_PROVIDER=transformers and a model id or local path.
+        pipe = pipeline("text-classification", model=settings.classifier_model, truncation=True, top_k=None)
+    except Exception:
+        return UnavailableClassifier("could not load the configured transformers model")
+    def predict(chunk: str) -> list[dict]:
+        out = pipe(chunk)  # one call; pipelines return [[{label, score}, ...]] or [{label, score}, ...]
+        return out[0] if out and isinstance(out[0], list) else out
+
+    return TransformersClassifier(
+        predict, settings.classifier_model, positive_label=settings.classifier_positive_label,
+        threshold=settings.classifier_threshold,
+    )
+
+
 def create_classifier(settings: Settings, *, transport=None) -> Detector:
-    """PromptClassifier if a classifier model is configured, otherwise UnavailableClassifier."""
+    """A configured classifier, otherwise UnavailableClassifier (never a silent stand-in)."""
+    if settings.classifier_provider == "transformers":
+        return _create_transformers_classifier(settings)
     try:
         llm = create_llm_client(settings, role="classifier", transport=transport)
     except ModelNotConfiguredError as exc:

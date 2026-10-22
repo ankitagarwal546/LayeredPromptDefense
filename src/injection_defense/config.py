@@ -13,7 +13,7 @@ MAX_DOCUMENT_CHARS = 50_000
 MAX_INSTRUCTION_CHARS = 1_000
 
 LLMProvider = Literal["mock", "openai_compatible", "anthropic"]
-ClassifierProvider = Literal["none", "openai_compatible", "anthropic"]
+ClassifierProvider = Literal["none", "openai_compatible", "anthropic", "transformers"]
 
 
 class Settings(BaseSettings):
@@ -33,6 +33,9 @@ class Settings(BaseSettings):
     classifier_model: str = ""
     classifier_api_key: SecretStr | None = None
     classifier_base_url: str = ""
+    # transformers provider only: label that means "injection", and the decision threshold
+    classifier_positive_label: str = "INJECTION"
+    classifier_threshold: float = 0.5
 
     data_dir: Path = REPO_ROOT / "data"
     results_dir: Path = REPO_ROOT / "results"

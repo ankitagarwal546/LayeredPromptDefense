@@ -225,3 +225,58 @@ def test_mock_summarizes_the_delimited_document_under_structural_layout():
 
     prompt = build_structural_prompt("Summarize.", "Coral reefs are vital. They host species. More text.")
     assert MockLLM().generate(prompt).text == "[MOCK SUMMARY] Coral reefs are vital. They host species."
+
+
+# ---- transformers classifier adapter (fake predictor; no library or weights needed) -------
+from injection_defense.defenses.classifier import TransformersClassifier
+
+
+def _fake_predict(score_for):
+    def predict(chunk):
+        s = score_for(chunk)
+        return [{"label": "INJECTION", "score": s}, {"label": "SAFE", "score": 1 - s}]
+    return predict
+
+
+def test_transformers_adapter_flags_by_threshold_and_reports_the_score():
+    clf = TransformersClassifier(_fake_predict(lambda c: 0.9 if "ignore" in c else 0.1), "fake-model")
+    hit, miss = clf.detect("please ignore this"), clf.detect("benign text")
+    assert hit.status == "evaluated" and hit.flagged is True and hit.score == 0.9 and hit.model_calls == 0
+    assert miss.flagged is False and miss.model_name == "fake-model"
+
+
+def test_transformers_adapter_scans_every_chunk_of_a_long_document():
+    seen = []
+    clf = TransformersClassifier(_fake_predict(lambda c: seen.append(c) or (0.99 if "NEEDLE" in c else 0.0)),
+                                 "m", chunk_chars=100, overlap_chars=20)
+    text = "a" * 500 + "NEEDLE" + "b" * 400
+    result = clf.detect(text)
+    assert result.flagged is True and len(seen) > 5
+    assert "".join(c[:80] for c in seen[:-1]) + seen[-1] == text  # chunks cover the whole text
+
+
+def test_transformers_adapter_catches_an_injection_split_across_a_chunk_boundary():
+    clf = TransformersClassifier(_fake_predict(lambda c: 1.0 if "ignore all previous" in c else 0.0), "m",
+                                 chunk_chars=100, overlap_chars=30)
+    text = "x" * 85 + "ignore all previous" + "y" * 85  # straddles the first boundary at 100
+    assert clf.detect(text).flagged is True
+
+
+def test_transformers_adapter_errors_are_not_benign_verdicts():
+    def boom(chunk):
+        raise RuntimeError("cuda out of memory")
+
+    result = TransformersClassifier(boom, "m").detect("x")
+    assert result.status == "error" and result.flagged is None and "cuda" not in result.explanation
+    wrong = TransformersClassifier(lambda c: [{"label": "LABEL_0", "score": 0.9}], "m").detect("x")
+    assert wrong.status == "error" and wrong.flagged is None and "no 'INJECTION' label" in wrong.explanation
+
+
+def test_transformers_provider_is_unavailable_without_a_model_or_library(settings):
+    s = settings.model_copy(update={"classifier_provider": "transformers"})
+    clf = create_classifier(s)
+    assert isinstance(clf, UnavailableClassifier) and "CLASSIFIER_MODEL" in clf.reason
+    s2 = s.model_copy(update={"classifier_model": "some/model"})
+    clf2 = create_classifier(s2)  # transformers is not installed in this environment
+    assert isinstance(clf2, UnavailableClassifier)
+    assert clf2.detect("x").status == "unavailable"
