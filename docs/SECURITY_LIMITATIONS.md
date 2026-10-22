@@ -8,7 +8,7 @@ guarantee against prompt injection.
 | area | control | where |
 |---|---|---|
 | input | request/field size limits (document 50,000 chars, instruction 1,000), non-blank validation | `schemas.py` |
-| upload | extension allowlist (.txt .md .pdf .docx), 5 MB cap, magic-byte check, UTF-8 requirement, PDF page cap, DOCX zip-bomb guard, filename never used as a path or echoed | `documents.py` |
+| upload | extension allowlist (.txt .md .pdf .docx), 5 MB cap, magic-byte check, UTF-8 requirement, PDF page cap, DOCX zip-bomb guard, filename never used as a path (only its extension is echoed in errors) | `documents.py` |
 | parsing | files are parsed, never executed; no macros/scripts/active content run; parser errors return generic messages | `documents.py` |
 | secrets | env-only config, `SecretStr`, `.env` git-ignored, keys never in responses/logs/`/config`; provider errors carry status codes only | `config.py`, `llm/provider.py` |
 | privacy | document text and summaries are not logged or stored by the API; logs hold ids, config, timings; UI states whether text goes to a local or remote model | `pipeline.py`, `frontend/` |

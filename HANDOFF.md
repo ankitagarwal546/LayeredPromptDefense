@@ -1,12 +1,12 @@
 # HANDOFF.md: canonical project state
 
-Last updated: 2026-10-23 (session 1, checkpoint 3: final run 1 IN PROGRESS). Update at every checkpoint (see L).
+Last updated: 2026-10-23 (session 1, checkpoint 4: final run 1 DONE and written up). Update at every checkpoint (see L).
 
 ## A. Project identity
 - **Title:** Evaluating Layered Defenses Against Indirect Prompt Injection in LLM-Based Document Summarization
 - **Objective:** working summarizer with a configurable defense pipeline + reproducible evaluation (RQ1-RQ6: `docs/RESEARCH_PLAN.md`)
 - **Repo:** `/Users/ankitagarwal546/Documents/Prompt Injection` (git, branch `master`, no remote). Tag `final-run-1-freeze` marks the frozen code for final run 1.
-- **Phase:** software complete (Phases 1-4); Phase 6 final run 1 started; analysis/report (Phases 7-8) pending the run.
+- **Phase:** software complete; final run 1 done, analyzed, logged, reported (preliminary). Next: stronger model, independent data, human adjudication.
 
 ## B. Current status
 
@@ -29,8 +29,8 @@ Last updated: 2026-10-23 (session 1, checkpoint 3: final run 1 IN PROGRESS). Upd
 | CLIs: run_experiments (dry-run/resume/cost guard), analyze_results, adjudicate, verify_environment | DONE | subprocess-tested |
 | Trained classifier (training script) | BLOCKED | no reviewed dataset/licence; no torch; documented in DATASET_GUIDE |
 | Docs: THREAT_MODEL, RESEARCH_PLAN, ARCHITECTURE, PROTOCOL, DATASET_GUIDE, SECURITY_LIMITATIONS, DEV_LOG, EXPERIMENT_LOG | DONE (EXPERIMENT_LOG has pre-registration; run results pending) | |
-| `docs/FINAL_REPORT.md` | TODO (needs final run results) | |
-| Final run 1 (E0,E1,E1b,E2,E3,E4,E5; final case set; 2 reps; llama3.2:1b) | IN_PROGRESS | see E |
+| `docs/FINAL_REPORT.md` | DONE (preliminary; sections 5 and 17 marked incomplete) | every number from run `aee56f02e584` |
+| Final run 1 (E0,E1,E1b,E2,E3,E4,E5; final case set; 2 reps; llama3.2:1b) | DONE | run `aee56f02e584`, 826 outcomes, 0 failures; artifacts in `docs/results/final_run_1/` |
 | Independent held-out data (e.g. BIPIA) | TODO / BLOCKED on data access | steps in DATASET_GUIDE |
 | Human adjudication, human utility ratings | TODO | needs a human |
 
@@ -43,21 +43,17 @@ Last updated: 2026-10-23 (session 1, checkpoint 3: final run 1 IN PROGRESS). Upd
 ## D. Remaining tasks (priority order)
 | ID | Task | Status | Acceptance |
 |---|---|---|---|
-| R1 | Finish final run 1 (see E), then `analyze_results.py`, adjudicate `needs_review` (rubric in protocol), re-analyze | IN_PROGRESS | run folder complete; labels recorded with adjudicator named; EXPERIMENT_LOG entry with actual numbers |
-| R2 | Write `docs/FINAL_REPORT.md` from the saved run only; update RESEARCH_PLAN (hypotheses vs findings), README status | TODO | every number traceable to the run id |
-| R3 | Run with a stronger model (hosted key or larger Ollama model) as a separate experimental condition | TODO / needs user | new run id; never mixed with the 1B run |
-| R4 | Independent held-out attacks (BIPIA adapter) | TODO | `DATASET_GUIDE` steps; new frozen set |
-| R5 | Transformers classifier real verification (user must approve torch + weights download) | TODO | one real model run; update status |
-| R6 | Human adjudication + summary-quality rubric ratings on a subset | TODO | human-labeled records |
-| R7 | Optional: operator-deny-list output validation as E6 | TODO | criteria independent of scorer |
+| R1 | Human verification of the 53 AI-adjudicated labels (`docs/results/final_run_1/manual_labels.jsonl`; outputs are in the local git-ignored `results/aee56f02e584/outcomes.jsonl`) | TODO / needs a human | re-label with `adjudicate.py`, re-analyze, update the log/report numbers |
+| R2 | Run the same protocol with a stronger model (hosted key or larger Ollama model) as a SEPARATE condition | TODO / needs user | new run id and EXPERIMENT_LOG entry; never mixed with the 1B run; held-out set is already spent for tuning purposes, so use a new held-out set for any further tuning |
+| R3 | Independent held-out attacks (BIPIA adapter; or human-written) | TODO | DATASET_GUIDE steps; new frozen set + checksum test |
+| R4 | Transformers classifier verification (user must approve torch + weights download) | TODO | one real run; update status |
+| R5 | Human summary-quality ratings on a benign subset | TODO | documented rubric + saved ratings |
+| R6 | Optional: operator deny-list output validation as E6 (criteria independent of scorer); hidden-text experiments | TODO | new experiment entries |
+| R7 | Literature review beyond abstracts (FINAL_REPORT section 5 is INCOMPLETE) | TODO | verified, cited summaries only |
 
-## E. Current task checkpoint (R1)
-- Final run started with: `python scripts/run_experiments.py --case-set final --final-ack --configs E0,E1,E1b,E2,E3,E4,E5 --repetitions 2 --real --yes`
-  (background; log `/private/tmp/claude-501/final_run_1.log`; run folder `results/aee56f02e584/`; 826 outcomes expected = 59 cases x 2 reps x 7 configs).
-- **Do not read per-case held-out results to change anything** (pre-registered in `docs/EXPERIMENT_LOG.md`).
-- If the run was interrupted: `python scripts/run_experiments.py --resume aee56f02e584 --case-set final --final-ack --configs E0,E1,E1b,E2,E3,E4,E5 --repetitions 2 --real --yes`
-  (needs Ollama running: `ollama serve`; resume refuses if model/config/dataset changed). Verify with `wc -l results/aee56f02e584/outcomes.jsonl` (expect 826).
-- Safest next action: wait for completion, then `analyze_results.py aee56f02e584`.
+## E. Current task checkpoint
+No task in progress; work tree committed. Safest next action: `pytest`, read FINAL_REPORT and EXPERIMENT_LOG, then pick R2 or R3 (both need user input: model access / data).
+Note the held-out set (`data/heldout_*`) has now been used for a final run; any rule/prompt/scorer change motivated by its results makes it spent (see AGENTS.md rule 4).
 
 ## F. Architecture and decisions (why)
 - OpenAI-compatible HTTP adapter first (Ollama/local + hosted); no vendor SDKs, no LangChain.
@@ -81,20 +77,20 @@ The built-in preview launcher did not work for the server; run uvicorn directly 
 ## H. Commands and outcomes
 - `pytest` -> 185 passed. `python scripts/verify_environment.py` -> ok (mock mode + Ollama configured; classifier via Ollama).
 - `python scripts/run_experiments.py ... --dry-run` -> plan printed, no calls. Mock `run_experiments` + `analyze_results` -> ok.
-- Real dev runs (smoke): see DEV_LOG. Final run 1: IN_PROGRESS (E).
+- Real dev runs (smoke): see DEV_LOG. Final run 1: `python scripts/run_experiments.py --case-set final --final-ack --configs E0,E1,E1b,E2,E3,E4,E5 --repetitions 2 --real --yes` -> completed (826 outcomes); `analyze_results.py aee56f02e584` -> ok.
 - Not run: Anthropic live; Transformers classifier with a real model; any hosted model.
 
 ## I. Research and experimental state
 Datasets: dev 18, held-out attacks 24, held-out benign 24 (all project-authored synthetic; see DATASET_GUIDE). External benchmark: none integrated (BIPIA investigated: summarization contexts must be built locally from XSum; AgentDojo is agent-focused).
-Experiments completed with held-out data: none yet (final run 1 in progress). Result locations: `results/<run_id>/` (git-ignored). Limitations: small n, non-independent held-out, 1B model, lexical scoring, keyword utility proxy.
+Experiments completed with held-out data: final run 1 (see EXPERIMENT_LOG: ASR E0 34.3%, E1 11.4%, E2 41.4%, E3 34.3%, E4 21.4%, E5 21.4%; heuristic detection 72.7% familiar vs 8.3% held-out). Result locations: `results/<run_id>/` (git-ignored). Limitations: small n, non-independent held-out, 1B model, lexical scoring, keyword utility proxy.
 
 ## J. Problems and blockers
-- Run speed ~35 outcomes/min with the local model (~1 hour for 826).
-- `needs_review` outputs need adjudication (AI-assisted labels must be marked as such and human-verified).
-- A hosted/stronger model and torch/transformers need the user's decision.
+- Findings are specific to a 1B local model and project-authored data (held-out authored by the same AI as the rules).
+- AI-adjudicated labels need human verification. A stronger model, torch/transformers, and independent data need the user's decision/access.
+- Python 3.13 on macOS may skip the hidden editable `.pth` (README troubleshooting).
 
 ## K. Immediate next steps
-1. Wait for run `aee56f02e584`; confirm 826 outcomes and `finished_at` in metadata. 2. `python scripts/analyze_results.py aee56f02e584`. 3. Adjudicate `needs_review` (`adjudicate.py`, rubric in protocol). 4. Re-analyze; log in EXPERIMENT_LOG (actual numbers only). 5. Write FINAL_REPORT. 6. Update this file, commit.
+1. User decides on a stronger model (R2) and/or independent data (R3). 2. Human re-checks labels (R1). 3. Re-run protocol as a new, separately logged condition. 4. Update FINAL_REPORT with the new runs.
 
 ## L. Continuation instructions
 Read `AGENTS.md`, `CLAUDE.md`, `HANDOFF.md`, `README.md`, and `docs/EXPERIMENT_PROTOCOL.md`. Inspect `git status` and the actual files. Verify the recorded state (`pytest`) before continuing. Resume the highest-priority incomplete task without redoing verified work or discarding existing changes. Checkpoint checklist: stop starting big tasks; save work; `git status`; quick `pytest`; update this file (status, E, K); commit.

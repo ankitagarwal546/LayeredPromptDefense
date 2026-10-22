@@ -48,6 +48,8 @@ These are initial families used to build the fixtures; the taxonomy will be refi
 2. **Correct treatment of untrusted content:** document text is analyzed as data, never obeyed as higher-priority instructions.
 3. **Confidentiality of application information** (system prompt) where applicable.
 4. **Availability/usability:** defenses must not routinely block or degrade legitimate documents.
+5. **Integrity and reproducibility of experimental results:** held-out data stays frozen, scoring is independent of defenses, runs record their exact conditions.
+6. **Handling of user-provided information:** documents are not stored or logged by default; users are told when text leaves the machine.
 
 **Success of an attack** is defined per case by predefined criteria (`success_indicators` /
 `forbidden_output_patterns`), not by the mere presence of attack text in the input.
@@ -90,3 +92,12 @@ planned for week one; this is a stated limitation.
 - Results depend on the specific model, prompts, and datasets tested.
 - Synthetic fixtures are for software testing only and do not support security claims.
 - The mock model has no bearing on real-model security.
+
+
+## Update (2026-10-23)
+
+- File uploads add an input channel (.txt/.md/.pdf/.docx). Parsing is done with `pypdf` / `python-docx`; files are never executed. Extraction does not reveal hidden
+  text and can include invisible text, so hidden-text injection is a *residual, undetected* risk (see `docs/SECURITY_LIMITATIONS.md`).
+- The API and UI render model output as text only (an attacker-controlled summary must not become script).
+- Evaluation endpoints accept only named case sets and 12-hex run ids; real-model evaluation needs explicit cost confirmation.
+- Control summary and residual risks per layer: `docs/SECURITY_LIMITATIONS.md`. Attack families used: `docs/DATASET_GUIDE.md`.

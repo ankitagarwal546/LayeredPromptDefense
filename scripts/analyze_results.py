@@ -48,7 +48,7 @@ def main() -> int:
     heldout = set(metadata.get("heldout_families", []))
     out = folder / "analysis"
     out.mkdir(exist_ok=True)
-    mark = metadata["evidence_status"] if metadata["evidence_status"].startswith(("SMOKE", "PRELIMINARY")) else None
+    mark = report.watermark_text(metadata["evidence_status"])
     pending = len(pending_review(outcomes))
 
     report.summary_table(grouped, heldout).to_csv(out / "summary.csv", index=False)

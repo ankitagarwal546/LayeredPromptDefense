@@ -10,6 +10,15 @@ from injection_defense.evaluation import metrics as m
 from injection_defense.evaluation.metrics import CaseOutcome, RateResult
 
 
+def watermark_text(evidence_status: str) -> str | None:
+    """Short chart label for runs that are not candidate evidence (None otherwise)."""
+    if evidence_status.startswith("SMOKE"):
+        return "SMOKE TEST ONLY: not evidence"
+    if evidence_status.startswith("PRELIMINARY"):
+        return "PRELIMINARY: synthetic data, small n"
+    return None
+
+
 def _fmt(rate: RateResult) -> str:
     return "n/a (0 evaluated)" if rate.percent is None else f"{rate.percent:.1f}% ({rate.numerator}/{rate.denominator})"
 
@@ -100,7 +109,7 @@ def _finish_plot(fig, path: str | Path, watermark: str | None) -> Path:
     import matplotlib.pyplot as plt
 
     if watermark:
-        fig.text(0.5, 0.5, watermark, ha="center", va="center", rotation=25, alpha=0.2, fontsize=13, color="red", wrap=True)
+        fig.text(0.5, 0.5, watermark, ha="center", va="center", rotation=25, alpha=0.2, fontsize=16, color="red")
     fig.tight_layout()
     path = Path(path)
     fig.savefig(path, dpi=150)
@@ -120,8 +129,7 @@ def _bars(labels: list[str], series: dict[str, list[float | None]], ylabel: str,
         xs = [x + i * width for x in range(len(labels))]
         ax.bar(xs, [0 if v is None else v for v in values], width, label=name)
         for x, v in zip(xs, values):
-            if v is None:
-                ax.text(x, 1, "n/a", ha="center", fontsize=7)
+            ax.text(x, 1 if v is None else v + 0.5, "n/a" if v is None else f"{v:.0f}", ha="center", fontsize=7)
     ax.set_xticks([x + width * (len(series) - 1) / 2 for x in range(len(labels))], labels)
     ax.set_ylabel(ylabel)
     ax.set_title(title)

@@ -98,3 +98,24 @@ tested model's behavior; results are not guarantees.
 | 5 | Final runs E0-E5 on held-out; repetitions; manual adjudication of `needs_review` |
 | 6 | Analysis: tables, plots, intervals, gap, latency; failure-case analysis |
 | 7 | Write-up; limitations; polish README; optional PDF/DOCX text extraction |
+
+
+## Status update (2026-10-23)
+
+Roadmap progress (actuals, not plans): foundation, pipeline, API, UI, evaluation harness, CLIs and tests are done. Real-model work so far used one local
+1B model (`llama3.2:1b`). Dev-set observations are in `docs/DEV_LOG.md`; the pre-registered final run and its results are in `docs/EXPERIMENT_LOG.md`;
+write-up in `docs/FINAL_REPORT.md`. Hypotheses H1-H5 above remain hypotheses until a run supports or contradicts them, and conclusions apply only to the tested
+model, data and configuration. Not yet done: a stronger model, independently sourced held-out attacks, human adjudication, a trained classifier.
+
+
+### Hypotheses vs. first findings (final run 1, `llama3.2:1b`, preliminary; 2026-10-23)
+
+Hypotheses are as written above; findings apply only to this model, this data and these configurations (`docs/FINAL_REPORT.md`).
+
+| hypothesis | outcome on this run |
+|---|---|
+| H1 undefended model follows a non-trivial fraction of embedded instructions | **Supported:** 34.3% (24/70), CI 24-46% |
+| H2 heuristics: low ASR on familiar, large gap on held-out, false positives on security text | **Supported:** familiar 0/22 vs held-out 8/48; detection 72.7% -> 8.3%; hard-negative FPR 8/24, ordinary 0/24 |
+| H3 structural separation lowers ASR for some models/families but not to zero | **Not supported here:** E2 41.4% vs E0 34.3% (overlapping CIs); utility rose to 100% |
+| H4 a model classifier generalizes better than rules | **Not supported with a 1B classifier** (6/70 detected); says nothing about stronger classifiers |
+| H5 combinations reduce ASR beyond any single layer, at an FPR/latency cost | **Not supported here:** E4 21.4% > E1 11.4%; E5 = E4 with higher FPR and latency |

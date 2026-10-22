@@ -19,7 +19,7 @@ sys.path.insert(0, str(ROOT / "src"))  # fallback if the editable install is not
 from injection_defense.config import PRESETS, Settings  # noqa: E402
 from injection_defense.defenses.classifier import create_classifier
 from injection_defense.evaluation.dataset import load_cases
-from injection_defense.evaluation.report import plot_security_vs_utility, summary_table
+from injection_defense.evaluation.report import plot_security_vs_utility, summary_table, watermark_text
 from injection_defense.evaluation.runner import run_matrix, save_run
 from injection_defense.evaluation.splits import split_by_family
 from injection_defense.llm.base import ModelNotConfiguredError
@@ -84,7 +84,7 @@ def main() -> int:
     if args.plot:
         png = plot_security_vs_utility(
             result.by_experiment(), folder / "security_vs_utility.png",
-            watermark=banner if banner.startswith("SMOKE") else None,
+            watermark=watermark_text(banner),
         )
         print(f"\nplot: {png}")
     print(f"\nsaved: {folder}")

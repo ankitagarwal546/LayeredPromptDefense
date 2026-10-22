@@ -1,0 +1,131 @@
+{
+  "run_id": "aee56f02e584",
+  "started_at": "2026-10-22T18:59:20+00:00",
+  "model": {
+    "provider": "openai_compatible",
+    "name": "llama3.2:1b",
+    "is_mock": false,
+    "generation_params": {
+      "temperature": 0.0,
+      "max_tokens": 512
+    }
+  },
+  "classifier": {
+    "available": true,
+    "model": "llama3.2:1b"
+  },
+  "dataset": {
+    "path": "/Users/ankitagarwal546/Documents/Prompt Injection/data/dev_cases.jsonl",
+    "sha256": "53469ca8845ccc20cc7f1b85f9198214aab162f754d21c3a1b866f9cd7d510c3",
+    "n_cases": 59,
+    "extra_files": {
+      "/Users/ankitagarwal546/Documents/Prompt Injection/data/heldout_attacks.jsonl": "7835a5af6b84b6d65061494c892b9d6332e4108de9b3e891102b81970650d160",
+      "/Users/ankitagarwal546/Documents/Prompt Injection/data/heldout_benign.jsonl": "690503a6cbc4aad5579cb71e0c7719fa2558747f3bf1f6cb20a2fb5d21ecead0"
+    }
+  },
+  "repetitions": 2,
+  "heldout_families": [
+    "completion_priming",
+    "emotional_manipulation",
+    "fake_conversation_turn",
+    "format_hijack",
+    "hypothetical_framing",
+    "markup_injection",
+    "separator_breakout",
+    "urgency_authority"
+  ],
+  "configs": {
+    "E0": {
+      "name": "E0",
+      "heuristic": false,
+      "heuristic_policy": "block",
+      "classifier": false,
+      "classifier_policy": "block",
+      "structural": false,
+      "structural_variant": "v3",
+      "output_validation": false,
+      "output_validation_policy": "flag_only",
+      "fail_closed_on_detector_error": false
+    },
+    "E1": {
+      "name": "E1",
+      "heuristic": true,
+      "heuristic_policy": "block",
+      "classifier": false,
+      "classifier_policy": "block",
+      "structural": false,
+      "structural_variant": "v3",
+      "output_validation": false,
+      "output_validation_policy": "flag_only",
+      "fail_closed_on_detector_error": false
+    },
+    "E1b": {
+      "name": "E1b",
+      "heuristic": true,
+      "heuristic_policy": "sanitize",
+      "classifier": false,
+      "classifier_policy": "block",
+      "structural": false,
+      "structural_variant": "v3",
+      "output_validation": false,
+      "output_validation_policy": "flag_only",
+      "fail_closed_on_detector_error": false
+    },
+    "E2": {
+      "name": "E2",
+      "heuristic": false,
+      "heuristic_policy": "block",
+      "classifier": false,
+      "classifier_policy": "block",
+      "structural": true,
+      "structural_variant": "v3",
+      "output_validation": false,
+      "output_validation_policy": "flag_only",
+      "fail_closed_on_detector_error": false
+    },
+    "E3": {
+      "name": "E3",
+      "heuristic": false,
+      "heuristic_policy": "block",
+      "classifier": true,
+      "classifier_policy": "block",
+      "structural": false,
+      "structural_variant": "v3",
+      "output_validation": false,
+      "output_validation_policy": "flag_only",
+      "fail_closed_on_detector_error": false
+    },
+    "E4": {
+      "name": "E4",
+      "heuristic": true,
+      "heuristic_policy": "block",
+      "classifier": false,
+      "classifier_policy": "block",
+      "structural": true,
+      "structural_variant": "v3",
+      "output_validation": false,
+      "output_validation_policy": "flag_only",
+      "fail_closed_on_detector_error": false
+    },
+    "E5": {
+      "name": "E5",
+      "heuristic": true,
+      "heuristic_policy": "block",
+      "classifier": true,
+      "classifier_policy": "block",
+      "structural": true,
+      "structural_variant": "v3",
+      "output_validation": false,
+      "output_validation_policy": "flag_only",
+      "fail_closed_on_detector_error": false
+    }
+  },
+  "evidence_status": "PRELIMINARY: real model on project-authored synthetic data; small samples, not a public benchmark. Report with denominators and intervals, never as a general guarantee",
+  "unavailable_experiments": {},
+  "code": {
+    "commit": "adbf5d4788686b837e213cb2da2605b220fae63c",
+    "dirty": false
+  },
+  "finished_at": "2026-10-22T19:17:01+00:00",
+  "case_set": "final"
+}

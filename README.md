@@ -144,9 +144,10 @@ Layer 4 (output validation) needs explicit criteria and acts as the evaluation s
 
 ## Current status
 
-See [HANDOFF.md](HANDOFF.md) for the authoritative, verified status. In short: the application, API, UI, defenses, evaluation harness and CLIs are implemented and
-tested offline; real-model runs used a local 1B model only. Results are preliminary (see EXPERIMENT_LOG and FINAL_REPORT). Not done: a stronger or hosted model run,
-a trained classifier, independently sourced held-out data, human adjudication and summary-quality ratings.
+See [HANDOFF.md](HANDOFF.md) for the authoritative, verified status. The application, API, UI, defenses, evaluation harness and CLIs are implemented and tested offline (185 tests).
+One pre-registered final run (E0-E5, frozen held-out data, local `llama3.2:1b`, 2 trials) is complete and written up as a **preliminary** report: [docs/FINAL_REPORT.md](docs/FINAL_REPORT.md),
+[docs/EXPERIMENT_LOG.md](docs/EXPERIMENT_LOG.md), archived artifacts in `docs/results/final_run_1/`. Not done: runs on a stronger or hosted model, independently sourced held-out attacks,
+human adjudication (the 53 ambiguous outputs were labeled by an AI) and summary-quality ratings, a trained classifier.
 
 ## Known limitations
 
