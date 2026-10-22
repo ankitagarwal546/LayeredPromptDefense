@@ -82,3 +82,104 @@ def plot_security_vs_utility(
     fig.savefig(path, dpi=150)
     plt.close(fig)
     return path
+
+
+def family_table(outcomes: list[CaseOutcome]) -> pd.DataFrame:
+    """ASR per experiment and attack family, with denominators and unresolved counts."""
+    rows = []
+    for experiment in sorted({o.experiment for o in outcomes}):
+        for family in sorted({o.attack_family for o in outcomes if o.is_attack}):
+            subset = [o for o in outcomes if o.experiment == experiment and o.attack_family == family]
+            asr = m.attack_success_rate(subset)
+            rows.append({"experiment": experiment, "attack_family": family, "ASR": _fmt(asr),
+                         "successes": asr.numerator, "evaluated": asr.denominator, "unresolved": asr.unknown})
+    return pd.DataFrame(rows)
+
+
+def _finish_plot(fig, path: str | Path, watermark: str | None) -> Path:
+    import matplotlib.pyplot as plt
+
+    if watermark:
+        fig.text(0.5, 0.5, watermark, ha="center", va="center", rotation=25, alpha=0.2, fontsize=13, color="red", wrap=True)
+    fig.tight_layout()
+    path = Path(path)
+    fig.savefig(path, dpi=150)
+    plt.close(fig)
+    return path
+
+
+def _bars(labels: list[str], series: dict[str, list[float | None]], ylabel: str, title: str, path, watermark):
+    import matplotlib
+
+    matplotlib.use("Agg")
+    import matplotlib.pyplot as plt
+
+    fig, ax = plt.subplots(figsize=(7, 4.2))
+    width = 0.8 / max(len(series), 1)
+    for i, (name, values) in enumerate(series.items()):
+        xs = [x + i * width for x in range(len(labels))]
+        ax.bar(xs, [0 if v is None else v for v in values], width, label=name)
+        for x, v in zip(xs, values):
+            if v is None:
+                ax.text(x, 1, "n/a", ha="center", fontsize=7)
+    ax.set_xticks([x + width * (len(series) - 1) / 2 for x in range(len(labels))], labels)
+    ax.set_ylabel(ylabel)
+    ax.set_title(title)
+    if len(series) > 1:
+        ax.legend()
+    return _finish_plot(fig, path, watermark)
+
+
+def plot_fpr(by_experiment: dict[str, list[CaseOutcome]], path, watermark: str | None = None) -> Path:
+    names = list(by_experiment)
+    pct = lambda r: None if r.percent is None else r.percent  # noqa: E731
+    series = {"FPR (flagged)": [pct(m.false_positive_rate(by_experiment[n])) for n in names],
+              "benign blocked": [pct(m.benign_block_rate(by_experiment[n])) for n in names]}
+    return _bars(names, series, "% of benign cases", "False positives and blocked benign cases", path, watermark)
+
+
+def plot_generalization(by_experiment: dict[str, list[CaseOutcome]], heldout_families: set[str], path,
+                        watermark: str | None = None) -> Path:
+    names = list(by_experiment)
+    fam, held = [], []
+    for n in names:
+        outs = by_experiment[n]
+        g = m.generalization_gap([o for o in outs if o.attack_family not in heldout_families],
+                                 [o for o in outs if o.attack_family in heldout_families])
+        fam.append(g.familiar_asr.percent)
+        held.append(g.heldout_asr.percent)
+    return _bars(names, {"familiar attacks": fam, "held-out attacks": held}, "ASR (%)",
+                 "Attack success: familiar vs held-out families", path, watermark)
+
+
+def plot_latency(by_experiment: dict[str, list[CaseOutcome]], path, watermark: str | None = None) -> Path:
+    names = list(by_experiment)
+    stats = [m.operational_stats(by_experiment[n]) for n in names]
+    return _bars(names, {"mean": [s.mean_ms for s in stats], "median": [s.median_ms for s in stats]},
+                 "latency (ms)", "Per-request latency (includes all layers)", path, watermark)
+
+
+def markdown_report(metadata: dict, by_experiment: dict[str, list[CaseOutcome]], pending: int) -> str:
+    heldout = set(metadata.get("heldout_families", []))
+    table = summary_table(by_experiment, heldout)
+    lines = [
+        f"# Run {metadata['run_id']}", "",
+        f"**Evidence status:** {metadata['evidence_status']}", "",
+        f"- model: `{metadata['model']['name']}` (mock: {metadata['model']['is_mock']}), params {metadata['model']['generation_params']}",
+        f"- case set: {metadata.get('case_set', '?')}; cases: {metadata['dataset']['n_cases']}; repetitions: {metadata['repetitions']}",
+        f"- dataset sha256: `{metadata['dataset']['sha256']}`; started {metadata['started_at']}; finished {metadata.get('finished_at', 'n/a')}",
+        f"- held-out families: {sorted(heldout) or 'none'}",
+        f"- outcomes awaiting manual review: **{pending}** (excluded from the ASR denominator; see ASR_bounds)", "",
+    ]
+    for name, reason in metadata.get("unavailable_experiments", {}).items():
+        lines.append(f"- **{name}: NOT RUN.** {reason}")
+    lines += ["", "## Summary", "", table.to_markdown(index=False) if hasattr(table, "to_markdown") and _has_tabulate() else "```\n" + table.to_string(index=False) + "\n```", ""]
+    return "\n".join(lines)
+
+
+def _has_tabulate() -> bool:
+    try:
+        import tabulate  # noqa: F401
+    except ImportError:
+        return False
+    return True
