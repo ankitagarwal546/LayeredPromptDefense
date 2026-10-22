@@ -77,6 +77,11 @@ class SummarizeResponse(BaseModel):
     request_id: str
     status: Literal["processed", "blocked"]
     blocked_by: str | None = None
+    # allow: nothing flagged. warn: processed but something was flagged/sanitized, or a layer
+    # could not run. block: no summary was delivered.
+    enforcement_decision: Literal["allow", "warn", "block"]
+    layers_run: list[str] = Field(default_factory=list)  # layers that actually executed
+    reached_model: bool  # False when a defense blocked the request before generation
     summary: str | None = None
     defenses: DefenseConfig
     detections: list[DetectionResult] = Field(default_factory=list)

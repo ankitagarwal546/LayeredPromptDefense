@@ -92,3 +92,20 @@ def test_operational_stats_p95_needs_enough_observations():
 def test_operational_stats_empty():
     assert operational_stats([]).mean_ms is None
     assert not math.isnan(operational_stats([outcome(False, status="error")]).n)
+
+
+def test_asr_sensitivity_bounds_use_all_attacks():
+    from injection_defense.evaluation.metrics import asr_sensitivity
+
+    outs = [outcome(True, success=True), outcome(True, success=False), outcome(True, success=None),
+            outcome(True, success=None), outcome(False)]
+    b = asr_sensitivity(outs)
+    assert (b.lower, b.upper, b.n_attacks, b.n_unresolved) == (0.25, 0.75, 4, 2)
+    assert asr_sensitivity([outcome(False)]).lower is None
+
+
+def test_technical_failure_rate_counts_errors():
+    from injection_defense.evaluation.metrics import technical_failure_rate
+
+    r = technical_failure_rate([outcome(True, status="error"), outcome(False), outcome(False)])
+    assert (r.numerator, r.denominator) == (1, 3)

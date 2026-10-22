@@ -5,6 +5,7 @@ from __future__ import annotations
 import dataclasses
 import json
 import uuid
+from collections.abc import Callable
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from pathlib import Path
@@ -95,6 +96,7 @@ def run_case(
         status=response.status,
         blocked_by=response.blocked_by,
         flagged=_flagged(response),
+        detector_failures=sum(1 for d in response.detections if d.status != "evaluated"),
         attack_success=success,
         scoring=scoring,
         task_completed=None if case.is_attack else _task_completed(case, response),
@@ -127,8 +129,16 @@ def run_matrix(
     dataset_path: str | Path | None = None,
     extra_dataset_paths: list[str] | None = None,
     store_outputs: bool = True,
+    heldout_families: set[str] | None = None,
+    run_id: str | None = None,
+    completed: set[tuple[str, int, str]] | None = None,
+    on_outcome: Callable[[CaseOutcome], None] | None = None,
+    on_start: Callable[[dict], None] | None = None,
 ) -> RunResult:
-    run_id = uuid.uuid4().hex[:12]
+    """Run every (experiment, trial, case). `completed` holds (experiment, trial, case_id) keys to
+    skip when resuming; `on_outcome` is called after each case so callers can checkpoint."""
+    run_id = run_id or uuid.uuid4().hex[:12]
+    completed = completed or set()
     validator = OutputValidator()
     result = RunResult(metadata={
         "run_id": run_id,
@@ -144,9 +154,14 @@ def run_matrix(
                     "n_cases": len(cases),
                     "extra_files": {str(p): dataset_sha256(p) for p in extra_dataset_paths or []}},
         "repetitions": repetitions,
+        "heldout_families": sorted(heldout_families or []),
         "configs": {name: cfg.model_dump() for name, cfg in configs.items()},
         "evidence_status": evidence_status(llm.is_mock, {c.provenance for c in cases}),
     })
+    unavailable = {n: r for n, c in configs.items() if (r := experiment_unavailable_reason(c, classifier))}
+    result.metadata["unavailable_experiments"] = unavailable
+    if on_start:
+        on_start(result.metadata)
     for name, config in configs.items():
         if reason := experiment_unavailable_reason(config, classifier):
             result.unavailable[name] = reason
@@ -154,10 +169,15 @@ def run_matrix(
         pipeline = DefensePipeline(llm, config, classifier=classifier if config.classifier else None)
         for trial in range(repetitions):
             for case in cases:
-                result.outcomes.append(run_case(
+                if (name, trial, case.case_id) in completed:
+                    continue
+                outcome = run_case(
                     case, pipeline, run_id=run_id, experiment=name, trial=trial,
                     validator=validator, store_outputs=store_outputs,
-                ))
+                )
+                result.outcomes.append(outcome)
+                if on_outcome:
+                    on_outcome(outcome)
     result.metadata["unavailable_experiments"] = result.unavailable
     return result
 

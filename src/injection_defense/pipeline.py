@@ -124,10 +124,15 @@ class DefensePipeline:
         summary: str | None = None,
         validation: ValidationResult | None = None,
     ) -> SummarizeResponse:
+        warnings = [MOCK_WARNING] if self.llm.is_mock else []
+        warnings += [f"{d.layer} layer {d.status}: {d.explanation}" for d in detections if d.status != "evaluated"]
         response = SummarizeResponse(
             request_id=request_id or uuid.uuid4().hex[:12],
             status="blocked" if blocked_by else "processed",
             blocked_by=blocked_by,
+            enforcement_decision=_decision(blocked_by, detections, validation),
+            layers_run=[k for k in timings if k != "generation"],
+            reached_model="generation" in timings,
             summary=summary,
             defenses=self.config,
             detections=detections,
@@ -136,15 +141,26 @@ class DefensePipeline:
             model_calls=calls,
             latency_ms=_ms(started),
             timings_ms=timings,
-            warnings=[MOCK_WARNING] if self.llm.is_mock else [],
+            warnings=warnings,
         )
         # Metadata only: never the document or the summary text.
         logger.info(
-            "request_id=%s status=%s blocked_by=%s config=%s model=%s mock=%s calls=%d latency_ms=%.1f",
-            response.request_id, response.status, blocked_by, self.config.name,
+            "request_id=%s status=%s decision=%s blocked_by=%s config=%s layers=%s model=%s mock=%s calls=%d latency_ms=%.1f",
+            response.request_id, response.status, response.enforcement_decision, blocked_by,
+            self.config.name, ",".join(response.layers_run) or "-",
             self.llm.model_name, self.llm.is_mock, calls, response.latency_ms,
         )
         return response
+
+
+def _decision(
+    blocked_by: str | None, detections: list[DetectionResult], validation: ValidationResult | None
+) -> str:
+    if blocked_by:
+        return "block"
+    flagged = any(d.policy_action in ("flagged_only", "sanitized", "ignored_error") for d in detections)
+    reviewed = validation is not None and validation.outcome in ("indicator_matched", "needs_review")
+    return "warn" if flagged or reviewed else "allow"
 
 
 def _ms(since: float) -> float:

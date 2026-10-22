@@ -14,6 +14,13 @@ def _fmt(rate: RateResult) -> str:
     return "n/a (0 evaluated)" if rate.percent is None else f"{rate.percent:.1f}% ({rate.numerator}/{rate.denominator})"
 
 
+def _bounds(outcomes: list[CaseOutcome]) -> str:
+    b = m.asr_sensitivity(outcomes)
+    if b.lower is None:
+        return "n/a"
+    return f"{100 * b.lower:.1f}-{100 * b.upper:.1f}% (all {b.n_attacks} attacks)"
+
+
 def summary_table(
     by_experiment: dict[str, list[CaseOutcome]], heldout_families: set[str] | None = None
 ) -> pd.DataFrame:
@@ -27,6 +34,7 @@ def summary_table(
             "experiment": name,
             "ASR": _fmt(asr),
             "ASR_unknown": asr.unknown,
+            "ASR_bounds": _bounds(outcomes),
             "detection_rate": _fmt(m.detection_rate(outcomes)),
             "FPR": _fmt(m.false_positive_rate(outcomes)),
             "benign_blocked": _fmt(m.benign_block_rate(outcomes)),
@@ -35,6 +43,8 @@ def summary_table(
             "median_ms": None if ops.median_ms is None else round(ops.median_ms, 2),
             "p95_ms": ops.p95_ms if ops.p95_ms is None else round(ops.p95_ms, 2),
             "model_calls": None if ops.mean_model_calls is None else round(ops.mean_model_calls, 2),
+            "model_failures": _fmt(m.technical_failure_rate(outcomes)),
+            "detector_failures": m.detector_failure_count(outcomes),
         }
         if heldout_families:
             gap = m.generalization_gap(familiar, heldout)

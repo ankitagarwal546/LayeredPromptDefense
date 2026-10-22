@@ -2,11 +2,13 @@
 
 from __future__ import annotations
 
+from pathlib import Path
 from typing import Literal
 
 from pydantic import BaseModel, SecretStr
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
+REPO_ROOT = Path(__file__).resolve().parents[2]
 MAX_DOCUMENT_CHARS = 50_000
 MAX_INSTRUCTION_CHARS = 1_000
 
@@ -31,6 +33,9 @@ class Settings(BaseSettings):
     classifier_model: str = ""
     classifier_api_key: SecretStr | None = None
     classifier_base_url: str = ""
+
+    data_dir: Path = REPO_ROOT / "data"
+    results_dir: Path = REPO_ROOT / "results"
 
     default_model_mode: Literal["mock", "real"] = "mock"
     default_defense_preset: str = "E4"

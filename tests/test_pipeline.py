@@ -118,3 +118,33 @@ def test_response_records_timings_and_defense_config():
 def test_structural_variant_is_selectable_per_config():
     _, llm = run(DefenseConfig(structural=True, structural_variant="v1"), BENIGN)
     assert "UNTRUSTED_DOCUMENT_" in llm.prompts[0].user
+
+
+def test_decision_allow_for_clean_input_and_records_layers():
+    response, _ = run(get_preset("E4"), BENIGN)
+    assert response.enforcement_decision == "allow" and response.reached_model is True
+    assert response.layers_run == ["heuristic"]  # structural is a prompt change, not a timed layer
+
+
+def test_decision_block_means_no_model_reached():
+    response, _ = run(get_preset("E1"), ATTACK)
+    assert response.enforcement_decision == "block" and response.reached_model is False
+    assert response.layers_run == ["heuristic"]
+
+
+def test_decision_warn_when_flagged_but_processed():
+    response, _ = run(DefenseConfig(heuristic=True, heuristic_policy="flag_only"), ATTACK)
+    assert response.enforcement_decision == "warn" and response.reached_model is True
+    sanitized, _ = run(get_preset("E1b"), ATTACK)
+    assert sanitized.enforcement_decision == "warn"
+
+
+def test_decision_warn_and_warning_text_when_a_detector_is_unavailable():
+    response, _ = run(get_preset("E3"), BENIGN, classifier=UnavailableClassifier("not configured"))
+    assert response.enforcement_decision == "warn"
+    assert any("classifier layer unavailable" in w for w in response.warnings)
+
+
+def test_baseline_runs_no_layers_and_allows():
+    response, _ = run(get_preset("E0"), ATTACK)
+    assert response.layers_run == [] and response.enforcement_decision == "allow"
