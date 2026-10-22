@@ -1,0 +1,100 @@
+# Research Plan
+
+Status: **plan and hypotheses only. No findings yet.**
+
+## Working title
+
+Evaluating Layered Defenses Against Indirect Prompt Injection in LLM-Based Document Summarization
+
+## Motivation
+
+LLM applications ingest untrusted documents, emails and web pages. Instructions and data share
+one natural-language context, so text inside a document can be treated as a command. For a
+summarizer the harm is a corrupted or attacker-controlled output (and potentially leaked
+configuration), not tool misuse; this makes it a tractable, well-scoped setting.
+
+## Problem statement
+
+Given a summarizer that must treat document text as data, how much do individual and combined
+defenses reduce the success of embedded instructions, what do they cost in legitimate
+performance and latency, and do they hold up on attack families not used during development?
+
+## Central research question
+
+To what extent can layered defenses reduce indirect prompt injection success in an LLM-based
+document summarization system while preserving legitimate task performance and generalizing to
+previously unseen attack techniques?
+
+## Sub-questions
+
+- **RQ1** Baseline vulnerability of the undefended model (E0).
+- **RQ2** Effectiveness of individual defenses (E1, E2, E3).
+- **RQ3** Whether combinations beat individuals (E4, E5).
+- **RQ4** False positives on legitimate content, including hard negatives that discuss or quote attacks.
+- **RQ5** Generalization to held-out attack families.
+- **RQ6** Latency and extra model calls.
+
+## Working hypotheses (untested)
+
+- H1: The undefended model follows a non-trivial fraction of embedded instructions; rate varies by model and family.
+- H2: Heuristics have low ASR on familiar families but a large positive generalization gap (obfuscated/multilingual/distributed evade rules) and non-zero FPR on security-themed benign text.
+- H3: Structural separation lowers ASR for some models/families but not to zero.
+- H4: A model classifier generalizes better than rules but adds a model call and is itself injectable.
+- H5: Combinations reduce ASR further than any single layer, at a cost in FPR/latency; the gain may be smaller than the sum of parts because failures correlate.
+
+Hypotheses may be falsified; report either outcome.
+
+## Existing work to investigate
+
+Verified bibliographic details (checked against arXiv abstract pages):
+
+- Perez, F., Ribeiro, I. *Ignore Previous Prompt: Attack Techniques For Language Models.* arXiv:2211.09527 (2022). https://arxiv.org/abs/2211.09527
+- Greshake, K., Abdelnabi, S., Mishra, S., Endres, C., Holz, T., Fritz, M. *Not what you've signed up for: Compromising Real-World LLM-Integrated Applications with Indirect Prompt Injection.* arXiv:2302.12173 (2023). https://arxiv.org/abs/2302.12173
+- Liu, Y., Jia, Y., Geng, R., Jia, J., Gong, N. Z. *Formalizing and Benchmarking Prompt Injection Attacks and Defenses.* USENIX Security 2024; arXiv:2310.12815. https://arxiv.org/abs/2310.12815
+- Yi, J., Xie, Y., Zhu, B., Kiciman, E., Sun, G., Xie, X., Wu, F. *Benchmarking and Defending Against Indirect Prompt Injection Attacks on Large Language Models* (BIPIA). arXiv:2312.14197; KDD 2025. https://arxiv.org/abs/2312.14197
+- Hines, K., Lopez, G., Hall, M., Zarfati, F., Zunger, Y., Kiciman, E. *Defending Against Indirect Prompt Injection Attacks With Spotlighting.* arXiv:2403.14720 (2024). https://arxiv.org/abs/2403.14720
+- Wallace, E., Xiao, K., Leike, R., Weng, L., Heidecke, J., Beutel, A. *The Instruction Hierarchy: Training LLMs to Prioritize Privileged Instructions.* arXiv:2404.13208 (2024). https://arxiv.org/abs/2404.13208
+- Debenedetti, E., Zhang, J., Balunović, M., Beurer-Kellner, L., Fischer, M., Tramèr, F. *AgentDojo: A Dynamic Environment to Evaluate Prompt Injection Attacks and Defenses for LLM Agents.* arXiv:2406.13352 (2024). https://arxiv.org/abs/2406.13352
+
+To read in full before citing claims from them (only abstracts were checked): what each
+reports about delimiter-style defenses, detection-based defenses, and generalization. Add
+further related work (e.g. trained detectors, adaptive-attack studies) only after verifying it.
+
+### Candidate evaluation resources
+
+- **BIPIA** (github.com/microsoft/BIPIA): benchmark of instructions embedded in external
+  content across five tasks (web QA, email QA, table QA, summarization, code QA). Closest match
+  to this threat model. Per its README, some task data (web QA, summarization) cannot be
+  redistributed and must be rebuilt locally under the sources' terms; code license is in its
+  LICENSE file. Action: read the README and licenses, then decide what to reuse.
+- **AgentDojo** (github.com/ethz-spylab/agentdojo, MIT): tasks for *tool-using agents*
+  (email, banking, travel...) with injection test cases. Our system has no tools, so it is
+  mostly outside scope; useful for attack ideas and as related work, not as a drop-in benchmark.
+
+## Expected contribution (modest, to be earned)
+
+Not a new defense. A reproducible, family-held-out comparison of simple layered defenses on a
+summarization task, reporting security, false positives, utility, generalization gap and cost
+together, with explicit denominators and intervals, plus open tooling. Novelty is not claimed.
+
+## Methodology and metrics
+
+See EXPERIMENT_PROTOCOL.md (configurations, splits, metric definitions, evidence labelling).
+
+## Limitations
+
+Small, partly synthetic datasets; few models; non-adaptive attackers; lexical output scoring
+(manual adjudication needed); text-only input; no hidden-text attacks; defenses depend on the
+tested model's behavior; results are not guarantees.
+
+## One-week roadmap
+
+| Day | Goal |
+|---|---|
+| 1 | Foundation: repo, pipeline, mock, heuristic, structural, metrics, tests (**done**) |
+| 2 | Choose a real model + key; run E0 on dev fixtures; fix scoring problems; read BIPIA, check license/availability |
+| 3 | Build dev + held-out attack sets (templates grouped by family; hard-negative benign set); freeze held-out |
+| 4 | Configure the prompt classifier (E3/E5); tune rules/prompts on dev only |
+| 5 | Final runs E0-E5 on held-out; repetitions; manual adjudication of `needs_review` |
+| 6 | Analysis: tables, plots, intervals, gap, latency; failure-case analysis |
+| 7 | Write-up; limitations; polish README; optional PDF/DOCX text extraction |

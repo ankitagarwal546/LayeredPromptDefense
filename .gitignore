@@ -1,0 +1,32 @@
+# Secrets and local configuration -- never commit real credentials
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+
+# Python
+.venv/
+venv/
+__pycache__/
+*.py[cod]
+*.egg-info/
+build/
+dist/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+
+# Generated experiment artifacts (may contain model outputs)
+results/*
+!results/.gitkeep
+runs/
+*.log
+
+# Editor / OS
+.DS_Store
+.idea/
+.vscode/
+.claude/settings.local.json
