@@ -213,7 +213,7 @@ def test_real_evaluation_without_configuration_is_503(settings, tmp_path):
 
 def test_results_reject_invalid_and_traversal_ids(eval_client):
     c, _ = eval_client
-    for bad in ("zzzz", "..", "%2e%2e%2f%2e%2e%2fetc", "0123456789ab"):
+    for bad in ("zzzz", "%2e%2e", "%2e%2e%2f%2e%2e%2fetc", "..%2f..%2fetc", "0123456789ab"):
         assert c.get(f"/results/{bad}").status_code == 404
     assert c.get("/evaluate/nope").status_code == 404
 

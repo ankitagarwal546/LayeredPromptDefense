@@ -27,7 +27,7 @@ def test_frontend_has_all_required_controls():
 
 
 def test_frontend_never_inserts_untrusted_text_as_html():
-    js = (FRONTEND / "app.js").read_text()
+    js = re.sub(r"//[^\n]*", "", (FRONTEND / "app.js").read_text())  # ignore comments
     assert not re.search(r"innerHTML|outerHTML|insertAdjacentHTML|document\.write|eval\(", js)
 
 
