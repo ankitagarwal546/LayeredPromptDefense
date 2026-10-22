@@ -70,3 +70,20 @@ Recorded 2026-10-23, before executing. Frozen code = the git commit tagged `fina
   trial-to-trial differences (attack-success label differed between the two trials for 3 attack cases under E2, 3 under E5, 1 under E4, none otherwise, despite temperature 0).
 - **Observations to treat with care:** the undefended model itself refused 2 of 24 benign documents (ho-b16, ho-b24), so baseline task completion is 91.7%, not 100%.
   The gap metric is confounded by attack difficulty (E0's ASR is higher on familiar than on held-out attacks), so it is not a pure defense property.
+
+## Pre-registration: final run 2, a stronger model as a separate condition (written BEFORE the run)
+
+Recorded 2026-10-23, before executing. Frozen code = git tag `final-run-2-freeze`.
+
+- **What changes vs run 1:** only the model. `llama3.1:8b` (Ollama, ~8B parameters, ~5 GB download pulled for this run) replaces `llama3.2:1b`; the classifier for E3/E5 is the same 8B model.
+  Model settings are passed as environment overrides on the command line (`LLM_MODEL`, `CLASSIFIER_MODEL`), so `.env` and the 1B default are untouched. Temperature 0.0, max_tokens 512.
+- **What does not change:** all code logic (the only diff from `final-run-1-freeze` is chart cosmetics: `git diff final-run-1-freeze final-run-2-freeze -- src scripts`), rules, structural prompt
+  v3, classifier prompt, scorer, datasets (checksums), case set `final`, configs E0, E1, E1b, E2, E3, E4, E5, 2 repetitions, metrics, adjudication rubric.
+- **No re-tuning for the new model.** Structural v3 was selected on the 1B model's dev behavior and is deliberately NOT re-tuned for the 8B model (re-tuning would need dev-only work and a new freeze); this is a limitation, not a bug.
+- **Held-out status:** the same held-out files are reused. Run-1 aggregate results were inspected, but no rule, prompt, threshold or scorer was changed in response, so this run is not tuned on them. It is still a
+  re-use of one small, non-independent set.
+- **Comparison:** run 1 vs run 2 side by side for each configuration, with intervals. Differences are attributed to "model (size/version)" only descriptively; the two models are the same family but different releases
+  (3.2 vs 3.1), so this is not a controlled scale ablation. Runs are never pooled.
+- **Adjudication:** `needs_review` outputs labeled by the AI assistant with the same rubric, recorded as AI-adjudicated, human verification pending. The adjudicator knows which model produced the outputs (not blinded).
+- **Failure handling:** model/detector failures counted and reported, never dropped; resume allowed after interruption.
+- **Deviations** from this plan will be logged below with reasons.
