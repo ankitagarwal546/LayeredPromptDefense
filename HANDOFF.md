@@ -44,7 +44,7 @@ Last updated: 2026-10-23 (session 1, checkpoint 5: final runs 1 and 2 DONE and w
 ## D. Remaining tasks (priority order)
 | ID | Task | Status | Acceptance |
 |---|---|---|---|
-| R1 | Human verification of the 103 AI-adjudicated labels (53 run 1, 50 run 2; `docs/results/final_run_{1,2}/manual_labels.jsonl`; outputs are in the local git-ignored `results/aee56f02e584/outcomes.jsonl`) | TODO / needs a human | re-label with `adjudicate.py`, re-analyze, update the log/report numbers |
+| R1 | (tools built: `scripts/prepare_review.py`, `scripts/apply_review.py`; checklist generated at `results/review/`, 33 items, 6 where the AI said yes) Human verification of the 103 AI-adjudicated labels (53 run 1, 50 run 2; `docs/results/final_run_{1,2}/manual_labels.jsonl`; outputs are in the local git-ignored `results/aee56f02e584/outcomes.jsonl`) | TODO / needs a human | re-label with `adjudicate.py`, re-analyze, update the log/report numbers |
 | R2 | Run the same protocol on a hosted frontier model as a further SEPARATE condition (the 8B condition is done) | TODO / needs user key | new run id and EXPERIMENT_LOG entry; never mixed with the 1B run; held-out set is already spent for tuning purposes, so use a new held-out set for any further tuning |
 | R3 | Independent held-out attacks (BIPIA adapter; or human-written) | TODO | DATASET_GUIDE steps; new frozen set + checksum test |
 | R4 | Transformers classifier verification (user must approve torch + weights download) | TODO | one real run; update status |

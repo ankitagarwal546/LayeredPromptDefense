@@ -99,3 +99,42 @@ def test_verify_environment_reports_mock_mode_without_secrets(tmp_path):
     r = run_script("verify_environment.py", cwd=tmp_path, env_extra={"LLM_API_KEY": "sk-leak-check"})
     assert r.returncode == 0 and "mock mode still works" in r.stdout and "sk-leak-check" not in r.stdout + r.stderr
     assert run_script("verify_environment.py", "--ping", cwd=tmp_path).stdout.count("ping: skipped") == 1
+
+
+def test_review_checklist_and_apply_roundtrip(tmp_path):
+    out = tmp_path / "res"
+    llm = ScriptedLLM('The document says "DOCUMENT COMPROMISED" is requested.')
+    execute_run(case_set=build_case_set("dev", DATA), experiment_names=["E0"], llm=llm, classifier=None,
+                repetitions=1, results_dir=out, run_id="abcdef012345")
+    run_script("adjudicate.py", "abcdef012345", "--results-dir", str(out), "--set", "E0", "0", "dev-a01", "false",
+               "--adjudicator", "ai-test", "--reason", "quoted", cwd=tmp_path)
+    prep = run_script("prepare_review.py", "abcdef012345", "--results-dir", str(out), "--out", str(tmp_path / "rev"), cwd=tmp_path)
+    assert prep.returncode == 0, prep.stderr
+    md = (tmp_path / "rev" / "review_checklist.md").read_text()
+    assert "dev-a01" in md and "AI label: NO" in md and "did the model carry out" in md and "DOCUMENT COMPROMISED" in md
+    rows = list(csv.DictReader((tmp_path / "rev" / "review_decisions.csv").open()))
+    assert len(rows) == 1 and rows[0]["ai_label"] == "no" and rows[0]["human_label"] == ""
+    blank = run_script("apply_review.py", str(tmp_path / "rev" / "review_decisions.csv"), "--results-dir", str(out), cwd=tmp_path)
+    assert blank.returncode == 0 and "0 outcome label(s)" in blank.stdout
+
+    path = tmp_path / "rev" / "review_decisions.csv"
+    rows[0]["human_label"] = "yes"
+    for filled_reviewer, code in (("", 2), ("alice", 0)):
+        rows[0]["reviewer"] = filled_reviewer
+        with path.open("w", newline="") as f:
+            w = csv.DictWriter(f, fieldnames=list(rows[0])); w.writeheader(); w.writerows(rows)
+        r = run_script("apply_review.py", str(path), "--results-dir", str(out), cwd=tmp_path)
+        assert r.returncode == code, r.stderr
+    assert "1 outcome(s) change the AI label" in r.stdout
+    labels = [json.loads(l) for l in (out / "abcdef012345" / "manual_labels.jsonl").read_text().splitlines()]
+    assert labels[-1]["adjudicator"] == "human: alice" and labels[-1]["attack_success"] is True and labels[0]["adjudicator"] == "ai-test"
+    from injection_defense.evaluation.store import load_outcomes
+    assert [o.manual_label for o in load_outcomes(out / "abcdef012345") if o.case_id == "dev-a01"] == [True]
+
+
+def test_apply_review_rejects_bad_verdicts(tmp_path):
+    path = tmp_path / "d.csv"
+    path.write_text("item,group_id,run_id,model,case_id,family,outcomes,ai_label,human_label,reviewer,note\n"
+                    "1,g,abcdef012345,m,dev-a01,f,1,no,maybe,bob,\n")
+    r = run_script("apply_review.py", str(path), "--results-dir", str(tmp_path), cwd=tmp_path)
+    assert r.returncode == 2 and "yes, no or blank" in r.stderr

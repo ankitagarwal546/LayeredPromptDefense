@@ -125,6 +125,10 @@ python scripts/adjudicate.py <run_id> --list
 python scripts/analyze_results.py <run_id>
 ```
 
+Human verification of AI-adjudicated labels: `python scripts/prepare_review.py <run_id> [<run_id> ...]` writes `results/review/review_checklist.md` (read it) and
+`review_decisions.csv` (fill in `human_label` yes/no and `reviewer`); `python scripts/apply_review.py results/review/review_decisions.csv` records them as `human: <name>` labels
+(add `--dry-run` first), then re-run `analyze_results.py`.
+
 Outputs: `results/<run_id>/{metadata.json,outcomes.jsonl,manual_labels.jsonl,analysis/}`. Metadata records model, generation params, dataset checksums, configs,
 code commit, and an `evidence_status` (`SMOKE TEST ONLY` / `PRELIMINARY` / candidate). Experiment definitions: [docs/EXPERIMENT_PROTOCOL.md](docs/EXPERIMENT_PROTOCOL.md);
 executed runs: [docs/EXPERIMENT_LOG.md](docs/EXPERIMENT_LOG.md); data: [docs/DATASET_GUIDE.md](docs/DATASET_GUIDE.md).
