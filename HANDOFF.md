@@ -1,12 +1,12 @@
 # HANDOFF.md: canonical project state
 
-Last updated: 2026-10-23 (session 1, checkpoint 4: final run 1 DONE and written up). Update at every checkpoint (see L).
+Last updated: 2026-10-23 (session 1, checkpoint 5: final runs 1 and 2 DONE and written up). Update at every checkpoint (see L).
 
 ## A. Project identity
 - **Title:** Evaluating Layered Defenses Against Indirect Prompt Injection in LLM-Based Document Summarization
 - **Objective:** working summarizer with a configurable defense pipeline + reproducible evaluation (RQ1-RQ6: `docs/RESEARCH_PLAN.md`)
 - **Repo:** `/Users/ankitagarwal546/Documents/Prompt Injection` (git, branch `master`, no remote). Tag `final-run-1-freeze` marks the frozen code for final run 1.
-- **Phase:** software complete; final run 1 done, analyzed, logged, reported (preliminary). Next: stronger model, independent data, human adjudication.
+- **Phase:** software complete; final runs 1 (1B) and 2 (8B) done, analyzed, logged, reported (preliminary). Next: hosted model, independent data, human adjudication.
 
 ## B. Current status
 
@@ -30,6 +30,7 @@ Last updated: 2026-10-23 (session 1, checkpoint 4: final run 1 DONE and written 
 | Trained classifier (training script) | BLOCKED | no reviewed dataset/licence; no torch; documented in DATASET_GUIDE |
 | Docs: THREAT_MODEL, RESEARCH_PLAN, ARCHITECTURE, PROTOCOL, DATASET_GUIDE, SECURITY_LIMITATIONS, DEV_LOG, EXPERIMENT_LOG | DONE (EXPERIMENT_LOG has pre-registration; run results pending) | |
 | `docs/FINAL_REPORT.md` | DONE (preliminary; sections 5 and 17 marked incomplete) | every number from run `aee56f02e584` |
+| Final run 2 (same, llama3.1:8b; pre-registered, tag `final-run-2-freeze`) | DONE | run `b507b975ae1f`, 826 outcomes, 0 failures; artifacts in `docs/results/final_run_2/` |
 | Final run 1 (E0,E1,E1b,E2,E3,E4,E5; final case set; 2 reps; llama3.2:1b) | DONE | run `aee56f02e584`, 826 outcomes, 0 failures; artifacts in `docs/results/final_run_1/` |
 | Independent held-out data (e.g. BIPIA) | TODO / BLOCKED on data access | steps in DATASET_GUIDE |
 | Human adjudication, human utility ratings | TODO | needs a human |
@@ -43,8 +44,8 @@ Last updated: 2026-10-23 (session 1, checkpoint 4: final run 1 DONE and written 
 ## D. Remaining tasks (priority order)
 | ID | Task | Status | Acceptance |
 |---|---|---|---|
-| R1 | Human verification of the 53 AI-adjudicated labels (`docs/results/final_run_1/manual_labels.jsonl`; outputs are in the local git-ignored `results/aee56f02e584/outcomes.jsonl`) | TODO / needs a human | re-label with `adjudicate.py`, re-analyze, update the log/report numbers |
-| R2 | Run the same protocol with a stronger model (hosted key or larger Ollama model) as a SEPARATE condition | TODO / needs user | new run id and EXPERIMENT_LOG entry; never mixed with the 1B run; held-out set is already spent for tuning purposes, so use a new held-out set for any further tuning |
+| R1 | Human verification of the 103 AI-adjudicated labels (53 run 1, 50 run 2; `docs/results/final_run_{1,2}/manual_labels.jsonl`; outputs are in the local git-ignored `results/aee56f02e584/outcomes.jsonl`) | TODO / needs a human | re-label with `adjudicate.py`, re-analyze, update the log/report numbers |
+| R2 | Run the same protocol on a hosted frontier model as a further SEPARATE condition (the 8B condition is done) | TODO / needs user key | new run id and EXPERIMENT_LOG entry; never mixed with the 1B run; held-out set is already spent for tuning purposes, so use a new held-out set for any further tuning |
 | R3 | Independent held-out attacks (BIPIA adapter; or human-written) | TODO | DATASET_GUIDE steps; new frozen set + checksum test |
 | R4 | Transformers classifier verification (user must approve torch + weights download) | TODO | one real run; update status |
 | R5 | Human summary-quality ratings on a benign subset | TODO | documented rubric + saved ratings |
@@ -57,7 +58,7 @@ Note the held-out set (`data/heldout_*`) has now been used for a final run; any 
 
 ## F. Architecture and decisions (why)
 - OpenAI-compatible HTTP adapter first (Ollama/local + hosted); no vendor SDKs, no LangChain.
-- Main model: Ollama `llama3.2:1b` (free, already installed). Very weak: all findings are model-specific and PRELIMINARY. Classifier model for E3/E5: same model.
+- Models: Ollama `llama3.2:1b` (run 1) and `llama3.1:8b` (run 2, ~4.9 GB pulled; selected per run via `LLM_MODEL`/`CLASSIFIER_MODEL` env overrides, `.env` stays on 1B). Findings are model-specific and PRELIMINARY; classifier = the same model as the summarizer in each run. Structural v3 and the classifier prompt were developed on the 1B model and not re-tuned for 8B.
 - Detection vs policy separated; enforcement decision reported (allow/warn/block); `flag_only` = warn.
 - **Oracle leakage rule:** pipeline gets no ground-truth criteria; the runner scores afterwards; E5 excludes L4.
 - Structural prompt versions: v1 (original, byte-stable), v2, v3 (default; chosen on dev by a pre-set rule; fixed v1's over-refusal but showed no ASR benefit on the 1B model).
@@ -82,7 +83,7 @@ The built-in preview launcher did not work for the server; run uvicorn directly 
 
 ## I. Research and experimental state
 Datasets: dev 18, held-out attacks 24, held-out benign 24 (all project-authored synthetic; see DATASET_GUIDE). External benchmark: none integrated (BIPIA investigated: summarization contexts must be built locally from XSum; AgentDojo is agent-focused).
-Experiments completed with held-out data: final run 1 (see EXPERIMENT_LOG: ASR E0 34.3%, E1 11.4%, E2 41.4%, E3 34.3%, E4 21.4%, E5 21.4%; heuristic detection 72.7% familiar vs 8.3% held-out). Result locations: `results/<run_id>/` (git-ignored). Limitations: small n, non-independent held-out, 1B model, lexical scoring, keyword utility proxy.
+Experiments completed with held-out data: final runs 1 and 2 (run 2 8B: ASR E0 48.6%, E1 28.6%, E2 18.6%, E3 20.0%, E4 8.6%, E5 10.0%; 8B classifier FPR 0/48; see EXPERIMENT_LOG and FINAL_REPORT). Run 1 (1B): ASR E0 34.3%, E1 11.4%, E2 41.4%, E3 34.3%, E4 21.4%, E5 21.4%; heuristic detection 72.7% familiar vs 8.3% held-out). Result locations: `results/<run_id>/` (git-ignored). Limitations: small n, non-independent held-out, 1B model, lexical scoring, keyword utility proxy.
 
 ## J. Problems and blockers
 - Findings are specific to a 1B local model and project-authored data (held-out authored by the same AI as the rules).
