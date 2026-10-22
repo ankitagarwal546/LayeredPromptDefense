@@ -148,3 +148,14 @@ def test_run_writer_rejects_path_like_ids(tmp_path):
     for bad in ("../x", "abc", "ABCDEFABCDEF"):
         with pytest.raises(ValueError):
             RunWriter(tmp_path, bad)
+
+
+def test_run_metadata_records_the_code_version(tmp_path):
+    from injection_defense.evaluation.execute import git_state
+
+    meta = json.loads((run(tmp_path) / "metadata.json").read_text())
+    assert "code" in meta  # {"commit", "dirty"} inside the repo; None elsewhere
+    state = git_state(tmp_path)  # tmp_path is not a git repository
+    assert state is None
+    inside = git_state()
+    assert inside is None or (len(inside["commit"]) == 40 and isinstance(inside["dirty"], bool))

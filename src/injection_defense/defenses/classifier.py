@@ -30,8 +30,6 @@ merely discusses prompt injection, or ordinary instructions to human readers, is
 Respond with one JSON object and nothing else:
 {"suspicious": true or false, "confidence": number from 0 to 1, "explanation": "one short sentence"}"""
 
-_JSON_OBJECT = re.compile(r"\{.*\}", re.DOTALL)
-
 
 class _Verdict(BaseModel):
     suspicious: bool
@@ -69,13 +67,15 @@ class PromptClassifier(Detector):
 
     @staticmethod
     def _parse(raw: str) -> _Verdict | None:
-        found = _JSON_OBJECT.search(raw)
-        if not found:
-            return None
-        try:
-            return _Verdict.model_validate(json.loads(found.group(0)))
-        except (ValueError, ValidationError):
-            return None
+        """First complete JSON object in the reply; trailing text (even a stray brace) is ignored."""
+        decoder = json.JSONDecoder()
+        for match in re.finditer(r"\{", raw):
+            try:
+                obj, _ = decoder.raw_decode(raw, match.start())
+                return _Verdict.model_validate(obj)
+            except (ValueError, ValidationError):
+                continue
+        return None
 
     def _error(self, message: str, calls: int) -> DetectionResult:
         return DetectionResult(

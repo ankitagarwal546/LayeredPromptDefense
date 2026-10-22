@@ -280,3 +280,12 @@ def test_transformers_provider_is_unavailable_without_a_model_or_library(setting
     clf2 = create_classifier(s2)  # transformers is not installed in this environment
     assert isinstance(clf2, UnavailableClassifier)
     assert clf2.detect("x").status == "unavailable"
+
+
+def test_classifier_parser_accepts_the_first_json_object_and_ignores_trailing_junk():
+    llm = ScriptedLLM('{"suspicious": true, "confidence": 0.8, "explanation": "x"}}')  # stray brace
+    result = PromptClassifier(llm).detect("t")
+    assert result.status == "evaluated" and result.flagged is True and result.score == 0.8
+    skip = ScriptedLLM('Analysis {not json} then {"suspicious": false, "confidence": 0.1} bye')
+    assert PromptClassifier(skip).detect("t").flagged is False
+    assert PromptClassifier(ScriptedLLM("{}")).detect("t").status == "error"   # missing fields

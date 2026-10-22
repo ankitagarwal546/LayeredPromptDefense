@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import subprocess
 import uuid
 from collections.abc import Callable
 from datetime import datetime, timezone
@@ -13,6 +14,23 @@ from injection_defense.evaluation.registry import CaseSet
 from injection_defense.evaluation.runner import run_matrix
 from injection_defense.evaluation.store import RunWriter
 from injection_defense.llm.base import LLMClient
+
+
+def git_state(repo: Path | None = None) -> dict | None:
+    """Commit and dirty flag of the code that produced a run (None outside a git checkout)."""
+    cwd = repo or Path(__file__).resolve().parents[3]
+
+    def git(*args: str) -> str | None:
+        try:
+            done = subprocess.run(["git", *args], cwd=cwd, capture_output=True, text=True, timeout=10)
+        except (OSError, subprocess.SubprocessError):
+            return None
+        return done.stdout.strip() if done.returncode == 0 else None
+
+    commit = git("rev-parse", "HEAD")
+    if commit is None:
+        return None
+    return {"commit": commit, "dirty": bool(git("status", "--porcelain"))}
 
 
 def resolve_configs(names: list[str]):
@@ -61,7 +79,7 @@ def execute_run(
             old.setdefault("resumed_at", []).append(datetime.now(timezone.utc).isoformat(timespec="seconds"))
             writer.write_metadata(old)
         else:
-            writer.write_metadata(metadata)
+            writer.write_metadata({**metadata, "code": git_state()})
 
     first, *rest = case_set.files
     result = run_matrix(
