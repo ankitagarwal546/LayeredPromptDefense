@@ -1,0 +1,91 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Prompt-Injection Defense Lab</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <header>
+    <h1>Prompt-Injection Defense Lab</h1>
+    <p class="sub">Research prototype: compare an undefended summarizer with layered defenses. Defenses reduce risk; none guarantees safety.</p>
+    <nav>
+      <button class="tab active" data-tab="summarize">Summarize</button>
+      <button class="tab" data-tab="results">Evaluation results</button>
+    </nav>
+  </header>
+
+  <main>
+    <section id="tab-summarize" class="tabpane">
+      <div class="grid">
+        <form id="form" class="card" autocomplete="off">
+          <h2>Input</h2>
+          <label for="doc">Document text</label>
+          <textarea id="doc" rows="12" placeholder="Paste text here, or upload a file below"></textarea>
+          <div class="row">
+            <input id="file" type="file" accept=".txt,.md,.pdf,.docx">
+            <span id="doc-count" class="muted"></span>
+          </div>
+          <div id="extract-note" class="note hidden"></div>
+
+          <label for="instruction">Instruction</label>
+          <input id="instruction" type="text" value="Summarize this document.">
+
+          <h2>Model</h2>
+          <select id="model">
+            <option value="mock">Mock model (development stub, not a real LLM)</option>
+            <option value="real" id="real-option">Real model</option>
+          </select>
+          <div id="model-note" class="note"></div>
+
+          <h2>Defenses</h2>
+          <div class="row">
+            <label for="preset">Preset</label>
+            <select id="preset"></select>
+          </div>
+          <fieldset>
+            <label class="check"><input type="checkbox" id="d-heuristic"> L1 Heuristic detection</label>
+            <select id="p-heuristic" aria-label="Heuristic policy"></select>
+            <label class="check"><input type="checkbox" id="d-classifier"> L2 Model classifier <span id="clf-state" class="muted"></span></label>
+            <select id="p-classifier" aria-label="Classifier policy"></select>
+            <label class="check"><input type="checkbox" id="d-structural"> L3 Structural separation</label>
+            <select id="p-variant" aria-label="Prompt wording version"></select>
+            <label class="check"><input type="checkbox" id="d-output"> L4 Output validation <span class="muted">(needs criteria; not evaluated here)</span></label>
+            <label class="check"><input type="checkbox" id="d-failclosed"> Block if a detector fails or is unavailable</label>
+          </fieldset>
+          <label class="check"><input type="checkbox" id="compare"> Compare with the undefended baseline (E0)</label>
+          <button type="submit" id="submit">Summarize</button>
+        </form>
+
+        <div>
+          <div id="error" class="error hidden" role="alert"></div>
+          <div id="results" class="results"></div>
+        </div>
+      </div>
+    </section>
+
+    <section id="tab-results" class="tabpane hidden">
+      <div class="card">
+        <h2>Run an evaluation</h2>
+        <div class="row wrap">
+          <label>Case set <select id="ev-set"><option value="dev">dev (tuning allowed)</option><option value="final">final (frozen held-out; use once)</option></select></label>
+          <label>Model <select id="ev-model"><option value="mock">mock (smoke test)</option><option value="real">real</option></select></label>
+          <label>Repetitions <input id="ev-reps" type="number" min="1" max="5" value="1"></label>
+        </div>
+        <div id="ev-exps" class="row wrap"></div>
+        <button id="ev-run" type="button">Run evaluation</button>
+        <div id="ev-status" class="note hidden"></div>
+      </div>
+      <div class="card">
+        <h2>Saved runs</h2>
+        <button id="runs-refresh" type="button" class="secondary">Refresh</button>
+        <div id="runs"></div>
+      </div>
+      <div id="run-detail"></div>
+    </section>
+  </main>
+  <footer class="muted">Results shown here come only from saved runs. Mock-model and development-fixture runs are labeled and are not evidence about real LLM security.</footer>
+  <script src="app.js"></script>
+</body>
+</html>

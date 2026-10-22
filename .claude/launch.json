@@ -1,0 +1,11 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "injection-defense-api",
+      "runtimeExecutable": "/Users/ankitagarwal546/Documents/Prompt Injection/.venv/bin/python",
+      "runtimeArgs": ["-c", "import os, sys; sys.path.insert(0, '/Users/ankitagarwal546/Documents/Prompt Injection/src'); import uvicorn; uvicorn.run('injection_defense.api:create_app', factory=True, host='127.0.0.1', port=int(os.environ.get('PORT', '8765')))"],
+      "port": 8765
+    }
+  ]
+}
