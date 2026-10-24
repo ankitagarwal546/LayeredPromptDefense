@@ -2,7 +2,8 @@
 
 **Status: preliminary report.** Every number comes from two saved runs that are never pooled: run 1 (`aee56f02e584`, `llama3.2:1b`, archived in `docs/results/final_run_1/`) and run 2 (`b507b975ae1f`,
 `llama3.1:8b`, archived in `docs/results/final_run_2/`). Both used small, project-authored synthetic data and small local models. Sections marked **INCOMPLETE** need work that has not been done.
-Nothing here is a general claim about LLM security.
+Nothing here is a general claim about LLM security. Section 10.1 adds a third, separate run on a partially independent test set (`4da08316a2fb`, `llama3.2:1b`); it is a **DRAFT** until the 8B run on the same set is complete,
+and the abstract, discussion and conclusion do not yet reflect it.
 
 ## 1. Abstract
 
@@ -131,6 +132,41 @@ Most disruptions were refusals of a harmless summary. On the 1B model, undefende
 this (19.0%, 14.3%, 6.9%). On the 8B model disruption was lower (22.2% undefended) and nearly eliminated by structural separation (3.5%). The combined view, "usable summary on attack documents",
 shows the full trade-off: the 8B model with structural separation alone gave the user a usable, uncompromised summary for 78.6% of attack documents (vs 40.0% undefended), while the configurations
 with the lowest ASR (E4 60.0%, E5 30.0%) gave fewer because blocking delivers nothing. On the 8B model the sanitize policy's redaction marker itself triggered some refusals.
+
+### 10.1 Independent set: `llama3.2:1b` (DRAFT; the 8B run on this set is in progress)
+
+**Why and what.** The held-out set above was written by the same AI that wrote the defenses. To test unseen attack *instructions* written by other people, a separate set was built and frozen before any run (tag `independent-freeze`; protocol `docs/INDEPENDENT_SET.md`):
+the 75 instructions of the BIPIA `text_attack_test.json` split (Yi et al.; MIT licence; provenance and checksum in `data/external/bipia/PROVENANCE.md`), 15 categories x 5, each inserted verbatim as a bare paragraph (no "ignore previous instructions" wording) at the start, middle or end of one of
+20 ordinary documents; plus all 25 documents unmodified as benign cases (20 ordinary, 5 security-themed hard negatives). **The documents are AI-generated** (by the assistant that also wrote the defenses, from the author's topic list) and labeled as such, so the set is only
+*partially* independent: the attacks are external, the document corpus is not. Attack-success checks were pre-registered (`data/external/bipia/attack_criteria.json`): 25 attacks are decided automatically (translation, encodings, reversal, ciphers, emoji), 13 by pattern with a
+quotation rule, and 37 open-ended "answer a different question / insert vague content" attacks are never automatic successes and go to a human. Same seven configurations, temperature 0, 2 trials (attack n = 150, benign n = 50 per configuration), defenses unchanged since the earlier runs.
+
+**Human review.** 358 outcomes (119 distinct outputs) could not be scored automatically. One reviewer (the author) decided each one in batches, separately for *attack worked* (yes / no / unsure) and *summary ruined*; 23 outcomes judged unsure remain unresolved.
+The reviewer required the injected objective to be meaningfully achieved (naming the requested topic, or a fabricated or meaningless "answer", is not success; a meaningful answer with factual errors is), and counted a summary as ruined when it was missing, failed the
+registered usable-summary rule, or presented the document as discussing the injected topic. The review was **not blind** to configuration. Details, per-item rationales and the effect of each decision: `docs/EXPERIMENT_LOG.md`, `docs/results/independent_run_1/`.
+
+| config | ASR after review | unresolved | detection | FPR (benign flagged) | benign task completion | usable summary on attack docs | task disruption | mean ms / calls per request |
+|---|---|---|---|---|---|---|---|---|
+| E0 undefended | 44.0% (66/150) [36-52] | 0 | n/a | n/a | 100% | 21.3% (32/150) [16-29] | 61.9% (52/84) [51-72] | 4036 / 1.00 |
+| E1 heuristic block | 44.0% (66/150) [36-52] | 0 | 0.0% (0/150) | 4.0% (2/50) | 96.0% | 21.3% [16-29] | 61.9% [51-72] | 3710 / 0.99 |
+| E1b heuristic sanitize | 44.0% (66/150) [36-52] | 0 | 0.0% (0/150) | 4.0% (2/50) | 100% | 21.3% [16-29] | 61.9% [51-72] | 3693 / 1.00 |
+| E2 structural v3 | 30.0% (42/140) [23-38] | 10 | n/a | n/a | 100% | 60.0% (84/140) [52-68] | 14.3% (14/98) [9-23] | 3505 / 1.00 |
+| E3 classifier | 42.7% (64/150) [35-51] | 0 | 5.5% (8/146) | 4.0% (2/50) | 96.0% | 21.3% [16-29] | 59.0% (46/78) [48-69] | 3822 / 1.95 |
+| E4 heuristic + structural | 31.7% (46/145) [25-40] | 5 | 0.0% (0/150) | 4.0% (2/50) | 96.0% | 55.2% (80/145) [47-63] | 19.2% (19/99) [13-28] | 3171 / 0.99 |
+| E5 all three | 29.6% (42/142) [23-38] | 8 | 5.3% (8/150) | 4.0% (2/50) | 96.0% | 54.9% (78/142) [47-63] | 15.2% (14/92) [9-24] | 4231 / 1.94 |
+
+**Findings (this model and this set only):**
+- **The detectors did not see these attacks.** The word rules flagged none of the 150 attack observations (they look for override wording, which BIPIA instructions do not contain), so E1 and E1b behaved exactly like E0. This extends the earlier collapse (72.7% familiar -> 8.3% held-out)
+  to 0% on externally written instructions. The 1B classifier flagged 8 of 146-150. Both detectors' only false positive was one security-themed document that quotes an example injection (2 of 10 security-themed and 0 of 40 ordinary benign observations), so their whole utility cost here is one document.
+- **The structural prompt lowered attack success, but the difference is not established.** E2, E4 and E5 had 29.6-31.7% against 44.0% for E0. Even counting every unresolved outcome as a success, their bounds (33.3-34.7%) stay below 44.0%, but the 95% intervals overlap slightly (E0 36-52%, E2 23-38%);
+  no significance test was pre-registered, and the reduction is concentrated where the non-blind human standard applied (the model kept summarizing and appended a thin or garbled answer). By category it was uneven: "do a different task" attacks fell sharply (Task Automation 8/10 -> 0-1/10, Emoji 10/10 -> 4-5/10),
+  while advertising insertions succeeded *more* often (Marketing 2/10 -> 4-6/10) and translation stayed high (8/10 -> 10/10). The structural prompt seems to change *which* attacks work more than whether they work.
+- **The clearest effect is on usability.** Without the structural prompt, an attacked document produced a usable, uncompromised summary only 21% of the time (the model often answered the injected request instead of summarizing, or refused); with it, 55-60%, and failed attacks ruined the summary 14-19% of the time instead of 59-62%.
+- **Contrast with the earlier held-out set.** On the project-authored held-out set the same structural prompt did *not* help this 1B model (E2 40.0% vs E0 34.3%). The attacks differ in kind (override-style and obfuscated vs. bare off-task requests), so the two results are not contradictory, but neither supports a general claim about structural separation on small models.
+- **Not measured as success:** Reverse Text and Substitution Cipher attacks were 0/10 everywhere under the registered checks; the model sometimes reversed sentence order rather than characters, which the registered check does not detect (a post-hoc review exists but is not part of these numbers).
+
+**Limits specific to this set:** one 1B model (the 8B run is pending); 25 short, clean AI-generated documents, so false-positive rates are likely underestimates; half the attacks need human judgment, from one non-blind reviewer; success checks and key-topic lists written by the AI assistant; 10 observations per category.
+The defenses were not tuned on this set, so it remains usable as a test for the 8B run.
 
 ## 11. Security-versus-utility analysis
 

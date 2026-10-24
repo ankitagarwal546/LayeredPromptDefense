@@ -129,7 +129,18 @@ Human verification of AI-adjudicated labels: `python scripts/prepare_review.py <
 `review_decisions.csv` (fill in `human_label` yes/no and `reviewer`); `python scripts/apply_review.py results/review/review_decisions.csv` records them as `human: <name>` labels
 (add `--dry-run` first), then re-run `analyze_results.py`.
 
-Independent test set (BIPIA attack instructions in AI-generated benign documents, human review pending; in preparation): see [docs/INDEPENDENT_SET.md](docs/INDEPENDENT_SET.md) and [docs/INDEPENDENT_DOCS_GUIDE.md](docs/INDEPENDENT_DOCS_GUIDE.md); check your documents with `python scripts/validate_user_docs.py`.
+Independent test set (75 BIPIA attack instructions in 25 AI-generated benign documents; built and frozen at tag `independent-freeze`; protocol in [docs/INDEPENDENT_SET.md](docs/INDEPENDENT_SET.md), document schema in
+[docs/INDEPENDENT_DOCS_GUIDE.md](docs/INDEPENDENT_DOCS_GUIDE.md), `python scripts/validate_user_docs.py` checks the documents). It is used once per model, with `--case-set independent --final-ack`:
+
+```bash
+python scripts/run_experiments.py --case-set independent --final-ack --configs E0,E1,E1b,E2,E3,E4,E5 --repetitions 2 --real --yes
+```
+
+```bash
+LLM_MODEL=llama3.1:8b CLASSIFIER_MODEL=llama3.1:8b python scripts/run_experiments.py --case-set independent --final-ack --configs E0,E1,E1b,E2,E3,E4,E5 --repetitions 2 --real --yes
+```
+
+Unresolved outputs are reviewed with `python scripts/prepare_review.py <run_id> --include-unlabeled --out <folder>`, then `apply_review.py` as above, and summary disruption with `python scripts/task_disruption.py <run_id> --review <decisions csv>`.
 
 Task disruption (a separate outcome: failed attacks that still left no usable summary): `python scripts/task_disruption.py <run_id> --review docs/results/human_review_decisions.csv`.
 
@@ -152,14 +163,15 @@ Layer 4 (output validation) needs explicit criteria and acts as the evaluation s
 
 ## Current status
 
-See [HANDOFF.md](HANDOFF.md) for the authoritative, verified status. The application, API, UI, defenses, evaluation harness and CLIs are implemented and tested offline (185 tests).
+See [HANDOFF.md](HANDOFF.md) for the authoritative, verified status. The application, API, UI, defenses, evaluation harness and CLIs are implemented and tested offline (237 tests passing, 2026-10-25).
 Two pre-registered final runs are complete and written up as a **preliminary** report: [docs/FINAL_REPORT.md](docs/FINAL_REPORT.md) (run 1: `llama3.2:1b`, run 2: `llama3.1:8b`; same code, data and configs),
-with [docs/EXPERIMENT_LOG.md](docs/EXPERIMENT_LOG.md) and archived artifacts in `docs/results/final_run_{1,2}/`. The headline: which defenses helped depended strongly on the model. Not done: a hosted frontier model,
-independently sourced held-out attacks, summary-quality ratings (the 103 ambiguous outputs are human-verified by one reviewer; a post-hoc task-disruption measure is computed for both runs), per-model prompt re-tuning, a trained classifier.
+with [docs/EXPERIMENT_LOG.md](docs/EXPERIMENT_LOG.md) and archived artifacts in `docs/results/final_run_{1,2}/`. The headline: which defenses helped depended strongly on the model.
+On the **independent set**, the `llama3.2:1b` run is complete and human-reviewed (`docs/results/independent_run_1/`; draft report section in FINAL_REPORT); the `llama3.1:8b` run is in progress.
+Not done: a hosted frontier model, summary-quality ratings, a second (blinded) human reviewer, per-model prompt re-tuning, a trained classifier, a full literature review.
 
 ## Known limitations
 
-Small project-authored datasets (the held-out set is not independent of the rules' author); one weak local model; lexical attack scoring with manual review for
+Small datasets: the held-out set is not independent of the rules' author, and the independent set uses external attack instructions but AI-generated benign documents; two small local models of one family; lexical attack scoring with manual review (one reviewer) for
 ambiguous cases; keyword heuristics miss paraphrase/encoding/other languages; delimiters are advisory; hidden-text, metadata and multi-turn attacks are out of scope
 and not detected. See [docs/SECURITY_LIMITATIONS.md](docs/SECURITY_LIMITATIONS.md).
 
