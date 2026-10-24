@@ -1,7 +1,6 @@
 # Independent evaluation set: design and pre-registration
 
-Status: **protocol committed 2026-10-24, before any independent document was written and before any independent run.** It becomes binding when the git tag `independent-freeze`
-is created (after the set is built and checksummed). Anything that changes after the tag must be logged in `docs/EXPERIMENT_LOG.md` with the reason.
+Status: **protocol committed 2026-10-24, before the documents existed and before any independent run; set built and frozen on 2026-10-24 (tag `independent-freeze`, checksums in `data/independent/independent.sha256`).** The protocol is now binding. Anything that changes after the tag must be logged in `docs/EXPERIMENT_LOG.md` with the reason.
 
 ## Why this set exists
 
