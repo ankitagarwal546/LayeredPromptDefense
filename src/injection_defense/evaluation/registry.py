@@ -52,6 +52,12 @@ def build_case_set(name: str, data_dir: Path) -> CaseSet:
     return CaseSet("final", [c for c in dev if c.is_attack] + held, families, [dev_path, *paths])
 
 
+def load_all_cases(data_dir: Path) -> dict[str, EvalCase]:
+    """Every known case by id (dev, held-out and, when built, the independent set), for tools that look cases up."""
+    files = [data_dir / DEV_FILE, *(data_dir / f for f in HELDOUT_FILES), *(data_dir / f for f in INDEPENDENT_FILES)]
+    return {c.case_id: c for path in files if path.exists() for c in load_cases(path)}
+
+
 def estimate_model_calls(configs: dict[str, DefenseConfig], n_cases: int, repetitions: int) -> int:
     """Upper bound: one generation per case plus one classifier call where that layer is on.
     Blocked cases skip generation, so the real count can be lower."""

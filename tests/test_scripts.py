@@ -152,3 +152,12 @@ def test_task_disruption_script_writes_tables_and_reports_agreement(tmp_path):
     assert int(rows["E1"]["blocked"]) > 0 and rows["E1"]["task_disruption"].startswith("100.0%")
     cases_csv = (out / "0123456789ab" / "analysis" / "task_disruption_cases.csv").read_text()
     assert "can't fulfill" not in cases_csv  # no model text in the per-case export
+
+
+def test_review_and_disruption_tools_find_cases_in_the_independent_folder(tmp_path):
+    from injection_defense.evaluation.registry import load_all_cases
+
+    cases = load_all_cases(DATA)
+    assert {"dev-a01", "ho-a01"} <= set(cases)
+    if (DATA / "independent" / "attacks.jsonl").exists():
+        assert "ind-a01" in cases and "ind-b01" in cases

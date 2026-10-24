@@ -20,7 +20,7 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "src"))  # fallback if the editable install is not importable
 
 from injection_defense.config import Settings  # noqa: E402
-from injection_defense.evaluation.dataset import load_cases  # noqa: E402
+from injection_defense.evaluation.registry import load_all_cases  # noqa: E402
 from injection_defense.evaluation.disruption import (  # noqa: E402
     CATEGORIES, classify, load_criteria, load_overrides, summarize,
 )
@@ -45,7 +45,7 @@ def main() -> int:
     results_dir = Path(args.results_dir) if args.results_dir else settings.results_dir
     data_dir = Path(args.data_dir) if args.data_dir else settings.data_dir
     criteria = load_criteria(data_dir / "task_disruption_carriers.json")
-    cases = {c.case_id: c for f in sorted(data_dir.glob("*.jsonl")) for c in load_cases(f)}
+    cases = load_all_cases(data_dir)
     overrides = load_overrides(args.review) if args.review else {}
 
     for run_id in args.run_ids:
