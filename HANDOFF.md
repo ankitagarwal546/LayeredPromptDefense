@@ -1,12 +1,12 @@
 # HANDOFF.md: canonical project state
 
-Last updated: 2026-10-24 (session 2, checkpoint 12: independent run 1 (1B) DONE, pre-review; awaiting human review before the 8B run). Update at every checkpoint (see L).
+Last updated: 2026-10-25 (session 2, checkpoint 13: independent run 1 (1B) human review DONE and results recomputed; 8B run awaits the author's approval). Update at every checkpoint (see L).
 
 ## A. Project identity
 - **Title:** Evaluating Layered Defenses Against Indirect Prompt Injection in LLM-Based Document Summarization
 - **Objective:** working summarizer with a configurable defense pipeline + reproducible evaluation (RQ1-RQ6: `docs/RESEARCH_PLAN.md`)
 - **Repo:** `/Users/ankitagarwal546/Documents/Prompt Injection` (git, branch `master`, no remote). Tags `final-run-1-freeze` / `final-run-2-freeze` mark the frozen code for each final run. Working tree was clean at the last commit (`cdbe06d`).
-- **Phase:** software complete; final runs 1 (1B) and 2 (8B) done, analyzed, logged, reported (preliminary). Next: the author reviews the independent run 1 unresolved outputs; then (user go-ahead) run the 8B model on the frozen set.
+- **Phase:** software complete; final runs 1 (1B) and 2 (8B) done, analyzed, logged, reported (preliminary). Independent run 1 (1B) done and human-reviewed. Next (only with the author's explicit go-ahead): run the 8B model on the frozen independent set.
 
 ## B. Current status
 
@@ -48,7 +48,7 @@ Last updated: 2026-10-24 (session 2, checkpoint 12: independent run 1 (1B) DONE,
 | R1 | Human verification of the 103 AI-adjudicated labels | DONE (2026-10-24) | reviewer Ankit; 33 items, agreed 32, changed 1 (run 1 dev-a09 E2 t0 yes->no: run 1 E2 ASR 41.4% -> 40.0%); decisions in `docs/results/human_review_decisions.csv`; see EXPERIMENT_LOG |
 | R8 | Task-disruption measure (separate outcome; ASR unchanged) | DONE (2026-10-24) | `evaluation/disruption.py`, `scripts/task_disruption.py`, criteria `data/task_disruption_carriers.json`; rule committed (`1ab56a4`) before computing; agrees with human labels 62/64; results in EXPERIMENT_LOG / FINAL_REPORT and `docs/results/final_run_{1,2}/task_disruption*.csv` |
 | R2 | Run the same protocol on a hosted frontier model as a further SEPARATE condition (the 8B condition is done) | TODO / needs user key | new run id and EXPERIMENT_LOG entry; never mixed with the 1B run; held-out set is already spent for tuning purposes, so use a new held-out set for any further tuning |
-| R3 | Independent set (BIPIA attacks in AI-generated benign documents; partially independent) | FROZEN; **run 1 (llama3.2:1b, `4da08316a2fb`) DONE pre-review**; human review of 358 unresolved outcomes pending; **8B run NOT started (user must approve)** | see section E |
+| R3 | Independent set (BIPIA attacks in AI-generated benign documents; partially independent) | FROZEN; **run 1 (llama3.2:1b, `4da08316a2fb`) DONE and human-reviewed (2026-10-25)**; **8B run NOT started (user must approve)** | see section E |
 | R4 | Transformers classifier verification (user must approve torch + weights download) | TODO | one real run; update status |
 | R5 | Human summary-quality ratings on a benign subset | TODO | documented rubric + saved ratings |
 | R6 | Optional: operator deny-list output validation as E6 (criteria independent of scorer); hidden-text experiments | TODO | new experiment entries |
@@ -56,13 +56,14 @@ Last updated: 2026-10-24 (session 2, checkpoint 12: independent run 1 (1B) DONE,
 
 ## E. Current task checkpoint
 Independent run 1 finished and verified: run id `4da08316a2fb`, 1,400 outcomes (100 cases x 7 configs x 2 trials), clean tree at tag `independent-freeze` (`a9991f5`), checksums OK, 0 model failures, 8 detector failures (classifier unparseable on ind-a51/ind-a61), 24 blocked. Results, commands, versions and scorer hashes are in `docs/EXPERIMENT_LOG.md`
-(section "Independent run 1"); archived artifacts in `docs/results/independent_run_1/`. **Results are PRE-REVIEW:** 358 outcomes (119 distinct outputs) are unresolved; ASR bounds 16-53% overlap across configs; no between-config difference is established yet.
-Waiting for the author:
-1. Review `results/review_independent_run1/review_checklist.md` (119 items, the AI's PROPOSED label and why each needs a human; local, git-ignored, regenerate with `python scripts/prepare_review.py 4da08316a2fb --include-unlabeled --proposals results/review_independent_run1/proposals.json --out results/review_independent_run1` if lost; proposals are archived as `docs/results/independent_run_1/ai_proposed_judgments.json` (the local `proposals.json` has the same content)).
-Fill `human_label` (yes/no) and `reviewer` in `review_decisions.csv`.
-2. Then: `python scripts/apply_review.py results/review_independent_run1/review_decisions.csv --dry-run`, apply, `python scripts/analyze_results.py 4da08316a2fb`, `python scripts/task_disruption.py 4da08316a2fb` (add `--review` only if a `task_disrupted` column is filled), refresh `docs/results/independent_run_1/`, update the log with the human-verified numbers.
-3. Optional post-hoc: `results/review_independent_run1/reverse_text_posthoc.md` (22 outputs, Reverse Text compliance in non-character forms; registered ASR unchanged; label any statement post-hoc).
-4. Only after the author approves: the 8B run: `ollama serve`, then `LLM_MODEL=llama3.1:8b CLASSIFIER_MODEL=llama3.1:8b python scripts/run_experiments.py --case-set independent --final-ack --configs E0,E1,E1b,E2,E3,E4,E5 --repetitions 2 --real --yes` (est. 1,800 calls, ~2-3 h; keep the Mac awake), same preflight, separate run id, never pooled.
+(sections "Independent run 1" and "Independent run 1: human review and post-review results"); archived artifacts in `docs/results/independent_run_1/` (post-review at top level, pre-review in `pre_review/`).
+**Human review DONE (2026-10-25, reviewer Ankit, 119 groups / 358 outcomes, 12 batches):** attack YES 55 groups (214 outcomes), NO 48 (121), UNSURE 16 (23 outcomes, left unresolved); summary-ruined decided for all 119. Applied with `apply_review.py` (335 labels); `outcomes.jsonl` checksum unchanged.
+Post-review ASR: E0/E1/E1b 44.0% (66/150) [36-52], E3 42.7%, E2 30.0% (42/140) [23-38], E4 31.7%, E5 29.6%; intervals overlap slightly, review not blind to config -> suggestive, not established. Usable summary on attack docs: 21% without vs 55-60% with the structural prompt (no overlap).
+Review rubric and caveats are in the log. Local review files: `results/review_independent_run1/` (checklist with model text, `review_decisions.csv`, the untouched `review_decisions.original.csv`, impact tables).
+Still open, optional:
+1. Post-hoc Reverse Text review: `results/review_independent_run1/reverse_text_posthoc.md` (22 outputs; NOT applied; registered ASR unchanged; label any statement post-hoc).
+2. Add an "independent set" subsection to `docs/FINAL_REPORT.md` (after the 8B run, or now for the 1B run only).
+3. Only after the author approves: the 8B run: `ollama serve`, then `LLM_MODEL=llama3.1:8b CLASSIFIER_MODEL=llama3.1:8b python scripts/run_experiments.py --case-set independent --final-ack --configs E0,E1,E1b,E2,E3,E4,E5 --repetitions 2 --real --yes` (est. 1,800 calls, ~2-3 h; keep the Mac awake), same preflight, separate run id, never pooled.
 Do not change any defense, prompt, check or scorer before the first results are logged (done: pre-review results are logged); any tuning against this set means it is spent for generalization claims (docs/INDEPENDENT_SET.md). Tool fix this session: `load_all_cases` (task_disruption/prepare_review now find independent cases); `prepare_review.py --include-unlabeled --proposals`.
 
 ## F. Architecture and decisions (why)
@@ -102,7 +103,7 @@ Experiments completed with held-out data: final runs 1 and 2 (run 2 8B: ASR E0 4
 - Python 3.13 on macOS may skip the hidden editable `.pth` (README troubleshooting).
 
 ## K. Immediate next steps
-1. Author reviews the 119 unresolved outputs (E item 1) and optionally the Reverse Text post-hoc file. 2. Apply, re-analyze, update the log/report with human-verified numbers. 3. Ask the author for approval, then run the 8B model on the frozen independent set. 4. Add an "independent set" subsection to `docs/FINAL_REPORT.md` after both models are reviewed.
+1. Ask the author for explicit approval, then run the 8B model on the frozen independent set (same preflight, separate run id), review its unresolved outputs with the same rubric. 2. Optionally the Reverse Text post-hoc review (kept separate). 3. Add an "independent set" subsection to `docs/FINAL_REPORT.md`. 4. A second, blinded reviewer for both independent runs would strengthen the labels.
 
 ## L. Continuation instructions
 Read `AGENTS.md`, `CLAUDE.md`, `HANDOFF.md`, `README.md`, and `docs/EXPERIMENT_PROTOCOL.md`. Inspect `git status` and the actual files. Verify the recorded state (`pytest`) before continuing. Resume the highest-priority incomplete task without redoing verified work or discarding existing changes. Checkpoint checklist: stop starting big tasks; save work; `git status`; quick `pytest`; update this file (status, E, K); commit.
