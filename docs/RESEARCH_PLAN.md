@@ -116,7 +116,7 @@ Hypotheses are as written above; findings apply only to this model, this data an
 |---|---|
 | H1 undefended model follows a non-trivial fraction of embedded instructions | **Supported:** 34.3% (24/70), CI 24-46% |
 | H2 heuristics: low ASR on familiar, large gap on held-out, false positives on security text | **Supported:** familiar 0/22 vs held-out 8/48; detection 72.7% -> 8.3%; hard-negative FPR 8/24, ordinary 0/24 |
-| H3 structural separation lowers ASR for some models/families but not to zero | **Not supported here:** E2 41.4% vs E0 34.3% (overlapping CIs); utility rose to 100% |
+| H3 structural separation lowers ASR for some models/families but not to zero | **Not supported here:** E2 40.0% vs E0 34.3% (overlapping CIs); utility rose to 100% |
 | H4 a model classifier generalizes better than rules | **Not supported with a 1B classifier** (6/70 detected); says nothing about stronger classifiers |
 | H5 combinations reduce ASR beyond any single layer, at an FPR/latency cost | **Not supported here:** E4 21.4% > E1 11.4%; E5 = E4 with higher FPR and latency |
 
@@ -128,6 +128,6 @@ Run 2 reused all code, data and configs; only the model changed. Findings are pe
 |---|---|---|
 | H1 undefended model follows a non-trivial fraction | Supported: 34.3% | Supported: 48.6% (higher than 1B; intervals overlap) |
 | H2 heuristics: low familiar ASR, large held-out gap, security-text false positives | Supported | Supported (same detector; detection 72.7% -> 8.3%; hard-negative FPR 8/24) |
-| H3 structural separation lowers ASR but not to zero | Not supported (41.4% vs 34.3%) | **Supported**: 18.6% vs 48.6%, not zero |
+| H3 structural separation lowers ASR but not to zero | Not supported (40.0% vs 34.3%) | **Supported**: 18.6% vs 48.6%, not zero |
 | H4 model classifier generalizes better than rules | Not supported (6/70 detected) | **Supported**: held-out detection 50.0% vs 8.3%; 0/48 false positives |
 | H5 combinations beat any single layer at an FPR/latency cost | Not supported | **Partly supported**: E4 8.6% < E1 28.6%, E2 18.6% (E4 vs E2 overlap); E5 not better than E4 |

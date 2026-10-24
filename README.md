@@ -151,7 +151,7 @@ Layer 4 (output validation) needs explicit criteria and acts as the evaluation s
 See [HANDOFF.md](HANDOFF.md) for the authoritative, verified status. The application, API, UI, defenses, evaluation harness and CLIs are implemented and tested offline (185 tests).
 Two pre-registered final runs are complete and written up as a **preliminary** report: [docs/FINAL_REPORT.md](docs/FINAL_REPORT.md) (run 1: `llama3.2:1b`, run 2: `llama3.1:8b`; same code, data and configs),
 with [docs/EXPERIMENT_LOG.md](docs/EXPERIMENT_LOG.md) and archived artifacts in `docs/results/final_run_{1,2}/`. The headline: which defenses helped depended strongly on the model. Not done: a hosted frontier model,
-independently sourced held-out attacks, human adjudication (103 ambiguous outputs were labeled by an AI) and summary-quality ratings, per-model prompt re-tuning, a trained classifier.
+independently sourced held-out attacks, summary-quality ratings, a systematic task-disruption measure (the 103 ambiguous outputs are now human-verified by one reviewer), per-model prompt re-tuning, a trained classifier.
 
 ## Known limitations
 

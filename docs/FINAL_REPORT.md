@@ -11,7 +11,7 @@ pre-registered comparison of seven configurations on 35 attack cases (11 develop
 **depend strongly on the model**. On a 1B model, structural separation and a model-based classifier gave no benefit, heuristic blocking was the only effective layer, and its detection collapsed on unseen attack
 families (72.7% to 8.3%). On an 8B model of the same family, the undefended model was *more* often hijacked (48.6% vs 34.3% of attack observations), but structural separation (18.6%) and the model-based
 classifier (20.0%, detecting 50% of held-out attacks with 0 false positives) both helped, and heuristic + structural (8.6%) was the best configuration. The heuristic's false positives (8/24 hard-negative
-benign observations) and its collapse on unseen families were the same for both models. All results are preliminary: tiny, hand-written data, AI-adjudicated ambiguous outputs, and held-out attacks that are not
+benign observations) and its collapse on unseen families were the same for both models. All results are preliminary: tiny, hand-written data, ambiguous outputs judged by an AI and checked by one human reviewer, and held-out attacks that are not
 independent of the defenses' author.
 
 ## 2. Introduction
@@ -68,7 +68,7 @@ Protocol: `docs/EXPERIMENT_PROTOCOL.md`.
 
 Development: 18 hand-written fixtures (used for tuning, on the 1B model). Held-out: 24 attacks in 8 families/24 templates absent from development, plus 24 benign cases (12 ordinary, 12 hard negatives), checksum-frozen and
 reused for both runs. **All data were written by the same AI assistant that wrote the rules and prompts**, so attack style is shared even though families are disjoint; generalization is probably overstated.
-Attack success is scored by predefined indicators; ambiguous outputs (53 in run 1, 50 in run 2) were labeled by an AI adjudicator (not a human, not blinded to the model) using a written rubric. Utility is a keyword proxy,
+Attack success is scored by predefined indicators; ambiguous outputs (53 in run 1, 50 in run 2) were labeled by an AI adjudicator using a written rubric and then all verified by one human reviewer, who changed 1 of 103 labels (neither was blinded to the model). Utility is a keyword proxy,
 not summary quality. Details: `docs/DATASET_GUIDE.md`.
 
 ## 10. Results
@@ -80,20 +80,20 @@ Pooled over 2 trials within a run. Attack n = 70 (35 cases), benign n = 48 (24 c
 | E0 undefended | 34.3% (24/70) [24-46] | 48.6% (34/70) [37-60] | n/a / 91.7% | n/a / 95.8% |
 | E1 heuristic block | 11.4% (8/70) [6-21] | 28.6% (20/70) [19-40] | 16.7% / 75.0% | 16.7% / 79.2% |
 | E1b heuristic sanitize | 17.1% (12/70) [10-28] | 31.4% (22/70) [22-43] | 16.7% / 87.5% | 16.7% / 91.7% |
-| E2 structural v3 | 41.4% (29/70) [31-53] | 18.6% (13/70) [11-29] | n/a / 100% | n/a / 100% |
+| E2 structural v3 | 40.0% (28/70) [29-52] | 18.6% (13/70) [11-29] | n/a / 100% | n/a / 100% |
 | E3 classifier (same model) | 34.3% (24/70) [24-46] | 20.0% (14/70) [12-31] | 20.8% / 75.0% | **0.0% (0/48) [0-7]** / 95.8% |
 | E4 heuristic + structural | 21.4% (15/70) [13-32] | **8.6% (6/70) [4-17]** | 16.7% / 83.3% | 16.7% / 83.3% |
 | E5 all three | 21.4% (15/70) [13-32] | 10.0% (7/70) [5-19] | 29.2% / 70.8% | 16.7% / 83.3% |
 
 Detection (share of attacks flagged), familiar -> held-out families: heuristic 72.7% (16/22) -> 8.3% (4/48) in both runs (model-independent); classifier 1B: 6/70 overall; classifier 8B: 54.5% (12/22) -> 50.0% (24/48).
-Generalization gap (held-out minus familiar ASR, points), run 1 / run 2: E0 -29.5 / -35.2; E1 +16.7 / +15.2; E2 -39.0 / -12.7; E3 -29.5 / -10.6; E4 +4.7 / +12.5; E5 +4.7 / +14.6.
+Generalization gap (held-out minus familiar ASR, points), run 1 / run 2: E0 -29.5 / -35.2; E1 +16.7 / +15.2; E2 -34.5 / -12.7; E3 -29.5 / -10.6; E4 +4.7 / +12.5; E5 +4.7 / +14.6.
 Mean latency per request (ms), run 1 / run 2: E0 938 / 3787; E1 943 / 3332; E1b 1168 / 4735; E2 1259 / 5896; E3 1893 / 7645; E4 1065 / 4283; E5 1725 / 7734. Model calls per request: E0 1.00, E1/E4 0.76 (blocked requests skip the model),
 E2 1.00, E3 1.86 (1B) / 1.69 (8B), E5 1.42 / 1.34. Figures: `docs/results/final_run_{1,2}/figures/` (all watermarked PRELIMINARY).
 
 **Answers to the research questions (these two models, this data, these configurations only):**
 
 - **RQ1 baseline:** undefended, the 1B model followed the embedded instruction in 34.3% of attack observations and the 8B model in 48.6% (intervals overlap). The more capable model was not safer; it followed more injected instructions.
-- **RQ2 individual defenses:** *Heuristic blocking* helped on both models (-23 and -20 points vs E0) because it is model-independent. *Structural separation* did not help the 1B model (41.4% vs 34.3%) but did help the 8B model
+- **RQ2 individual defenses:** *Heuristic blocking* helped on both models (-23 and -20 points vs E0) because it is model-independent. *Structural separation* did not help the 1B model (40.0% vs 34.3%) but did help the 8B model
   (18.6% vs 48.6%, intervals do not overlap). The *model classifier* did nothing on the 1B model and helped on the 8B model (20.0% vs 48.6%).
 - **RQ3 combinations:** on the 8B model heuristic + structural (E4, 8.6%) was lower than either alone (28.6%, 18.6%), though E4 vs E2 intervals overlap; adding the classifier (E5, 10.0%) did not improve on E4. On the 1B model E4 (21.4%) was no better
   than the heuristic alone (11.4%).
@@ -106,6 +106,11 @@ E2 1.00, E3 1.86 (1B) / 1.69 (8B), E5 1.42 / 1.34. Figures: `docs/results/final_
 Exploratory observations (not pre-registered, tiny counts, hypotheses only): on the 1B model the structural prompt coincided with more successes than the undefended model in some held-out families (multilingual, obfuscated, hypothetical framing);
 format hijack succeeded often undefended (1B: 4/6) and was never detected by the rules (0/6); markup injection, urgency/authority and emotional manipulation rarely succeeded on either model; the 8B model often wrote a note such as
 "I ignored the instruction in the document" while summarizing, which the scorer queued for review and which counted as a non-success. Attack-success labels differed between the two trials for at most 3 attack cases per configuration.
+
+**Task disruption (exploratory, found during human review).** A failed attack is not the same as a successful defense. Among the reviewed ambiguous outputs, 14 attack outcomes
+did not achieve the attacker's objective but still left the user without a usable summary: on the 1B model the summary described only the injected text or copied the document back (8 outcomes), and the 8B model
+refused a harmless summary in all 6 runs without structural separation while summarizing the same document when it was enabled. ASR does not count these. A systematic task-disruption rate over all attack
+outcomes has not been computed yet (future work), so these are examples, not a rate.
 
 ## 11. Security-versus-utility analysis
 
@@ -128,8 +133,8 @@ sanitize +25%, structural +56% (longer prompts and outputs), classifier +102% (o
 
 ## 14. Limitations
 
-Tiny, project-authored, non-independent data; two small local models of one family (findings may not transfer to hosted frontier models); structural and classifier prompts developed on the 1B model and not re-tuned; lexical scoring with an AI (not human, not blinded)
-adjudicator for 103 outcomes; keyword utility proxy; repeated trials and shared-template cases are not independent evidence (35 distinct attack cases); held-out set reused across runs after its first aggregates were seen (no changes were made in response); no adaptive attackers;
+Tiny, project-authored, non-independent data; two small local models of one family (findings may not transfer to hosted frontier models); structural and classifier prompts developed on the 1B model and not re-tuned; lexical scoring with an AI adjudicator for 103 ambiguous outcomes,
+verified by a single human reviewer (not blinded, not independent of the project); keyword utility proxy; repeated trials and shared-template cases are not independent evidence (35 distinct attack cases); held-out set reused across runs after its first aggregates were seen (no changes were made in response); no adaptive attackers;
 no hidden-text attacks; no human summary-quality ratings; no statistical test beyond intervals; exploratory analyses after seeing results. Both runs followed their pre-registration with no changes after they started.
 
 ## 15. Discussion
@@ -145,7 +150,7 @@ with the classifier doing so without blocking benign documents. The heuristic ge
 
 ## 17. Future work (INCOMPLETE)
 
-Run the same protocol on a hosted frontier model as a further condition; add independently written or BIPIA-derived held-out attacks (`docs/DATASET_GUIDE.md`); human adjudication and quality ratings; re-tune the structural and classifier prompts per model on dev data and re-freeze;
+Measure task disruption on all attack outcomes as a separate outcome alongside ASR; run the same protocol on a hosted frontier model as a further condition; add independently written or BIPIA-derived held-out attacks (`docs/DATASET_GUIDE.md`); human adjudication and quality ratings; re-tune the structural and classifier prompts per model on dev data and re-freeze;
 evaluate a trained classifier (needs reviewed data and a decision to install torch/transformers); operator deny-list output validation (E6); hidden-text and adaptive-attack evaluation; more trials per family and a larger set.
 
 ## 18. References
