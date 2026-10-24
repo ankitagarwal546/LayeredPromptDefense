@@ -294,8 +294,8 @@ async function runEvaluation() {
   const payload = { case_set: $("ev-set").value, model: $("ev-model").value, repetitions: Number($("ev-reps").value), experiments };
   status.classList.remove("hidden");
   if (!experiments.length) { status.textContent = "Select at least one experiment."; return; }
-  if (payload.case_set === "final") {
-    if (!confirm("The final case set uses the frozen held-out files. Running it spends them for tuning purposes. Continue?")) return;
+  if (payload.case_set === "final" || payload.case_set === "independent") {
+    if (!confirm("This case set uses frozen test files. Running it spends them for tuning purposes. Continue?")) return;
     payload.final_run_acknowledged = true;
   }
   button.disabled = true;

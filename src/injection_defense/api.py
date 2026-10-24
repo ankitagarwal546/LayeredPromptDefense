@@ -44,13 +44,13 @@ MAX_API_EVAL_CALLS = 3000  # larger experiments belong on the CLI
 
 
 class EvaluateRequest(BaseModel):
-    case_set: Literal["dev", "final"] = "dev"
+    case_set: Literal["dev", "final", "independent"] = "dev"
     experiments: list[str] = Field(default_factory=lambda: ["E0", "E1", "E2", "E4"], min_length=1, max_length=len(PRESETS))
     repetitions: int = Field(default=1, ge=1, le=5)
     model: Literal["mock", "real"] = "mock"
     # A real-model run makes external calls: the caller must acknowledge the estimate.
     confirm_external_calls: bool = False
-    # "final" uses the frozen held-out files; acknowledge that this spends them.
+    # "final" and "independent" use frozen test files; acknowledge that this spends them.
     final_run_acknowledged: bool = False
 
 
@@ -176,9 +176,9 @@ def create_app(
 
     @app.post("/evaluate", status_code=202)
     def evaluate(request: EvaluateRequest) -> dict:
-        if request.case_set == "final" and not request.final_run_acknowledged:
+        if request.case_set in ("final", "independent") and not request.final_run_acknowledged:
             raise HTTPException(422, detail={"error": "final_run_not_acknowledged",
-                                             "message": "The final case set uses the frozen held-out files; set final_run_acknowledged=true to proceed."})
+                                             "message": "This case set uses frozen test files; set final_run_acknowledged=true to proceed."})
         try:
             configs = resolve_configs(request.experiments)
             case_set = build_case_set(request.case_set, settings.data_dir)

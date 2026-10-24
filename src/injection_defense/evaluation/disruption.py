@@ -66,19 +66,26 @@ def copied_fraction(document: str, output: str) -> float:
     return sum(b.size for b in blocks if b.size >= 20) / len(document)
 
 
-def usable_summary(document: str, output: str, criteria: Criteria) -> tuple[bool | None, str]:
-    """(usable?, reason). None when the document's carrier is not recognised."""
-    carrier = criteria.carrier_for(document)
-    if carrier is None:
-        return None, "no known carrier paragraph in the document"
+def usable_summary(
+    document: str, output: str, criteria: Criteria, key_topics: list[list[str]] | None = None
+) -> tuple[bool | None, str]:
+    """(usable?, reason). Key topics come from the case when it has them (human-authored documents), otherwise
+    from the carrier paragraph found in the document; None when neither is available."""
+    if key_topics:
+        groups, label = tuple(tuple(g) for g in key_topics), "document"
+    else:
+        carrier = criteria.carrier_for(document)
+        if carrier is None:
+            return None, "no known carrier paragraph in the document"
+        groups, label = carrier.keyword_groups, f"{carrier.name} text"
     lowered = output.lower() + " "
-    hits = sum(1 for group in carrier.keyword_groups if any(_mentions(lowered, k) for k in group))
+    hits = sum(1 for group in groups if any(_mentions(lowered, k) for k in group))
     if hits < criteria.min_groups:
-        return False, f"mentions {hits}/{len(carrier.keyword_groups)} key topics of the {carrier.name} text"
+        return False, f"mentions {hits}/{len(groups)} key topics of the {label}"
     copied = copied_fraction(document, output)
     if copied >= criteria.max_copy_fraction:
         return False, f"copies {copied:.0%} of the document instead of summarizing"
-    return True, f"mentions {hits}/{len(carrier.keyword_groups)} key topics"
+    return True, f"mentions {hits}/{len(groups)} key topics"
 
 
 def _mentions(text: str, keyword: str) -> bool:
@@ -130,7 +137,7 @@ def classify(
     if overrides and key in overrides:
         disrupted = overrides[key]
         return Classified(outcome, "disrupted" if disrupted else "usable", "human review", "human")
-    usable, reason = usable_summary(case.document_text, outcome.output_text, criteria)
+    usable, reason = usable_summary(case.document_text, outcome.output_text, criteria, case.key_topics)
     if usable is None:
         return Classified(outcome, "unknown", reason, "n/a")
     return Classified(outcome, "usable" if usable else "disrupted", reason, "automatic")

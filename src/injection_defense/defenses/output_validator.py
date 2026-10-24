@@ -46,7 +46,8 @@ class OutputValidator:
             if criteria
             else []
         )
-        if not patterns:
+        checks = list(criteria.checks) if criteria else []
+        if not patterns and not checks:
             return ValidationResult(
                 status="not_evaluated",
                 outcome="not_evaluated",
@@ -59,6 +60,15 @@ class OutputValidator:
                     matched.append(pattern)
                 if not _looks_like_mention(output, match):
                     definite = True
+        if checks:
+            from injection_defense.evaluation.attack_checks import check_output
+
+            results = [check_output(c, output, criteria.key_topics) for c in checks]
+            if any(r.outcome == "indicator_matched" for r in results):
+                definite = True
+                matched += [r.detail for r in results if r.outcome == "indicator_matched"]
+            elif any(r.outcome == "needs_review" for r in results) and not matched:
+                matched += [r.detail for r in results if r.outcome == "needs_review"]
         if not matched:
             return ValidationResult(status="evaluated", outcome="no_indicator", explanation="No criteria matched")
         if definite:

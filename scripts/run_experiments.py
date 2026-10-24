@@ -55,8 +55,8 @@ def main() -> int:
     except (ValueError, ModelNotConfiguredError) as exc:
         print(f"error: {exc}", file=sys.stderr)
         return 2
-    if args.case_set == "final" and not args.final_ack:
-        print("error: --case-set final uses the frozen held-out files; pass --final-ack to proceed.", file=sys.stderr)
+    if args.case_set in ("final", "independent") and not args.final_ack:
+        print(f"error: --case-set {args.case_set} uses frozen test files; pass --final-ack to proceed.", file=sys.stderr)
         return 2
 
     classifier = create_classifier(settings) if any(c.classifier for c in configs.values()) else None

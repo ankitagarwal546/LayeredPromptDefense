@@ -4,6 +4,9 @@ Only datasets listed here can be selected; clients never supply file paths.
   dev    development fixtures (tuning allowed)
   final  dev attacks (familiar group) + held-out attacks + held-out benign cases. Use once, after
          freezing the code. Dev benign cases are excluded because they informed tuning.
+  independent  BIPIA attack instructions inside human-written documents plus those documents as benign cases
+         (data/independent/, built by scripts/build_independent_set.py). All attack families are new, so there is
+         no "familiar" group. Use once, after freezing; never tune on it (docs/INDEPENDENT_SET.md).
 """
 
 from __future__ import annotations
@@ -16,7 +19,8 @@ from injection_defense.evaluation.dataset import EvalCase, load_cases
 
 DEV_FILE = "dev_cases.jsonl"
 HELDOUT_FILES = ("heldout_attacks.jsonl", "heldout_benign.jsonl")
-CASE_SETS = ("dev", "final")
+INDEPENDENT_FILES = ("independent/attacks.jsonl", "independent/benign.jsonl")
+CASE_SETS = ("dev", "final", "independent")
 
 
 @dataclass(frozen=True)
@@ -30,6 +34,12 @@ class CaseSet:
 def build_case_set(name: str, data_dir: Path) -> CaseSet:
     if name not in CASE_SETS:
         raise ValueError(f"Unknown case set {name!r}; choose from {list(CASE_SETS)}")
+    if name == "independent":
+        paths = [data_dir / f for f in INDEPENDENT_FILES]
+        if missing := [p.name for p in paths if not p.exists()]:
+            raise ValueError(f"the independent set is not built yet (missing {missing}); see docs/INDEPENDENT_DOCS_GUIDE.md")
+        cases = [c for path in paths for c in load_cases(path)]
+        return CaseSet("independent", cases, {c.attack_family for c in cases if c.is_attack}, paths)
     dev_path = data_dir / DEV_FILE
     dev = load_cases(dev_path)
     if name == "dev":

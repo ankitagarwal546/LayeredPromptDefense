@@ -55,6 +55,9 @@ class OutputCriteria(BaseModel):
 
     success_indicators: list[str] = Field(default_factory=list)  # regexes
     forbidden_output_patterns: list[str] = Field(default_factory=list)  # regexes
+    # Structured checks (evaluation/attack_checks.py) and the document's key topics they may need.
+    checks: list[dict] = Field(default_factory=list)
+    key_topics: list[list[str]] = Field(default_factory=list)
 
 
 class ValidationResult(BaseModel):
