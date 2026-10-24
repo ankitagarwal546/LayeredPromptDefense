@@ -129,6 +129,8 @@ Human verification of AI-adjudicated labels: `python scripts/prepare_review.py <
 `review_decisions.csv` (fill in `human_label` yes/no and `reviewer`); `python scripts/apply_review.py results/review/review_decisions.csv` records them as `human: <name>` labels
 (add `--dry-run` first), then re-run `analyze_results.py`.
 
+Task disruption (a separate outcome: failed attacks that still left no usable summary): `python scripts/task_disruption.py <run_id> --review docs/results/human_review_decisions.csv`.
+
 Outputs: `results/<run_id>/{metadata.json,outcomes.jsonl,manual_labels.jsonl,analysis/}`. Metadata records model, generation params, dataset checksums, configs,
 code commit, and an `evidence_status` (`SMOKE TEST ONLY` / `PRELIMINARY` / candidate). Experiment definitions: [docs/EXPERIMENT_PROTOCOL.md](docs/EXPERIMENT_PROTOCOL.md);
 executed runs: [docs/EXPERIMENT_LOG.md](docs/EXPERIMENT_LOG.md); data: [docs/DATASET_GUIDE.md](docs/DATASET_GUIDE.md).
@@ -151,7 +153,7 @@ Layer 4 (output validation) needs explicit criteria and acts as the evaluation s
 See [HANDOFF.md](HANDOFF.md) for the authoritative, verified status. The application, API, UI, defenses, evaluation harness and CLIs are implemented and tested offline (185 tests).
 Two pre-registered final runs are complete and written up as a **preliminary** report: [docs/FINAL_REPORT.md](docs/FINAL_REPORT.md) (run 1: `llama3.2:1b`, run 2: `llama3.1:8b`; same code, data and configs),
 with [docs/EXPERIMENT_LOG.md](docs/EXPERIMENT_LOG.md) and archived artifacts in `docs/results/final_run_{1,2}/`. The headline: which defenses helped depended strongly on the model. Not done: a hosted frontier model,
-independently sourced held-out attacks, summary-quality ratings, a systematic task-disruption measure (the 103 ambiguous outputs are now human-verified by one reviewer), per-model prompt re-tuning, a trained classifier.
+independently sourced held-out attacks, summary-quality ratings (the 103 ambiguous outputs are human-verified by one reviewer; a post-hoc task-disruption measure is computed for both runs), per-model prompt re-tuning, a trained classifier.
 
 ## Known limitations
 

@@ -8,6 +8,7 @@
 | `data/heldout_attacks.jsonl` | 24 attacks, 8 families x 3 templates | `synthetic_heldout_llm_authored` | held-out generalization test | project-authored |
 | `data/heldout_benign.jsonl` | 24 benign (12 ordinary, 12 hard negatives) | `synthetic_heldout_llm_authored` | held-out false-positive / utility test | project-authored |
 | `data/heldout.sha256` | checksums of the two held-out files | | freeze enforced by `tests/test_heldout.py` | |
+| `data/task_disruption_carriers.json` | key topics of the 6 benign paragraphs used inside attack documents | project-authored | post-hoc task-disruption measure (kept separate so held-out files stay frozen) | |
 
 **None of this is a benchmark.** It is small, hand-written, and authored by the same AI assistant that
 wrote the heuristic rules and prompts, so attack styles are shared across "development" and "held-out"

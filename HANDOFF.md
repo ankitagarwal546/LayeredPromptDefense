@@ -1,12 +1,12 @@
 # HANDOFF.md: canonical project state
 
-Last updated: 2026-10-24 (session 2, checkpoint 7: human label review DONE and applied). Update at every checkpoint (see L).
+Last updated: 2026-10-24 (session 2, checkpoint 8: task-disruption measure DONE for both runs). Update at every checkpoint (see L).
 
 ## A. Project identity
 - **Title:** Evaluating Layered Defenses Against Indirect Prompt Injection in LLM-Based Document Summarization
 - **Objective:** working summarizer with a configurable defense pipeline + reproducible evaluation (RQ1-RQ6: `docs/RESEARCH_PLAN.md`)
 - **Repo:** `/Users/ankitagarwal546/Documents/Prompt Injection` (git, branch `master`, no remote). Tags `final-run-1-freeze` / `final-run-2-freeze` mark the frozen code for each final run. Working tree was clean at the last commit (`cdbe06d`).
-- **Phase:** software complete; final runs 1 (1B) and 2 (8B) done, analyzed, logged, reported (preliminary). Next: systematic task-disruption measure, then hosted model and/or independent data.
+- **Phase:** software complete; final runs 1 (1B) and 2 (8B) done, analyzed, logged, reported (preliminary). Next: hosted model and/or independent held-out data (user decision).
 
 ## B. Current status
 
@@ -46,7 +46,7 @@ Last updated: 2026-10-24 (session 2, checkpoint 7: human label review DONE and a
 | ID | Task | Status | Acceptance |
 |---|---|---|---|
 | R1 | Human verification of the 103 AI-adjudicated labels | DONE (2026-10-24) | reviewer Ankit; 33 items, agreed 32, changed 1 (run 1 dev-a09 E2 t0 yes->no: run 1 E2 ASR 41.4% -> 40.0%); decisions in `docs/results/human_review_decisions.csv`; see EXPERIMENT_LOG |
-| R8 | Task-disruption measure as a SEPARATE outcome (do not change ASR): for every attack outcome, did the user still get a usable summary? Needs a criterion that does not change frozen held-out files (e.g. carrier-paragraph keywords kept in a separate file, or human/rubric labels) | TODO, next | metric + tests; rates per config for both runs; report it as exploratory/post-hoc |
+| R8 | Task-disruption measure (separate outcome; ASR unchanged) | DONE (2026-10-24) | `evaluation/disruption.py`, `scripts/task_disruption.py`, criteria `data/task_disruption_carriers.json`; rule committed (`1ab56a4`) before computing; agrees with human labels 62/64; results in EXPERIMENT_LOG / FINAL_REPORT and `docs/results/final_run_{1,2}/task_disruption*.csv` |
 | R2 | Run the same protocol on a hosted frontier model as a further SEPARATE condition (the 8B condition is done) | TODO / needs user key | new run id and EXPERIMENT_LOG entry; never mixed with the 1B run; held-out set is already spent for tuning purposes, so use a new held-out set for any further tuning |
 | R3 | Independent held-out attacks (BIPIA adapter; or human-written) | TODO | DATASET_GUIDE steps; new frozen set + checksum test |
 | R4 | Transformers classifier verification (user must approve torch + weights download) | TODO | one real run; update status |
@@ -55,9 +55,8 @@ Last updated: 2026-10-24 (session 2, checkpoint 7: human label review DONE and a
 | R7 | Literature review beyond abstracts (FINAL_REPORT section 5 is INCOMPLETE) | TODO | verified, cited summaries only |
 
 ## E. Current task checkpoint
-Human review (R1) finished and applied on 2026-10-24: `apply_review.py` appended 103 `human: Ankit` labels after the AI labels; both runs re-analyzed; archives in `docs/results/final_run_{1,2}/`
-refreshed (labels, summary/by_family CSVs, figures, outcomes_no_text.csv); EXPERIMENT_LOG, FINAL_REPORT, RESEARCH_PLAN and README updated with the one changed number. Nothing is half-edited.
-The review sheet has an extra `task_disrupted` column (yes for 5 groups / 14 outcomes): this motivated R8. Safest next action: `pytest`, then start R8.
+R1 (human review) and R8 (task disruption) are done, documented and committed. Nothing is half-edited. Remaining work needs a user decision: R2 hosted model (key), R3 independent held-out attacks,
+R4 transformers download, R5 summary-quality ratings, R7 literature review. Safest next action: `pytest`, then ask the user which of these to do.
 The held-out set has been used for two final runs; any rule/prompt/scorer change motivated by its results makes it spent (AGENTS.md rule 4).
 
 ## F. Architecture and decisions (why)
@@ -97,8 +96,9 @@ Experiments completed with held-out data: final runs 1 and 2 (run 2 8B: ASR E0 4
 - Python 3.13 on macOS may skip the hidden editable `.pth` (README troubleshooting).
 
 ## K. Immediate next steps
-1. R8: build the task-disruption measure (separate from ASR), compute it for both runs, add it to the report as exploratory. 2. Then choose: hosted-model run (user adds a key to `.env`; dry-run estimate, pre-register, freeze) and/or independent held-out attacks (R3).
-3. Optional: per-model prompt re-tuning on dev data only, re-freeze, re-run with a new held-out set.
+1. Ask the user to choose: hosted-model run (R2; user adds a key to `.env`; dry-run estimate, pre-register, freeze, run, review, disruption) or independent held-out attacks (R3).
+2. When any new run is done: `analyze_results.py`, `prepare_review.py` -> human review -> `apply_review.py`, `task_disruption.py --review ...`, then update log/report/archives.
+3. Optional: second human reviewer for labels and disruption; per-model prompt re-tuning on dev data with a new held-out set.
 
 ## L. Continuation instructions
 Read `AGENTS.md`, `CLAUDE.md`, `HANDOFF.md`, `README.md`, and `docs/EXPERIMENT_PROTOCOL.md`. Inspect `git status` and the actual files. Verify the recorded state (`pytest`) before continuing. Resume the highest-priority incomplete task without redoing verified work or discarding existing changes. Checkpoint checklist: stop starting big tasks; save work; `git status`; quick `pytest`; update this file (status, E, K); commit.

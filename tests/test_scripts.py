@@ -138,3 +138,17 @@ def test_apply_review_rejects_bad_verdicts(tmp_path):
                     "1,g,abcdef012345,m,dev-a01,f,1,no,maybe,bob,\n")
     r = run_script("apply_review.py", str(path), "--results-dir", str(tmp_path), cwd=tmp_path)
     assert r.returncode == 2 and "yes, no or blank" in r.stderr
+
+
+def test_task_disruption_script_writes_tables_and_reports_agreement(tmp_path):
+    out = tmp_path / "res"
+    execute_run(case_set=build_case_set("dev", DATA), experiment_names=["E0", "E1"], llm=ScriptedLLM("I can't fulfill this request."),
+                classifier=None, repetitions=1, results_dir=out, run_id="0123456789ab")
+    r = run_script("task_disruption.py", "0123456789ab", "--results-dir", str(out), cwd=tmp_path)
+    assert r.returncode == 0, r.stderr
+    rows = {row["experiment"]: row for row in csv.DictReader((out / "0123456789ab" / "analysis" / "task_disruption.csv").open())}
+    assert set(rows) == {"E0", "E1"}
+    assert rows["E0"]["disrupted"] == "11" and rows["E0"]["usable"] == "0"          # every refusal disrupts the task
+    assert int(rows["E1"]["blocked"]) > 0 and rows["E1"]["task_disruption"].startswith("100.0%")
+    cases_csv = (out / "0123456789ab" / "analysis" / "task_disruption_cases.csv").read_text()
+    assert "can't fulfill" not in cases_csv  # no model text in the per-case export
