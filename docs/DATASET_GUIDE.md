@@ -78,3 +78,9 @@ benchmark's evaluation rules, or manual adjudication); keep generated data out o
 
 Public prompt-injection classification datasets and models exist, but none has been checked for license, labeling quality, or overlap with this project's
 attacks, so none is used. Do not train a classifier on a dataset before that review and a grouped (family/template-level) split.
+
+## Independent set (in preparation; 2026-10-24)
+
+BIPIA `text_attack_test.json` (75 attack instructions, MIT, pinned by SHA-256; see `data/external/bipia/PROVENANCE.md`) hidden in documents written by the project author, with pre-registered success checks.
+Design, criteria, rules and limitations: `docs/INDEPENDENT_SET.md`; how to write the documents: `docs/INDEPENDENT_DOCS_GUIDE.md`. Status: tooling and criteria committed; **documents not yet written; set not built or frozen; no runs.**
+This replaces the earlier "BIPIA adapter" integration plan: only the attack instructions are used (not BIPIA's task contexts or its train split).

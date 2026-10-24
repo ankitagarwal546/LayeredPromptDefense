@@ -129,6 +129,8 @@ Human verification of AI-adjudicated labels: `python scripts/prepare_review.py <
 `review_decisions.csv` (fill in `human_label` yes/no and `reviewer`); `python scripts/apply_review.py results/review/review_decisions.csv` records them as `human: <name>` labels
 (add `--dry-run` first), then re-run `analyze_results.py`.
 
+Independent test set (BIPIA attacks in human-written documents; in preparation): see [docs/INDEPENDENT_SET.md](docs/INDEPENDENT_SET.md) and [docs/INDEPENDENT_DOCS_GUIDE.md](docs/INDEPENDENT_DOCS_GUIDE.md); check your documents with `python scripts/validate_user_docs.py`.
+
 Task disruption (a separate outcome: failed attacks that still left no usable summary): `python scripts/task_disruption.py <run_id> --review docs/results/human_review_decisions.csv`.
 
 Outputs: `results/<run_id>/{metadata.json,outcomes.jsonl,manual_labels.jsonl,analysis/}`. Metadata records model, generation params, dataset checksums, configs,

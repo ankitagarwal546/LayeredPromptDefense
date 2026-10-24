@@ -1,12 +1,12 @@
 # HANDOFF.md: canonical project state
 
-Last updated: 2026-10-24 (session 2, checkpoint 8: task-disruption measure DONE for both runs). Update at every checkpoint (see L).
+Last updated: 2026-10-24 (session 2, checkpoint 9: independent-set tooling DONE; waiting for the author's documents). Update at every checkpoint (see L).
 
 ## A. Project identity
 - **Title:** Evaluating Layered Defenses Against Indirect Prompt Injection in LLM-Based Document Summarization
 - **Objective:** working summarizer with a configurable defense pipeline + reproducible evaluation (RQ1-RQ6: `docs/RESEARCH_PLAN.md`)
 - **Repo:** `/Users/ankitagarwal546/Documents/Prompt Injection` (git, branch `master`, no remote). Tags `final-run-1-freeze` / `final-run-2-freeze` mark the frozen code for each final run. Working tree was clean at the last commit (`cdbe06d`).
-- **Phase:** software complete; final runs 1 (1B) and 2 (8B) done, analyzed, logged, reported (preliminary). Next: hosted model and/or independent held-out data (user decision).
+- **Phase:** software complete; final runs 1 (1B) and 2 (8B) done, analyzed, logged, reported (preliminary). Next: the author writes the independent documents; then build, freeze, pre-register, run.
 
 ## B. Current status
 
@@ -48,16 +48,21 @@ Last updated: 2026-10-24 (session 2, checkpoint 8: task-disruption measure DONE 
 | R1 | Human verification of the 103 AI-adjudicated labels | DONE (2026-10-24) | reviewer Ankit; 33 items, agreed 32, changed 1 (run 1 dev-a09 E2 t0 yes->no: run 1 E2 ASR 41.4% -> 40.0%); decisions in `docs/results/human_review_decisions.csv`; see EXPERIMENT_LOG |
 | R8 | Task-disruption measure (separate outcome; ASR unchanged) | DONE (2026-10-24) | `evaluation/disruption.py`, `scripts/task_disruption.py`, criteria `data/task_disruption_carriers.json`; rule committed (`1ab56a4`) before computing; agrees with human labels 62/64; results in EXPERIMENT_LOG / FINAL_REPORT and `docs/results/final_run_{1,2}/task_disruption*.csv` |
 | R2 | Run the same protocol on a hosted frontier model as a further SEPARATE condition (the 8B condition is done) | TODO / needs user key | new run id and EXPERIMENT_LOG entry; never mixed with the 1B run; held-out set is already spent for tuning purposes, so use a new held-out set for any further tuning |
-| R3 | Independent held-out attacks (BIPIA adapter; or human-written) | TODO | DATASET_GUIDE steps; new frozen set + checksum test |
+| R3 | Independent held-out set (BIPIA attacks in human-written documents) | IN_PROGRESS: tooling, criteria, provenance, protocol DONE and committed; **waiting for the author's 25+ documents** (`data/independent/user_documents.jsonl`) | see steps in section E |
 | R4 | Transformers classifier verification (user must approve torch + weights download) | TODO | one real run; update status |
 | R5 | Human summary-quality ratings on a benign subset | TODO | documented rubric + saved ratings |
 | R6 | Optional: operator deny-list output validation as E6 (criteria independent of scorer); hidden-text experiments | TODO | new experiment entries |
 | R7 | Literature review beyond abstracts (FINAL_REPORT section 5 is INCOMPLETE) | TODO | verified, cited summaries only |
 
 ## E. Current task checkpoint
-R1 (human review) and R8 (task disruption) are done, documented and committed. Nothing is half-edited. Remaining work needs a user decision: R2 hosted model (key), R3 independent held-out attacks,
-R4 transformers download, R5 summary-quality ratings, R7 literature review. Safest next action: `pytest`, then ask the user which of these to do.
-The held-out set has been used for two final runs; any rule/prompt/scorer change motivated by its results makes it spent (AGENTS.md rule 4).
+Independent set (R3). Done and committed: verified BIPIA test file (`data/external/bipia/`, MIT, sha256 pinned, PROVENANCE.md, LICENSE), pre-registered checks for all 75 attacks (`attack_criteria.json`, `evaluation/attack_checks.py`),
+document schema and checklist (`evaluation/independent.py`, `scripts/validate_user_docs.py`), deterministic builder (`scripts/build_independent_set.py`), case set `independent` in the registry, key-topic scoring for utility and task disruption,
+protocol `docs/INDEPENDENT_SET.md`, author guide `docs/INDEPENDENT_DOCS_GUIDE.md`, template. `pytest`: 228 passed, 1 skipped (the freeze-check test activates once the set is built).
+**Waiting for:** the author (Ankit) to write 25-30 documents into `data/independent/user_documents.jsonl` (the AI must NOT write them). Then, in order:
+1. `python scripts/validate_user_docs.py` until it passes. 2. `python scripts/build_independent_set.py` (freezes the set; refuses to overwrite). 3. Add the pre-registration entry to `docs/EXPERIMENT_LOG.md` (counts, checksums, models, configs, call estimate),
+commit, `git tag independent-freeze`, verify `data/independent/independent.sha256` and run `pytest`. 4. Dry run: `python scripts/run_experiments.py --case-set independent --final-ack --configs E0,E1,E1b,E2,E3,E4,E5 --repetitions 2 --real --dry-run`
+(start `ollama serve` first; run the 1B model, then the 8B model via `LLM_MODEL`/`CLASSIFIER_MODEL` env overrides). 5. Run, then `analyze_results.py`, review (`prepare_review.py`/`apply_review.py`), `task_disruption.py`, and log results in a new section, not pooled.
+Do not change any defense, prompt, check or scorer before the first results are logged (docs/INDEPENDENT_SET.md rule 2). Nothing is half-edited.
 
 ## F. Architecture and decisions (why)
 - OpenAI-compatible HTTP adapter first (Ollama/local + hosted); no vendor SDKs, no LangChain.
@@ -96,9 +101,7 @@ Experiments completed with held-out data: final runs 1 and 2 (run 2 8B: ASR E0 4
 - Python 3.13 on macOS may skip the hidden editable `.pth` (README troubleshooting).
 
 ## K. Immediate next steps
-1. Ask the user to choose: hosted-model run (R2; user adds a key to `.env`; dry-run estimate, pre-register, freeze, run, review, disruption) or independent held-out attacks (R3).
-2. When any new run is done: `analyze_results.py`, `prepare_review.py` -> human review -> `apply_review.py`, `task_disruption.py --review ...`, then update log/report/archives.
-3. Optional: second human reviewer for labels and disruption; per-model prompt re-tuning on dev data with a new held-out set.
+1. Author writes the documents (guide: `docs/INDEPENDENT_DOCS_GUIDE.md`). 2. Validate, build, freeze, tag, pre-register, run both models (section E). 3. Afterwards: hosted-model run (R2) if the user adds a key; second human reviewer; per-model prompt re-tuning only with a new untouched set.
 
 ## L. Continuation instructions
 Read `AGENTS.md`, `CLAUDE.md`, `HANDOFF.md`, `README.md`, and `docs/EXPERIMENT_PROTOCOL.md`. Inspect `git status` and the actual files. Verify the recorded state (`pytest`) before continuing. Resume the highest-priority incomplete task without redoing verified work or discarding existing changes. Checkpoint checklist: stop starting big tasks; save work; `git status`; quick `pytest`; update this file (status, E, K); commit.
