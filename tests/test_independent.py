@@ -33,14 +33,14 @@ def fake_docs(path: Path, *, ordinary=18, security=7) -> list[dict]:
         words = (f"alpha{i}", f"beta{i}", f"gamma{i}", f"delta{i}")
         rows.append({"doc_id": f"ord-{i:02d}", "kind": "ordinary", "area": AREAS[i % 9], "topic": f"fake ordinary topic {i}",
                      "text": fake_text(i, words), "key_topics": [[w] for w in words], "themes": [], "author": "test author",
-                     "original_work": True})
+                     "origin": "human_written", "original_work": True})
     themes = [["ai"], ["ai", "malicious_instructions"], ["cybersecurity"], ["cybersecurity", "imperative_for_humans"],
               ["malicious_instructions"], ["ai"], ["cybersecurity"]]
     for j in range(security):
         words = (f"omega{j}", f"sigma{j}", f"kappa{j}", f"theta{j}")
         rows.append({"doc_id": f"sec-{j:02d}", "kind": "security_themed", "area": "technology", "topic": f"fake security topic {j}",
                      "text": fake_text(100 + j, words), "key_topics": [[w] for w in words], "themes": themes[j % 7],
-                     "author": "test author", "original_work": True})
+                     "author": "test author", "origin": "human_written", "original_work": True})
     path.write_text("".join(json.dumps(r) + "\n" for r in rows))
     return rows
 
@@ -83,8 +83,74 @@ def test_checklist_reports_each_kind_of_problem(tmp_path, bipia):
     rows.append(dict(rows[7], doc_id="dup-07"))                                        # duplicate text/topic, 26 docs
     (tmp_path / "d.jsonl").write_text("".join(json.dumps(r) + "\n" for r in rows))
     rules = {p.rule for p in check_documents(load_user_documents(tmp_path / "d.jsonl"), [s for v in bipia.values() for s in v])}
-    assert {"length", "key_topics", "ordinary_topic", "cue_strings", "directed", "original", "bipia_copy", "areas",
+    assert {"length", "key_topics", "ordinary_topic", "cue_strings", "directed", "authorship", "bipia_copy", "areas",
             "themes", "unique_text", "unique_topic"} <= rules
+
+
+def ai_docs(path, **kwargs):
+    rows = fake_docs(path, **kwargs)
+    for r in rows:
+        r.update(origin="ai_generated", original_work=False, author="test model", generator="test model, 2026-10-24, direct generation",
+                 notes="AI-generated synthetic control document; requires human review")
+    path.write_text("".join(json.dumps(r) + "\n" for r in rows))
+    return rows
+
+
+def test_ai_generated_documents_are_accepted_when_labeled_honestly(tmp_path, bipia):
+    ai_docs(tmp_path / "d.jsonl")
+    problems = check_documents(load_user_documents(tmp_path / "d.jsonl"), [s for v in bipia.values() for s in v])
+    assert [p.rule for p in problems if p.severity == "error"] == []
+    warnings = [p for p in problems if p.severity == "warning"]
+    assert len(warnings) == 1 and "25 AI-generated" in warnings[0].message and "human" in warnings[0].message
+
+
+def test_ai_text_cannot_be_labeled_as_human_written_or_unexplained(tmp_path):
+    rows = ai_docs(tmp_path / "d.jsonl")
+    rows[0]["original_work"] = True                       # AI text claiming human authorship
+    rows[1]["generator"] = ""                              # no generator named
+    rows[2]["notes"] = ""                                  # no provenance notes
+    rows[3].update(origin="human_written", original_work=False)   # human text denying authorship
+    (tmp_path / "d.jsonl").write_text("".join(json.dumps(r) + "\n" for r in rows))
+    messages = [p.message for p in check_documents(load_user_documents(tmp_path / "d.jsonl")) if p.rule == "authorship"]
+    assert len(messages) == 4 and any("do not label AI text as human-written" in m for m in messages)
+
+
+def test_origin_is_required_not_defaulted(tmp_path):
+    rows = fake_docs(tmp_path / "d.jsonl")
+    del rows[0]["origin"]
+    (tmp_path / "d.jsonl").write_text("".join(json.dumps(r) + "\n" for r in rows))
+    with pytest.raises(ValueError, match="malformed"):
+        load_user_documents(tmp_path / "d.jsonl")
+
+
+def test_human_review_flag_clears_the_warning(tmp_path):
+    rows = ai_docs(tmp_path / "d.jsonl")
+    for r in rows:
+        r["human_reviewed"] = True
+    (tmp_path / "d.jsonl").write_text("".join(json.dumps(r) + "\n" for r in rows))
+    assert check_documents(load_user_documents(tmp_path / "d.jsonl")) == []
+
+
+def test_provenance_and_manifest_record_ai_authorship(tmp_path, bipia, criteria):
+    folder = tmp_path / "independent"
+    folder.mkdir()
+    ai_docs(folder / "user_documents.jsonl", security=5, ordinary=20)
+    r = subprocess.run([sys.executable, str(ROOT / "scripts" / "build_independent_set.py"), "--dir", str(folder)],
+                       capture_output=True, text=True, cwd=tmp_path)
+    assert r.returncode == 0 and "WARNING (human_review)" in r.stderr
+    manifest = json.loads((folder / "MANIFEST.json").read_text())
+    assert manifest["n_ai_generated_documents"] == 25 and manifest["all_documents_ai_generated"] is True
+    assert manifest["n_human_reviewed_documents"] == 0 and manifest["n_ordinary_documents"] == 20
+    for case in load_cases(folder / "attacks.jsonl") + load_cases(folder / "benign.jsonl"):
+        assert case.provenance == "external_bipia_text_attack_test+ai_generated_documents"
+        assert "ai_generated" in case.notes
+
+
+def test_validate_script_passes_with_a_warning_for_unreviewed_ai_documents(tmp_path):
+    ai_docs(tmp_path / "d.jsonl", security=5, ordinary=20)
+    r = subprocess.run([sys.executable, str(ROOT / "scripts" / "validate_user_docs.py"), str(tmp_path / "d.jsonl")],
+                       capture_output=True, text=True, cwd=tmp_path)
+    assert r.returncode == 0 and "25 AI-generated" in r.stdout and "0 human-reviewed" in r.stdout and "WARNING (human_review)" in r.stdout
 
 
 def test_count_and_theme_coverage_rules(tmp_path):
@@ -123,6 +189,8 @@ def test_build_is_deterministic_complete_and_spread_out(tmp_path, bipia, criteri
     carriers = {t["carrier"] for t in table}
     assert carriers == {f"ord-{i:02d}" for i in range(18)}                                 # security docs are never carriers
     assert {t["position"] for t in table} == {"start", "middle", "end"}
+    for carrier in carriers:                                                              # every carrier sees every position
+        assert {t["position"] for t in table if t["carrier"] == carrier} == {"start", "middle", "end"}
     per_doc = {c: [t["category"] for t in table if t["carrier"] == c] for c in carriers}
     assert all(len(v) in (4, 5) and len(set(v)) == len(v) for v in per_doc.values())      # different category each time
     assert sum("Hard negative" in b.notes for b in benign) == 7
@@ -223,3 +291,17 @@ def test_the_built_independent_set_is_frozen():
     for line in checksum.read_text().splitlines():
         digest, name = line.split("  ")
         assert hashlib.sha256((ROOT / "data" / "independent" / name).read_bytes()).hexdigest() == digest, f"{name} changed after freezing"
+
+
+def test_every_carrier_sees_every_position_with_twenty_carriers(tmp_path, bipia, criteria):
+    """Regression: with 20 carriers the first formula tied each carrier to a single position."""
+    fake_docs(tmp_path / "d.jsonl", ordinary=20, security=5)
+    docs = load_user_documents(tmp_path / "d.jsonl")
+    _, _, table = build_cases(docs, bipia, criteria, "test")
+    per_carrier = {}
+    for t in table:
+        per_carrier.setdefault(t["carrier"], []).append(t)
+    assert len(per_carrier) == 20 and sorted(len(v) for v in per_carrier.values()) == [3] * 5 + [4] * 15
+    for carrier, items in per_carrier.items():
+        assert {t["position"] for t in items} == {"start", "middle", "end"}, carrier
+        assert len({t["category"] for t in items}) == len(items)

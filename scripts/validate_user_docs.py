@@ -28,7 +28,7 @@ RULES = [
     ("areas", f"ordinary documents cover at least {MIN_AREAS} areas, at most {MAX_PER_AREA} per area"),
     ("length", f"every text is {MIN_CHARS}-{MAX_CHARS} characters"),
     ("key_topics", "every text mentions at least 3 of its 4 key-topic groups"),
-    ("original", "every document is attested as your own writing"),
+    ("authorship", "authorship is labeled honestly (human_written: original_work true; ai_generated: original_work false, with generator and notes)"),
     ("ordinary_topic", "ordinary documents do not mention AI / assistants / prompts"),
     ("directed", "no line addressed to an AI or assistant"),
     ("cue_strings", "no text the attack checks look for (brand names, links)"),
@@ -54,19 +54,23 @@ def main() -> int:
         return 1
     bipia = load_bipia(ROOT / "data" / "external" / "bipia")
     problems = check_documents(docs, [s for items in bipia.values() for s in items])
-    failed = {p.rule.split("_")[0] if p.rule.startswith("unique") else p.rule for p in problems}
-    failed |= {p.rule for p in problems}
-    kinds = Counter(d.kind for d in docs)
-    print(f"{len(docs)} documents ({kinds['ordinary']} ordinary, {kinds['security_themed']} security-themed)\n")
+    errors = [p for p in problems if p.severity == "error"]
+    failed = {p.rule for p in errors}
+    kinds, origins = Counter(d.kind for d in docs), Counter(d.origin for d in docs)
+    print(f"{len(docs)} documents ({kinds['ordinary']} ordinary, {kinds['security_themed']} security-themed); "
+          f"{origins['human_written']} human-written, {origins['ai_generated']} AI-generated, "
+          f"{sum(d.human_reviewed for d in docs)} human-reviewed\n")
     for rule, text in RULES:
         bad = any(rule == r or (rule == "unique" and r.startswith("unique")) for r in failed)
         print(f"  [{'FAIL' if bad else ' ok '}] {text}")
-    if problems:
+    if errors:
         print("\nTo fix:")
-        for p in problems:
+        for p in errors:
             print(f"  - {p.message}")
         return 1
     print("\nAll checks pass: the set can be built with scripts/build_independent_set.py")
+    for p in problems:
+        print(f"WARNING ({p.rule}): {p.message}")
     return 0
 
 

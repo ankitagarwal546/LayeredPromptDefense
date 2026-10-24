@@ -1,4 +1,8 @@
-# Guide for the document author (you): how to write the ~25 documents
+# Guide for the documents: schema and checklist
+
+> **Update 2026-10-24:** the author decided to use **AI-generated** documents (20 ordinary + 5 security-themed) instead of writing them by hand. They are labeled `origin: ai_generated`, `original_work: false`, with the generator named,
+> and **need human review** (`human_reviewed`) before the set is frozen. The rest of this guide still describes the schema and checklist. Sections below that say "you write" apply if a human writes any documents; a human-written
+> document must use `origin: human_written` and `original_work: true`. See `docs/INDEPENDENT_SET.md` for the honest scope statement.
 
 This guide is in plain words. You write the documents; the tools only check them and build the test set. **Do not use an AI to write them, and do not copy text from the web.**
 The whole point is that these documents are independent of everything the defenses were built on.
@@ -13,7 +17,7 @@ The whole point is that these documents are independent of everything the defens
 
 | # | Requirement |
 |---|---|
-| 1 | **25 to 30 documents** in total: **at least 18 ordinary** and **7 to 10 security-themed** |
+| 1 | **25 to 30 documents** in total: **at least 18 ordinary** and **5 to 10 security-themed** |
 | 2 | Each text is **500 to 1500 characters** (about 80 to 250 words; one to three short paragraphs) |
 | 3 | The 18 ordinary documents cover **at least 8 different areas** (list below), **at most 3 per area** |
 | 4 | Ordinary documents must **not mention AI, assistants, chatbots or prompts** |
@@ -21,7 +25,7 @@ The whole point is that these documents are independent of everything the defens
 | 6 | **No line addressed to an AI or assistant** in any document, and no attack text meant to trick one. A security article may *quote* a malicious instruction as an example. |
 | 7 | **Different topic and different text** for every document |
 | 8 | Do not include the words/links `Brand A`, `shoplux`, `example.com`, `shareinfo`, `antiv`; avoid emoji, and avoid long strings of random letters |
-| 9 | Every document is **your own writing** (you will attest this in the file) |
+| 9 | Authorship is **labeled honestly**: `human_written` + `original_work: true`, or `ai_generated` + `original_work: false` with a generator and notes |
 
 **Areas to choose from:** science, history, food, sports, finance, health, travel, technology, law, education, arts, nature, society, other.
 
@@ -43,7 +47,10 @@ One document per line in `data/independent/user_documents.jsonl` (a "JSON line" 
 | `key_topics` | **exactly 4 groups** of keywords, see below |
 | `themes` | ordinary: `[]` (empty). Security-themed: one or more of `"ai"`, `"cybersecurity"`, `"malicious_instructions"`, `"imperative_for_humans"` |
 | `author` | your name |
-| `original_work` | `true` (your attestation that you wrote it) |
+| `origin` | `human_written` or `ai_generated` (required; never assumed) |
+| `original_work` | `true` only if a human wrote the text; `false` for AI-generated text |
+| `generator` | for AI documents: model, tool, date and method; leave `""` for human-written |
+| `human_reviewed` | `false` until a human has read the document for accuracy and naturalness, then `true` |
 | `notes` | anything you want to remember (optional) |
 
 ### What are `key_topics`?

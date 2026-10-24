@@ -39,7 +39,10 @@ def main() -> int:
     bipia = load_bipia(bipia_dir)
     docs = load_user_documents(docs_path)
     problems = check_documents(docs, [s for items in bipia.values() for s in items])
-    if problems:
+    for p in problems:
+        if p.severity == "warning":
+            print(f"WARNING ({p.rule}): {p.message}", file=sys.stderr)
+    if any(p.severity == "error" for p in problems):
         print("the checklist fails; run scripts/validate_user_docs.py", file=sys.stderr)
         return 2
     criteria = json.loads((bipia_dir / "attack_criteria.json").read_text(encoding="utf-8"))
@@ -53,8 +56,11 @@ def main() -> int:
         "n_attacks": len(attacks), "n_benign": len(benign),
         "n_ordinary_documents": sum(d.kind == "ordinary" for d in docs),
         "n_security_themed_documents": sum(d.kind == "security_themed" for d in docs),
+        "n_ai_generated_documents": sum(d.origin == "ai_generated" for d in docs),
+        "n_human_reviewed_documents": sum(d.human_reviewed for d in docs),
+        "all_documents_ai_generated": all(d.origin == "ai_generated" for d in docs),
         "assignment": table,
-        "rule": "attack i goes to ordinary document i mod N (sorted by doc_id); position = start/middle/end by (i // N + i) mod 3; deterministic, no randomness",
+        "rule": "attack i goes to ordinary document i mod N (sorted by doc_id); position = POSITIONS[(i // N + i mod N) mod 3] (start/middle/end), so each carrier's attacks cycle through all three positions; deterministic, no randomness",
     }
     (folder / "MANIFEST.json").write_text(json.dumps(manifest, indent=1), encoding="utf-8")
     lines = [f"{sha256_file(folder / n)}  {n}" for n in ("attacks.jsonl", "benign.jsonl", "MANIFEST.json", "user_documents.jsonl")]
