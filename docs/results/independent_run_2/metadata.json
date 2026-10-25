@@ -1,0 +1,137 @@
+{
+  "run_id": "8a4c672e6307",
+  "started_at": "2026-10-24T20:55:20+00:00",
+  "model": {
+    "provider": "openai_compatible",
+    "name": "llama3.1:8b",
+    "is_mock": false,
+    "generation_params": {
+      "temperature": 0.0,
+      "max_tokens": 512
+    }
+  },
+  "classifier": {
+    "available": true,
+    "model": "llama3.1:8b"
+  },
+  "dataset": {
+    "path": "/Users/ankitagarwal546/Documents/Prompt Injection/data/independent/attacks.jsonl",
+    "sha256": "70010a1cd4789001a02fade42c73171b20484f611ad8b483d810354e99ddb59a",
+    "n_cases": 100,
+    "extra_files": {
+      "/Users/ankitagarwal546/Documents/Prompt Injection/data/independent/benign.jsonl": "ec90daa43510767b9a3f076bf43e9009265a24211b82cb62adbf9e3942a187dc"
+    }
+  },
+  "repetitions": 2,
+  "heldout_families": [
+    "bipia_base_encoding",
+    "bipia_business_intelligence",
+    "bipia_conversational_agent",
+    "bipia_emoji_substitution",
+    "bipia_entertainment",
+    "bipia_information_dissemination",
+    "bipia_language_translation",
+    "bipia_marketing_advertising",
+    "bipia_misinformation_propaganda",
+    "bipia_research_assistance",
+    "bipia_reverse_text",
+    "bipia_scams_fraud",
+    "bipia_sentiment_analysis",
+    "bipia_substitution_ciphers",
+    "bipia_task_automation"
+  ],
+  "configs": {
+    "E0": {
+      "name": "E0",
+      "heuristic": false,
+      "heuristic_policy": "block",
+      "classifier": false,
+      "classifier_policy": "block",
+      "structural": false,
+      "structural_variant": "v3",
+      "output_validation": false,
+      "output_validation_policy": "flag_only",
+      "fail_closed_on_detector_error": false
+    },
+    "E1": {
+      "name": "E1",
+      "heuristic": true,
+      "heuristic_policy": "block",
+      "classifier": false,
+      "classifier_policy": "block",
+      "structural": false,
+      "structural_variant": "v3",
+      "output_validation": false,
+      "output_validation_policy": "flag_only",
+      "fail_closed_on_detector_error": false
+    },
+    "E1b": {
+      "name": "E1b",
+      "heuristic": true,
+      "heuristic_policy": "sanitize",
+      "classifier": false,
+      "classifier_policy": "block",
+      "structural": false,
+      "structural_variant": "v3",
+      "output_validation": false,
+      "output_validation_policy": "flag_only",
+      "fail_closed_on_detector_error": false
+    },
+    "E2": {
+      "name": "E2",
+      "heuristic": false,
+      "heuristic_policy": "block",
+      "classifier": false,
+      "classifier_policy": "block",
+      "structural": true,
+      "structural_variant": "v3",
+      "output_validation": false,
+      "output_validation_policy": "flag_only",
+      "fail_closed_on_detector_error": false
+    },
+    "E3": {
+      "name": "E3",
+      "heuristic": false,
+      "heuristic_policy": "block",
+      "classifier": true,
+      "classifier_policy": "block",
+      "structural": false,
+      "structural_variant": "v3",
+      "output_validation": false,
+      "output_validation_policy": "flag_only",
+      "fail_closed_on_detector_error": false
+    },
+    "E4": {
+      "name": "E4",
+      "heuristic": true,
+      "heuristic_policy": "block",
+      "classifier": false,
+      "classifier_policy": "block",
+      "structural": true,
+      "structural_variant": "v3",
+      "output_validation": false,
+      "output_validation_policy": "flag_only",
+      "fail_closed_on_detector_error": false
+    },
+    "E5": {
+      "name": "E5",
+      "heuristic": true,
+      "heuristic_policy": "block",
+      "classifier": true,
+      "classifier_policy": "block",
+      "structural": true,
+      "structural_variant": "v3",
+      "output_validation": false,
+      "output_validation_policy": "flag_only",
+      "fail_closed_on_detector_error": false
+    }
+  },
+  "evidence_status": "PRELIMINARY: real model on project-authored synthetic data; small samples, not a public benchmark. Report with denominators and intervals, never as a general guarantee",
+  "unavailable_experiments": {},
+  "code": {
+    "commit": "fd66e17f7bbc70a3dd667f12a7a2490dc2d41f25",
+    "dirty": false
+  },
+  "finished_at": "2026-10-25T02:34:25+00:00",
+  "case_set": "independent"
+}

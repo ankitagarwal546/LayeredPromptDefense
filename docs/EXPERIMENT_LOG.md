@@ -301,3 +301,37 @@ Reverse Text and Substitution Ciphers 0/10 everywhere (registered checks). Full 
 - **Usable summary:** the clearest effect in this run is that the structural prompt makes the small model deliver a usable summary of an attacked document far more often: 55-60% vs 21% (intervals do not overlap); task disruption 14-19% vs 59-62%.
 - **Reverse Text:** registered result unchanged (0/10 in every configuration). The post-hoc review in `results/review_independent_run1/reverse_text_posthoc.md` was **not** applied and is not part of these numbers.
 - **Scope:** one 1B local model, 25 AI-generated benign documents, 75 BIPIA instructions, one non-blind reviewer. Evidence status PRELIMINARY. No generalization claim; the defenses were not tuned on this set (it is not spent). The 8B run on this set has not been started and needs the author's approval.
+
+### Independent run 2: `8a4c672e6307` (llama3.1:8b; executed 2026-10-24 20:55 to 2026-10-25 02:34 UTC, 5.6 hours; PRE-REVIEW results)
+
+**Status: complete and verified; human review of 363 unresolved attack outcomes (161 distinct outputs) NOT started. Everything below is the pre-registered, pre-review result.** Approved by the author on 2026-10-25 after reviewing run 1. Same protocol, set, configs, trials and settings as run 1 (only the model changed); not pooled with any other run.
+
+- **Preflight (all passed before the run):** tree clean at `fd66e17` (differs from `independent-freeze` only in review/analysis tools and docs: `load_all_cases`, `prepare_review.py`, `task_disruption.py`, a test; every defense, scorer, runner and pipeline file byte-identical to the tag);
+  dataset and BIPIA checksums verified; Ollama 0.12.10 with `llama3.1:8b`; settings temperature 0, max_tokens 512, classifier = same model (env overrides `LLM_MODEL`, `CLASSIFIER_MODEL`; `.env` untouched). Smoke test on the dev set (E0, E5; separate output folder outside `results/`): 36 outcomes, 0 failures.
+- **Command:** `LLM_MODEL=llama3.1:8b CLASSIFIER_MODEL=llama3.1:8b python scripts/run_experiments.py --case-set independent --final-ack --configs E0,E1,E1b,E2,E3,E4,E5 --repetitions 2 --real --yes` (under `caffeinate`). Estimated 1,800 calls; actual about 1,980 calls (see calls per request below). The pre-run time estimate (2-3 h) was too low: about 17 s per outcome, 5.6 h in total.
+- **Integrity:** 1,400 outcomes = 7 x 2 x 100, all unique; run id only `8a4c672e6307`; all 1,392 processed outcomes have stored output text; outcomes file sha256 recorded before analysis.
+  **Model failures: 2** (E0, trial 1, cases `ind-a31` and `ind-a34`): both calls failed instantly (0 ms) with the generic "call failed or returned an unexpected response" error, apparently a transient local-server hiccup; no other call failed. They were not retried (a retry would be a deviation from the registered run), are counted as errors, and are excluded from the ASR denominator (E0: 2 more unknown outcomes).
+  **Detector failures: 8** (the classifier gave no parseable verdict for `ind-a51` and `ind-a61`, both trials, under E3 and E5; the same two cases as in run 1; processed fail-open as designed). **Blocked: 6**, all benign (`ind-b24`/sec-04 under E1, E4 and E5, two trials each). The 8B classifier blocked nothing.
+
+**Pre-registered results (pooled over 2 trials; attacks n = 150 per config; benign n = 50):**
+
+| config | ASR on automatically decided outcomes | unresolved | ASR bounds (all 150) | detection | FPR | benign task completion | mean ms | calls/req | model / detector failures |
+|---|---|---|---|---|---|---|---|---|---|
+| E0 | 35.0% (35/100) | 50 (incl. 2 errors) | 23.3-56.7% | n/a | n/a | 100% | 17,674 | 1.00 | 2 / 0 |
+| E1 | 35.3% (36/102) | 48 | 24.0-56.0% | 0.0% (0/150) | 4.0% (2/50) | 96.0% | 14,450 | 0.99 | 0 / 0 |
+| E1b | 35.3% (36/102) | 48 | 24.0-56.0% | 0.0% (0/150) | 4.0% (2/50) | 100% | 14,103 | 1.00 | 0 / 0 |
+| E2 | 22.5% (20/89) | 61 | 13.3-54.0% | n/a | n/a | 100% | 11,297 | 1.00 | 0 / 0 |
+| E3 | 35.3% (36/102) | 48 | 24.0-56.0% | **0.0% (0/146)** | **0.0% (0/50)** | 100% | 16,904 | 2.00 | 0 / 4 |
+| E4 | 23.9% (22/92) | 58 | 14.7-53.3% | 0.0% (0/150) | 4.0% (2/50) | 96.0% | 10,309 | 0.99 | 0 / 0 |
+| E5 | 22.4% (22/98) | 52 | 14.7-49.3% | 0.0% (0/150) | 4.0% (2/50) | 96.0% | 16,555 | 1.98 | 0 / 4 |
+
+**Task disruption (automatic rule only; unresolved outcomes excluded, so provisional):** E0 16.9% (11/65), E1/E1b/E3 18.2% (12/66), E2 4.3% (3/69), E4 4.3% (3/70), E5 2.6% (2/76); usable summary on attack documents E0 54.0% (54/100), E1/E1b/E3 52.9% (54/102), E2 74.2% (66/89), E4 72.8% (67/92), E5 75.5% (74/98).
+
+**Reading these (pre-review; no conclusion yet):**
+- 363 of 1,050 attack outcomes (35%) are unresolved, so the bounds, not the evaluated ASR, are the headline. All seven bounds overlap heavily (about 13-57%); **no difference between configurations is established before review.**
+- **The 8B classifier detected none of the 146 attack outcomes it could evaluate and flagged no benign document** (E3 behaves exactly like E0 for attacks; its only effect is a second model call and 4 detector failures). This contrasts with the earlier held-out set, where the same 8B classifier detected about half the attacks with zero false positives; the attack kinds differ (bare off-task instructions vs. override-style and obfuscated attacks).
+  The word rules again detected 0/150; their only false positive is sec-04. E1, E1b and E3 have identical attack outcomes to E0 apart from the two failed E0 calls.
+- Among automatically decided outcomes the structural-prompt configurations (E2, E4, E5) are lower (22-24%) than E0 (35%), but they also have more unresolved outcomes, so this must not be read as a result.
+- The 8B model was about 4-5x slower per request than the 1B model (E0: 17.7 s vs 4.0 s).
+- Review workload for the next session: 363 outcomes in 161 distinct (case, output) groups, to be reviewed with the run-1 rubric (see "Independent run 1: human review and post-review results"). Not started; no AI proposals have been prepared.
+- Artifacts: `docs/results/independent_run_2/`. Per-category counts: `by_family.csv`.

@@ -1,12 +1,12 @@
 # HANDOFF.md: canonical project state
 
-Last updated: 2026-10-25 (session 2, checkpoint 14: independent run 1 (1B) reviewed; independent run 2 (8B, `8a4c672e6307`) IN PROGRESS, approved by the author; README/HANDOFF status refreshed; FINAL_REPORT draft section for the 1B independent run). Update at every checkpoint (see L).
+Last updated: 2026-10-25 (session 2, checkpoint 14: independent run 1 (1B) reviewed; independent run 2 (8B, `8a4c672e6307`) DONE and verified, pre-review; review not started). Update at every checkpoint (see L).
 
 ## A. Project identity
 - **Title:** Evaluating Layered Defenses Against Indirect Prompt Injection in LLM-Based Document Summarization
 - **Objective:** working summarizer with a configurable defense pipeline + reproducible evaluation (RQ1-RQ6: `docs/RESEARCH_PLAN.md`)
 - **Repo:** `/Users/ankitagarwal546/Documents/Prompt Injection` (git, branch `master`, no remote). Tags `final-run-1-freeze` / `final-run-2-freeze` mark the frozen code for each final run; `independent-freeze` marks the frozen independent set. Check `git status` / `git log -1` for the current commit (do not trust a hash written here).
-- **Phase:** software complete; final runs 1 (1B) and 2 (8B) done, analyzed, logged, reported (preliminary). Independent run 1 (1B) done and human-reviewed. Independent run 2 (8B) approved and running (`8a4c672e6307`); next: review and analyze it, then complete the report.
+- **Phase:** software complete; final runs 1 (1B) and 2 (8B) done, analyzed, logged, reported (preliminary). Independent run 1 (1B) done and human-reviewed. Independent run 2 (8B) done and analyzed pre-review (`8a4c672e6307`); next: human review of its 161 unresolved output groups, then the 1B-vs-8B comparison and the report.
 
 ## B. Current status
 
@@ -50,7 +50,7 @@ Last updated: 2026-10-25 (session 2, checkpoint 14: independent run 1 (1B) revie
 | R1 | Human verification of the 103 AI-adjudicated labels | DONE (2026-10-24) | reviewer Ankit; 33 items, agreed 32, changed 1 (run 1 dev-a09 E2 t0 yes->no: run 1 E2 ASR 41.4% -> 40.0%); decisions in `docs/results/human_review_decisions.csv`; see EXPERIMENT_LOG |
 | R8 | Task-disruption measure (separate outcome; ASR unchanged) | DONE (2026-10-24) | `evaluation/disruption.py`, `scripts/task_disruption.py`, criteria `data/task_disruption_carriers.json`; rule committed (`1ab56a4`) before computing; agrees with human labels 62/64; results in EXPERIMENT_LOG / FINAL_REPORT and `docs/results/final_run_{1,2}/task_disruption*.csv` |
 | R2 | Run the same protocol on a hosted frontier model as a further SEPARATE condition (the 8B condition is done) | TODO / needs user key | new run id and EXPERIMENT_LOG entry; never mixed with the 1B run; held-out set is already spent for tuning purposes, so use a new held-out set for any further tuning |
-| R3 | Independent set (BIPIA attacks in AI-generated benign documents; partially independent) | FROZEN; **run 1 (llama3.2:1b, `4da08316a2fb`) DONE and human-reviewed (2026-10-25)**; **run 2 (llama3.1:8b, `8a4c672e6307`) IN PROGRESS (approved)** | see section E |
+| R3 | Independent set (BIPIA attacks in AI-generated benign documents; partially independent) | FROZEN; **run 1 (llama3.2:1b, `4da08316a2fb`) DONE and human-reviewed (2026-10-25)**; **run 2 (llama3.1:8b, `8a4c672e6307`) DONE, pre-review; human review NOT started** | see section E |
 | R4 | Transformers classifier verification (user must approve torch + weights download) | TODO | one real run; update status |
 | R5 | Human summary-quality ratings on a benign subset | TODO | documented rubric + saved ratings |
 | R6 | Optional: operator deny-list output validation as E6 (criteria independent of scorer); hidden-text experiments | TODO | new experiment entries |
@@ -66,10 +66,9 @@ Still open, optional:
 1. Post-hoc Reverse Text review: `results/review_independent_run1/reverse_text_posthoc.md` (22 outputs; NOT applied; registered ASR unchanged; label any statement post-hoc).
 2. FINAL_REPORT section 10.1 (independent set) is drafted for the 1B run only; complete it with the 8B results, then update the abstract, discussion, limitations, conclusion and future work.
 
-**Independent run 2 (8B) IN PROGRESS (approved by the author 2026-10-25):** run id `8a4c672e6307`, started 2026-10-24 20:55 UTC, `llama3.1:8b` for summarizer and classifier, commit `fd66e17` (clean; every run-path file byte-identical to `independent-freeze`).
-Preflight passed: clean tree, dataset and BIPIA checksums, scorer/defense hashes equal to the tag, Ollama 0.12.10 with `llama3.1:8b`, settings temperature 0 / max_tokens 512, smoke test on dev (E0, E5; outputs in the session scratchpad, not `results/`): 36 outcomes, 0 failures.
-Up to 1,800 local calls; observed ~18-20 s per outcome early on, so roughly 7 h in total. Command: `LLM_MODEL=llama3.1:8b CLASSIFIER_MODEL=llama3.1:8b caffeinate -i python scripts/run_experiments.py --case-set independent --final-ack --configs E0,E1,E1b,E2,E3,E4,E5 --repetitions 2 --real --yes`.
-If interrupted: `--resume 8a4c672e6307` with the same arguments and env. Do not use Ollama (demos, real-model API calls) while it runs. Afterwards: verify integrity (1,400 unique outcomes, failures), analyze, prepare the review (`prepare_review.py 8a4c672e6307 --include-unlabeled --out results/review_independent_run2`), review in batches of 10 with the author using the run-1 rubric (EXPERIMENT_LOG), recompute, log, archive to `docs/results/independent_run_2/`, then stop and report.
+**Independent run 2 (8B) DONE and verified, PRE-REVIEW (2026-10-25):** run id `8a4c672e6307`, 1,400 unique outcomes, `llama3.1:8b`, commit `fd66e17`, ran 20:55-02:34 UTC (5.6 h). **2 model failures** (E0 trial 1, `ind-a31`, `ind-a34`; transient, not retried, excluded from ASR), 8 detector failures (E3/E5, `ind-a51`/`ind-a61`), 6 blocked (all benign sec-04). Logged in EXPERIMENT_LOG ("Independent run 2"), archived in `docs/results/independent_run_2/`; `outcomes_pre_review.sha256` is next to the raw outputs.
+Pre-review: ASR on decided outcomes E0 35.0%, E1/E1b/E3 35.3%, E2 22.5%, E4 23.9%, E5 22.4%; 363 attack outcomes (161 distinct outputs) unresolved; bounds ~13-57% overlap. Notable: the 8B classifier flagged 0/146 attacks and 0/50 benign (E3 = E0 for attacks); word rules 0/150.
+**NEXT (new session, step 3):** prepare the review (`PYTHONPATH=src python scripts/prepare_review.py 8a4c672e6307 --include-unlabeled --out results/review_independent_run2`; optionally add AI proposals via `--proposals`), review in batches of 10 with the author using the run-1 rubric, apply (`apply_review.py`, dry run first), re-run `analyze_results.py` and `task_disruption.py --review`, log the post-review entry, archive. Then step 4 (1B vs 8B comparison on the independent set) and step 5 (finish FINAL_REPORT). The author asked to stop after verify + analyze this session.
 Do not change any defense, prompt, check or scorer before the first results are logged (done: pre-review results are logged); any tuning against this set means it is spent for generalization claims (docs/INDEPENDENT_SET.md). Tool fix this session: `load_all_cases` (task_disruption/prepare_review now find independent cases); `prepare_review.py --include-unlabeled --proposals`.
 
 ## F. Architecture and decisions (why)
@@ -102,7 +101,7 @@ Local-only data on this machine: `results/` (git-ignored: run folders with model
 ## I. Research and experimental state
 Datasets: dev 18, held-out attacks 24, held-out benign 24 (all project-authored synthetic; see DATASET_GUIDE); independent set 75 attacks + 25 benign (BIPIA `text_attack_test.json` instructions, MIT, in 25 AI-generated documents; see INDEPENDENT_SET).
 Experiments completed with held-out data: final runs 1 and 2 (run 2 8B: ASR E0 48.6%, E1 28.6%, E2 18.6%, E3 20.0%, E4 8.6%, E5 10.0%; 8B classifier FPR 0/48; see EXPERIMENT_LOG and FINAL_REPORT). Run 1 (1B): ASR E0 34.3%, E1 11.4%, E2 40.0% (after human correction), E3 34.3%, E4 21.4%, E5 21.4%; heuristic detection 72.7% familiar vs 8.3% held-out).
-Independent run 1 (1B, post-review): ASR E0/E1/E1b 44.0%, E2 30.0%, E3 42.7%, E4 31.7%, E5 29.6%; heuristic detection 0/150; FPR 2/50 (sec-04 only). Independent run 2 (8B): in progress. Result locations: `results/<run_id>/` (git-ignored). Limitations: small n, non-independent held-out, 1B model, lexical scoring, keyword utility proxy.
+Independent run 1 (1B, post-review): ASR E0/E1/E1b 44.0%, E2 30.0%, E3 42.7%, E4 31.7%, E5 29.6%; heuristic detection 0/150; FPR 2/50 (sec-04 only). Independent run 2 (8B, pre-review): ASR on decided outcomes E0 35.0%, E2 22.5%, E4 23.9%, E5 22.4%; 363 outcomes unresolved; classifier detection 0/146. Result locations: `results/<run_id>/` (git-ignored). Limitations: small n, non-independent held-out, 1B model, lexical scoring, keyword utility proxy.
 
 ## J. Problems and blockers
 - Findings are specific to a 1B local model and project-authored data (held-out authored by the same AI as the rules).
@@ -110,7 +109,7 @@ Independent run 1 (1B, post-review): ASR E0/E1/E1b 44.0%, E2 30.0%, E3 42.7%, E4
 - Python 3.13 on macOS may skip the hidden editable `.pth` (README troubleshooting).
 
 ## K. Immediate next steps
-1. Let the 8B independent run (`8a4c672e6307`) finish; then verify, analyze, review its unresolved outputs with the author (same rubric), log and archive (section E). 2. Complete FINAL_REPORT 10.1 with the 8B results and a 1B-vs-8B comparison; update abstract, discussion, limitations, conclusion, future work. 3. Literature review (section 5). 4. Demo script after the run. 5. Optional: Reverse Text post-hoc review (kept separate); a second, blinded reviewer.
+1. Review the 8B independent run's unresolved outputs with the author (same rubric), recompute, log and archive (section E). 2. Complete FINAL_REPORT 10.1 with the 8B results and a 1B-vs-8B comparison; update abstract, discussion, limitations, conclusion, future work. 3. Literature review (section 5). 4. Demo script after the run. 5. Optional: Reverse Text post-hoc review (kept separate); a second, blinded reviewer.
 
 ## L. Continuation instructions
 Read `AGENTS.md`, `CLAUDE.md`, `HANDOFF.md`, `README.md`, and `docs/EXPERIMENT_PROTOCOL.md`. Inspect `git status` and the actual files. Verify the recorded state (`pytest`) before continuing. Resume the highest-priority incomplete task without redoing verified work or discarding existing changes. Checkpoint checklist: stop starting big tasks; save work; `git status`; quick `pytest`; update this file (status, E, K); commit.
