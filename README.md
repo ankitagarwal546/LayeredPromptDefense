@@ -166,7 +166,7 @@ Layer 4 (output validation) needs explicit criteria and acts as the evaluation s
 See [HANDOFF.md](HANDOFF.md) for the authoritative, verified status. The application, API, UI, defenses, evaluation harness and CLIs are implemented and tested offline (237 tests passing, 2026-10-25).
 Two pre-registered final runs are complete and written up as a **preliminary** report: [docs/FINAL_REPORT.md](docs/FINAL_REPORT.md) (run 1: `llama3.2:1b`, run 2: `llama3.1:8b`; same code, data and configs),
 with [docs/EXPERIMENT_LOG.md](docs/EXPERIMENT_LOG.md) and archived artifacts in `docs/results/final_run_{1,2}/`. The headline: which defenses helped depended strongly on the model.
-On the **independent set**, the `llama3.2:1b` run is complete and human-reviewed (`docs/results/independent_run_1/`; draft report section in FINAL_REPORT); the `llama3.1:8b` run is complete and analyzed but **not yet human-reviewed** (`docs/results/independent_run_2/`, pre-review numbers only).
+On the **independent set**, the `llama3.2:1b` run is complete and human-reviewed (`docs/results/independent_run_1/`; draft report section 10.1 in FINAL_REPORT); the `llama3.1:8b` run is complete and human-reviewed (`docs/results/independent_run_2/`); the cross-model comparison and the report section for it are next.
 Not done: a hosted frontier model, summary-quality ratings, a second (blinded) human reviewer, per-model prompt re-tuning, a trained classifier, a full literature review.
 
 ## Known limitations
