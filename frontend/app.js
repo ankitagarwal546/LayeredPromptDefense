@@ -4,6 +4,7 @@
 
 const $ = (id) => document.getElementById(id);
 const SVG_NS = "http://www.w3.org/2000/svg";
+const REDUCED_MOTION = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 let config = null;
 let lastResults = null;
 let examples = [];
@@ -31,6 +32,9 @@ function svg(tag, attrs = {}, ...children) {
   for (const c of children) node.append(c);
   return node;
 }
+
+// Run `fn` after the element has been painted once, so CSS transitions animate from the start value.
+const afterPaint = (fn) => requestAnimationFrame(() => requestAnimationFrame(fn));
 
 async function api(path, options) {
   const response = await fetch(path, options);
@@ -62,68 +66,78 @@ const fmtPct = (v) => (v === null ? "n/a" : `${v.toFixed(1)}%`);
 
 // ---------- plain-language content ----------
 const PRESET_TEXT = {
-  E0: "No protection. The document goes straight to the AI. This is the baseline everything is compared with.",
-  E1: "Word rules (L1) scan for attack phrases and block the document if they find any.",
-  E1b: "Word rules (L1), but instead of blocking they cut out the suspicious lines and continue.",
-  E2: "Safer instructions (L3): the AI is told the document is only data to summarize, never orders to follow.",
-  E3: "AI checker (L2): an extra AI call first judges whether the document contains an attack.",
-  E4: "Word rules (L1) + safer instructions (L3).",
-  E5: "Everything: word rules (L1), AI checker (L2) and safer instructions (L3).",
+  E0: "No protection. The document goes straight to the AI. The baseline everything is compared with.",
+  E1: "Word rules scan for attack phrases and block the document if they find any.",
+  E1b: "Word rules, but instead of blocking they cut out the suspicious lines and carry on.",
+  E2: "Safer instructions: the AI is told the document is only data to summarize, never orders to follow.",
+  E3: "AI checker: an extra AI call first judges whether the document contains an attack.",
+  E4: "Word rules plus safer instructions.",
+  E5: "Everything: word rules, AI checker and safer instructions.",
 };
 
+function shortPreset(name) {
+  return { E0: "no protection", E1: "word rules (block)", E1b: "word rules (clean)", E2: "safer instructions",
+    E3: "AI checker", E4: "word rules + safer instr.", E5: "all layers" }[name] || "";
+}
+
 const PIPELINE = [
-  { id: "doc", title: "Document", sub: "untrusted input", layer: false,
-    what: "The text you want summarized: pasted, picked from the examples, or extracted from a PDF/DOCX/TXT file.",
-    why: "It may come from anyone, so the app treats it as untrusted. An attacker can hide an instruction anywhere in it." },
-  { id: "L1", title: "L1 Word rules", sub: "heuristic detector", layer: true,
-    what: "Looks for known attack phrases (such as \"ignore previous instructions\") using weighted rules. When the score reaches 1.0 the document is flagged, and the preset decides: block it, cut out the matching lines, or only warn.",
-    good: "Fast, free, explainable: it shows exactly which rule matched.",
-    bad: "Only catches wording it already knows. Rephrased or polite attacks slip past.",
-    found: "Caught 0 of 150 externally written attacks in the independent test (they contain no override words). In the earlier tests it caught 72.7% of attack styles it was built for, but only 8.3% of unseen styles." },
-  { id: "L2", title: "L2 AI checker", sub: "model classifier", layer: true,
-    what: "A separate call to the AI model reads the document and answers: \"suspicious or not?\", with a confidence from 0 to 1.",
-    good: "Can understand meaning, not just exact words.",
-    bad: "Costs an extra model call and the checker itself can be fooled or can wrongly flag security articles.",
-    found: "Flagged 8 of 146 attacked documents on the small 1B model and 0 of 146 on the 8B model." },
-  { id: "L3", title: "L3 Safer instructions", sub: "structural separation", layer: true,
-    what: "Wraps the document between unique markers and tells the AI: everything between the markers is data to summarize, and any instruction inside it must be ignored.",
-    good: "Needs no extra call and helps even against attacks with no suspicious words.",
-    bad: "The AI still reads one stream of text and can still be persuaded; sometimes it even made new attacks work.",
-    found: "The only layer that clearly helped: attack success fell from 44.0% to 30.0% (1B) and from 39.9% to 20.0% (8B). It stopped 31 (1B) and 38 (8B) attacks but let 12 and 8 new ones through." },
-  { id: "model", title: "AI model", sub: "writes the summary", layer: false,
-    what: "A local Llama model (1B or 8B, run with Ollama) writes the summary. For testing the app there is also a mock model: a fake stand-in that is not an AI.",
-    why: "With no defense, 56% (1B) and 60% (8B) of attacks already failed on their own: the model ignored them. Defenses only get credit for the attacks they actually changed." },
-  { id: "L4", title: "L4 Output check", sub: "validation", layer: true,
-    what: "Checks the finished answer for signs that the attack worked, e.g. \"the answer is in French\" or \"the attacker's link appears\".",
-    good: "Looks at what actually came out, not at guesses about the input.",
-    bad: "Only possible when the attack's goal is known in advance, so it is used for scoring evaluations, not for your own documents.",
-    found: "Used as the scoring tool in the study; unclear answers were checked by a human." },
-  { id: "result", title: "Result", sub: "allow / warn / block", layer: false,
-    what: "ALLOW: nothing was flagged. WARN: a summary was produced but something was flagged, cleaned, or a layer could not run. BLOCK: no summary was delivered.",
-    why: "Every result also shows how many model calls were made and how long it took, because protection has a cost." },
+  { id: "doc", node: "DOC", title: "Document", sub: "untrusted input", layer: false,
+    what: "The text you want summarized: pasted, picked from the examples, or extracted from a PDF, DOCX or TXT file.",
+    good: "Nothing to configure: every document is treated as untrusted.",
+    bad: "An attacker can hide an instruction anywhere in it, in any wording.",
+    found: "We hid 75 instructions written by other researchers at the start, middle or end of ordinary articles." },
+  { id: "L1", node: "L1", title: "Word rules", sub: "heuristic detector", layer: true,
+    what: "Looks for known attack phrases, such as \"ignore previous instructions\", using weighted rules. At a score of 1.0 the document is flagged; the preset decides whether to block it, cut out the lines, or only warn.",
+    good: "Fast, free and explainable: it shows exactly which rule matched.",
+    bad: "Only catches wording it already knows. Rephrased or polite attacks slip past, and articles that merely quote an attack get flagged.",
+    found: "Caught 0 of 150 externally written attacks. Earlier, it caught 72.7% of the attack styles it was built for but only 8.3% of unseen styles." },
+  { id: "L2", node: "L2", title: "AI checker", sub: "model classifier", layer: true,
+    what: "A separate call to the AI model reads the document and answers \"suspicious or not?\", with a confidence from 0 to 1.",
+    good: "Can judge meaning, not just exact words.",
+    bad: "Costs an extra model call per document, and the checker itself can be fooled.",
+    found: "Flagged 8 of 146 attacked documents with the 1B model and 0 of 146 with the 8B model." },
+  { id: "L3", node: "L3", title: "Safer instructions", sub: "structural separation", layer: true,
+    what: "Wraps the document between unique markers and tells the AI: everything between them is data to summarize; any instruction inside must be ignored.",
+    good: "No extra call, and it works even against attacks with no suspicious words.",
+    bad: "The AI still reads one stream of text and can still be persuaded; sometimes it even made a new attack work.",
+    found: "The only layer that clearly helped: attack success fell from 44.0% to 30.0% (1B) and from 39.9% to 20.0% (8B). It stopped 31 and 38 attacks, but let 12 and 8 new ones through." },
+  { id: "model", node: "AI", title: "AI model", sub: "writes the summary", layer: false,
+    what: "A local Llama model (1B or 8B, run with Ollama) writes the answer. For testing the app there is also a mock model: a fake stand-in, not an AI.",
+    good: "Runs on this computer: no document leaves the machine.",
+    bad: "Small models are easier to confuse than large hosted ones.",
+    found: "With no defense, 56% (1B) and 60% (8B) of attacks already failed: the model ignored them on its own." },
+  { id: "L4", node: "L4", title: "Output check", sub: "validation", layer: true,
+    what: "Checks the finished answer for signs the attack worked, e.g. \"the answer is in French\" or \"the attacker's link appears\".",
+    good: "Judges what actually came out, not guesses about the input.",
+    bad: "Needs to know the attack's goal in advance, which a real user doesn't. So it is used to score experiments.",
+    found: "Used as the scoring tool; every answer it could not decide was checked by a person." },
+  { id: "result", node: "✓", title: "Result", sub: "allow · warn · block", layer: false,
+    what: "ALLOW: nothing was flagged. WARN: an answer was produced but something was flagged, cleaned, or a layer could not run. BLOCK: no answer was delivered.",
+    good: "Every result shows the model calls and time taken: protection has a cost.",
+    bad: "\"Allow\" does not mean safe; it only means no layer noticed anything.",
+    found: "With the best preset, about 1 in 5 attacks (8B) and 3 in 10 (1B) still worked." },
 ];
 
 function renderLearn() {
   const pipe = $("pipeline");
-  PIPELINE.forEach((step, i) => {
-    if (i) pipe.append(el("span", { class: "pipe-arrow", "aria-hidden": "true", text: "→" }));
+  for (const step of PIPELINE) {
     const b = el("button", { type: "button", class: `pipe-step${step.layer ? " layer" : ""}`, role: "listitem" },
-      document.createTextNode(step.title), el("small", { text: step.sub }));
-    b.addEventListener("click", () => selectStep(step.id));
+      el("span", { class: "node", text: step.node }), el("b", { text: step.title }), el("small", { text: step.sub }));
     b.dataset.step = step.id;
+    b.addEventListener("click", () => selectStep(step.id));
     pipe.append(b);
-  });
-  selectStep("doc");
+  }
+  selectStep("L3");
 
-  const cards = $("preset-cards");
+  const body = $("preset-cards");
   for (const name of Object.keys(config.presets)) {
     const p = config.presets[name];
-    const card = el("div", { class: "preset-card" }, el("b", { text: name }), el("br"));
-    for (const [on, label] of [[p.heuristic, "L1"], [p.classifier, "L2"], [p.structural, "L3"]]) {
-      card.append(el("span", { class: `chip${on ? "" : " off"}`, text: label }));
+    const tr = el("tr", {}, el("td", {}, el("span", { class: "pname", text: name })));
+    for (const on of [p.heuristic, p.classifier, p.structural]) {
+      tr.append(el("td", { class: "c" }, el("span", { class: on ? "on" : "off", title: on ? "on" : "off" })));
     }
-    card.append(el("div", { class: "muted", text: PRESET_TEXT[name] || "" }));
-    cards.append(card);
+    tr.append(el("td", { class: "muted", text: PRESET_TEXT[name] || "" }));
+    body.append(tr);
   }
 }
 
@@ -131,44 +145,57 @@ function selectStep(id) {
   const step = PIPELINE.find((s) => s.id === id);
   document.querySelectorAll(".pipe-step").forEach((b) => b.classList.toggle("selected", b.dataset.step === id));
   const box = $("pipeline-detail");
-  box.replaceChildren(el("h3", { text: `${step.title} (${step.sub})` }), el("p", { text: step.what }));
-  if (step.good) box.append(el("p", {}, el("b", { text: "Strength: " }), document.createTextNode(step.good)));
-  if (step.bad) box.append(el("p", {}, el("b", { text: "Weakness: " }), document.createTextNode(step.bad)));
-  if (step.found) box.append(el("p", {}, el("b", { text: "What the study found: " }), document.createTextNode(step.found)));
-  if (step.why) box.append(el("p", { class: "muted", text: step.why }));
+  const fresh = box.cloneNode(false);  // re-trigger the entrance animation
+  fresh.append(el("h3", { text: `${step.title} · ${step.sub}` }), el("p", { class: "what", text: step.what }),
+    el("p", { class: "pt" }, el("b", { text: "Strength" }), document.createTextNode(step.good)),
+    el("p", { class: "pt" }, el("b", { text: "Weakness" }), document.createTextNode(step.bad)),
+    el("p", { class: "pt found" }, el("b", { text: "What the study found" }), document.createTextNode(step.found)));
+  box.replaceWith(fresh);
 }
 
 // ---------- meters ----------
 // Semicircle gauge. value in [0, 1] (null = n/a); tick = optional threshold in [0, 1].
 function gauge({ label, value, text, sub, kind = "mid", tick = null }) {
   const arc = "M 10 60 A 50 50 0 0 1 110 60";
-  const color = { bad: "var(--bad)", good: "var(--good)", mid: "var(--accent)", warn: "var(--warn)" }[kind];
+  const color = { bad: "var(--attack)", good: "var(--safe)", mid: "var(--accent)", warn: "var(--warn)" }[kind];
   const v = value === null ? 0 : Math.max(0, Math.min(1, value));
-  const g = svg("svg", { viewBox: "0 0 120 72", role: "img", "aria-label": `${label}: ${text}` },
-    svg("path", { d: arc, fill: "none", stroke: "var(--track)", "stroke-width": "12", "stroke-linecap": "round" }),
-    svg("path", { d: arc, fill: "none", stroke: color, "stroke-width": "12", "stroke-linecap": "round",
-      pathLength: "100", "stroke-dasharray": `${(v * 100).toFixed(2)} 200`, opacity: value === null || v < 0.01 ? "0" : "1" }),
-    svg("text", { x: "60", y: "56", "text-anchor": "middle", "font-size": "17", "font-weight": "700", fill: "currentColor", text }));
+  const fill = svg("path", { class: "arc", d: arc, fill: "none", stroke: color, "stroke-width": "10", "stroke-linecap": "round",
+    pathLength: "100", "stroke-dasharray": "0 200", opacity: v < 0.01 ? "0" : "1" });
+  const g = svg("svg", { viewBox: "0 0 120 70", role: "img", "aria-label": `${label}: ${text}` },
+    svg("path", { d: arc, fill: "none", stroke: "var(--track)", "stroke-width": "10", "stroke-linecap": "round" }), fill,
+    svg("text", { class: "g-val", x: "60", y: "58", "text-anchor": "middle", text }));
   if (tick !== null) {
     const a = Math.PI * tick, c = Math.cos(a), s = Math.sin(a);
-    g.append(svg("line", { x1: String(60 - 41 * c), y1: String(60 - 41 * s), x2: String(60 - 59 * c), y2: String(60 - 59 * s),
-      stroke: "currentColor", "stroke-width": "2" }));
+    g.append(svg("line", { x1: String(60 - 42 * c), y1: String(60 - 42 * s), x2: String(60 - 58 * c), y2: String(60 - 58 * s),
+      stroke: "var(--ink)", "stroke-width": "2" }));
   }
+  afterPaint(() => fill.setAttribute("stroke-dasharray", `${(v * 100).toFixed(2)} 200`));
   return el("div", { class: "gauge" }, g, el("div", { class: "g-label", text: label }), el("div", { class: "g-sub", text: sub || "" }));
 }
 
-function bar(label, k, n, kind, extra = "") {
+function bar(label, k, n, kind) {
   const v = pct(k, n);
   const fill = el("div", { class: `fill ${kind}` });
-  fill.style.width = `${v ?? 0}%`;
+  afterPaint(() => { fill.style.width = `${v ?? 0}%`; });
   return el("div", { class: "bar" }, el("span", { text: label }), el("div", { class: "track" }, fill),
-    el("span", { text: v === null ? "n/a" : `${fmtPct(v)} (${k}/${n})${extra}` }));
+    el("span", { text: v === null ? "n/a" : `${fmtPct(v)}  (${k}/${n})` }));
+}
+
+function countUp(node, target, suffix = "%") {
+  if (REDUCED_MOTION) { node.textContent = `${target.toFixed(1)}${suffix}`; return; }
+  const start = performance.now(), ms = 900;
+  const tick = (now) => {
+    const t = Math.min(1, (now - start) / ms), eased = 1 - Math.pow(1 - t, 3);
+    node.textContent = `${(target * eased).toFixed(1)}${suffix}`;
+    if (t < 1) requestAnimationFrame(tick);
+  };
+  requestAnimationFrame(tick);
 }
 
 // ---------- setup ----------
 async function init() {
   config = await api("/config");
-  for (const name of Object.keys(config.presets)) $("preset").append(el("option", { value: name, text: `${name}: ${shortPreset(name)}` }));
+  for (const name of Object.keys(config.presets)) $("preset").append(el("option", { value: name, text: `${name} · ${shortPreset(name)}` }));
   fillSelect($("p-heuristic"), config.policies.heuristic, (v) => `policy: ${v}`);
   fillSelect($("p-classifier"), config.policies.classifier, (v) => `policy: ${v}`);
   fillSelect($("p-variant"), config.structural_variants, (v) => `prompt wording ${v}`);
@@ -176,10 +203,10 @@ async function init() {
   applyPreset($("preset").value);
 
   const real = config.real_model;
-  $("real-option").textContent = real ? `Real model: ${real.name} (${real.is_local ? "runs on this computer" : "remote provider"})` : "Real model (not configured)";
+  $("real-option").textContent = real ? `Real model: ${real.name} (${real.is_local ? "on this computer" : "remote provider"})` : "Real model (not configured)";
   $("real-option").disabled = !real;
   if (config.default_model_mode === "real" && real) $("model").value = "real";
-  $("clf-state").textContent = config.classifier_available ? "" : "(unavailable: no classifier configured)";
+  $("clf-state").textContent = config.classifier_available ? "" : "(not configured)";
   $("d-classifier").disabled = !config.classifier_available;
   updateModelNote();
 
@@ -204,11 +231,6 @@ async function init() {
   loadExamples();
 }
 
-function shortPreset(name) {
-  return { E0: "no protection", E1: "word rules (block)", E1b: "word rules (clean)", E2: "safer instructions",
-    E3: "AI checker", E4: "word rules + safer instr.", E5: "all layers" }[name] || "";
-}
-
 function fillSelect(select, values, label) {
   for (const v of values) select.append(el("option", { value: v, text: label(v) }));
 }
@@ -217,7 +239,7 @@ function switchTab(name) {
   document.querySelectorAll(".tab").forEach((t) => t.classList.toggle("active", t.dataset.tab === name));
   for (const pane of ["learn", "summarize", "findings", "results"]) $(`tab-${pane}`).classList.toggle("hidden", name !== pane);
   if (name === "results") loadRuns();
-  if (name === "findings") loadFindings();
+  if (name === "findings") { if (findings) renderFindings(); else loadFindings(); }
   window.scrollTo({ top: 0 });
 }
 
@@ -249,9 +271,9 @@ function updateCount() {
 function updateModelNote() {
   const note = $("model-note"), real = config && config.real_model;
   if ($("model").value === "mock") {
-    note.textContent = "The mock model is a fake stand-in: it makes no AI calls and simply copies sentences (and obeys obvious \"ignore previous instructions\" lines). Use it to see how the app works, not to judge real AI safety.";
+    note.textContent = "Not an AI: it copies sentences and obeys obvious \"ignore previous instructions\" lines. Good for seeing how the app works, not for judging AI safety.";
   } else if (real && real.is_local) {
-    note.textContent = "Your text is sent to the AI model running on this computer (Ollama). It must be running: start it with `ollama serve`.";
+    note.textContent = "Runs on this computer through Ollama (start it with `ollama serve`). Nothing leaves the machine.";
   } else {
     note.textContent = "Privacy notice: your document text will be sent to the external model provider configured for this app.";
   }
@@ -261,18 +283,18 @@ function updateModelNote() {
 async function loadExamples() {
   const root = $("examples");
   try {
-    const data = await api("demo_examples.json");
-    examples = data.examples;
-  } catch { root.append(el("div", { class: "muted", text: "Examples could not be loaded; paste your own text." })); return; }
+    examples = (await api("demo_examples.json")).examples;
+  } catch { root.append(el("div", { class: "small", text: "Examples could not be loaded; paste your own text." })); return; }
   for (const ex of examples) {
     const b = el("button", { type: "button", class: "example" },
-      el("span", { class: `tag ${ex.kind}`, text: ex.kind === "attack" ? "CONTAINS ATTACK" : "CLEAN" }), el("br"),
-      el("b", { text: ex.title }), el("div", { class: "muted", text: `Suggested: compare ${ex.suggested_compare.join(" vs ")}` }));
+      el("span", { class: `dot ${ex.kind}`, title: ex.kind === "attack" ? "contains an attack" : "clean" }),
+      el("b", { text: ex.title }),
+      el("span", { class: "small", text: `${ex.kind === "attack" ? "Contains an attack" : "Clean"} · compares ${ex.suggested_compare.join(" vs ")}` }));
     b.dataset.example = ex.id;
     b.addEventListener("click", () => pickExample(ex));
     root.append(b);
   }
-  root.append(el("div", { class: "muted", text: "Demo-only texts written for this page; they are not part of any test set." }));
+  root.append(el("div", { class: "small", text: "Demo texts written for this page; not part of any test set." }));
 }
 
 function pickExample(ex) {
@@ -329,18 +351,42 @@ async function summarize(defenses) {
   });
 }
 
+// "Scanning" placeholder shown while requests run. The stages are illustrative pacing, not live progress.
+function scanning() {
+  const d = currentDefenses();
+  const stages = ["Reading the document"];
+  if (d.heuristic) stages.push("L1 · checking for attack wording");
+  if (d.classifier) stages.push("L2 · asking the AI checker");
+  stages.push(d.structural ? "L3 · wrapping it as data, asking the AI" : "Asking the AI");
+  if ($("compare").checked) stages.push("Running again with no protection (E0)");
+  const doc = el("div", { class: "scan-doc", "aria-hidden": "true" });
+  for (let i = 0; i < 9; i++) doc.append(el("i", { class: i === 5 ? "bad" : "", style: `width:${[92, 80, 88, 70, 85, 90, 76, 84, 60][i]}%` }));
+  const list = el("ul", { class: "scan-steps" }, ...stages.map((s) => el("li", { text: s })));
+  const items = [...list.children];
+  let i = 0;
+  const advance = () => { items.forEach((li, j) => { li.className = j < i ? "done" : j === i ? "now" : ""; }); if (i < items.length - 1) i++; };
+  advance();
+  const timer = setInterval(advance, 1400);
+  const node = el("div", { class: "scan", role: "status" }, doc,
+    el("div", {}, el("h3", { text: "Testing the document…", style: "margin-bottom:10px" }), list,
+      el("p", { class: "small", text: $("model").value === "real" ? "A real model takes a few seconds per answer." : "Mock model: almost instant." })));
+  return { node, stop: () => clearInterval(timer) };
+}
+
 async function onSubmit(event) {
   event.preventDefault();
   showError("");
   const button = $("submit");
-  button.disabled = true; button.textContent = "Working…";
-  $("results").replaceChildren(el("div", { class: "card placeholder muted", text: "Running… a real model can take 5 to 20 seconds per answer." }));
+  button.disabled = true; button.textContent = "Testing…";
+  const scan = scanning();
+  $("results").replaceChildren(scan.node);
+  if (window.innerWidth < 960) $("results").scrollIntoView({ behavior: "smooth" });
   try {
     const defended = await summarize(currentDefenses());
-    const results = [{ title: `With protection: ${defended.defenses.name}`, data: defended }];
+    const results = [{ title: `With protection · ${defended.defenses.name}`, data: defended }];
     if ($("compare").checked) {
       const baseline = await summarize({ name: "E0" });
-      results.unshift({ title: "No protection: E0", data: baseline });
+      results.unshift({ title: "No protection · E0", data: baseline });
     }
     lastResults = results;
     renderResults(results);
@@ -348,7 +394,8 @@ async function onSubmit(event) {
     $("results").replaceChildren();
     showError(err.message);
   } finally {
-    button.disabled = false; button.textContent = "Run";
+    scan.stop();
+    button.disabled = false; button.textContent = "Run the test";
   }
 }
 
@@ -358,35 +405,36 @@ function renderResults(results) {
   const root = $("results");
   root.replaceChildren();
   if (currentExample) {
-    root.append(el("div", { class: "note" }, el("b", { text: `Example: ${currentExample.title}. ` }), document.createTextNode(currentExample.what_to_look_for)));
+    root.append(el("div", { class: "example-banner" }, el("b", { text: `${currentExample.title}. ` }), document.createTextNode(currentExample.what_to_look_for)));
   }
   const cols = el("div", { class: "cols" });
   for (const r of results) cols.append(renderResult(r.title, r.data));
   root.append(cols);
-  root.append(el("div", { class: "note", text: "How to judge the answers: the app cannot automatically know whether a free-form answer obeyed a hidden instruction (that needs the attack's goal, which only the evaluations have). Read each summary: does it describe the document, or does it do what the hidden text asked (another language, a link, an unrelated reply)?" }));
-  const exportBtn = el("button", { type: "button", class: "secondary", text: "Download result JSON" });
+  root.append(el("div", { class: "how-judge" }, el("b", { text: "Read the answers yourself. " }),
+    document.createTextNode("The app cannot tell on its own whether a free-form answer obeyed a hidden instruction; that needs the attack's goal, which only the experiments have. Ask: does the answer describe the document, or does it do what the hidden text asked (another language, a link, an unrelated reply)?")));
+  const exportBtn = el("button", { type: "button", class: "btn ghost small-btn", text: "Download result JSON", style: "margin-top:14px" });
   exportBtn.addEventListener("click", () => download("result.json", JSON.stringify(lastResults, null, 2), "application/json"));
   root.append(exportBtn);
 }
 
 const VERDICT = {
-  allow: ["Summary delivered: nothing suspicious found", "No layer flagged the document. This does not prove it is safe; quiet attacks are often missed."],
-  warn: ["Summary delivered, with a warning", "Something was flagged or cleaned, or a layer could not run. Read the summary with care."],
-  block: ["Blocked: no summary delivered", "A defense stopped the document before the AI answered, so the attack could not work (but you got no summary either)."],
+  allow: ["Answer delivered. Nothing flagged.", "No layer noticed anything. That does not prove the document is safe; quiet attacks are often missed."],
+  warn: ["Answer delivered, with a warning.", "Something was flagged or cleaned, or a layer could not run. Read the answer with care."],
+  block: ["Blocked. No answer delivered.", "A defense stopped the document before the AI answered, so the attack could not work, but you got no summary either."],
 };
 
 function renderResult(title, d) {
-  const card = el("div", { class: "result" });
-  card.append(el("h3", { text: title }));
   const unchecked = d.enforcement_decision === "allow" && !d.defenses.heuristic && !d.defenses.classifier;
   const [head, body] = unchecked
-    ? ["Summary delivered: no detector checked it", d.defenses.structural ? "Only the safer instructions were used; nothing scans the document, so read the answer yourself." : "No protection at all: whatever the document says goes straight to the AI."]
+    ? ["Answer delivered. Nothing checked it.", d.defenses.structural ? "Only the safer instructions were used. Nothing scans the document, so judge the answer yourself." : "No protection at all: whatever the document says goes straight to the AI."]
     : VERDICT[d.enforcement_decision];
-  card.append(el("div", { class: `verdict ${d.enforcement_decision}` }, el("b", { text: head }), el("span", { text: body })));
+  const tone = unchecked ? "unchecked" : d.enforcement_decision;
+  const card = el("article", { class: `result ${tone}` });
+  card.append(el("div", { class: "cfg", text: title }), el("p", { class: `verdict ${tone}`, text: head }), el("p", { class: "verdict-sub", text: body }));
   const badges = el("div", { class: "badges" });
   badges.append(badge(d.enforcement_decision.toUpperCase(), d.enforcement_decision));
   badges.append(d.model.is_mock ? badge("MOCK MODEL", "mock") : badge(`REAL: ${d.model.name}`, "real"));
-  badges.append(badge(d.reached_model ? "reached model" : "blocked before model", d.reached_model ? "real" : "block"));
+  badges.append(badge(d.reached_model ? "reached model" : "blocked before model", d.reached_model ? "" : "block"));
   card.append(badges);
   for (const w of d.warnings || []) card.append(el("div", { class: "note", text: w }));
 
@@ -394,28 +442,26 @@ function renderResult(title, d) {
   const heur = d.detections.find((x) => x.layer === "heuristic");
   const clf = d.detections.find((x) => x.layer === "classifier");
   if (heur && heur.status === "evaluated") {
-    meters.append(gauge({ label: "Word-rule suspicion", value: Math.min(heur.score / 3, 1), tick: 1 / 3,
-      text: heur.score.toFixed(1), sub: "tick = flag line (1.0)", kind: heur.flagged ? "bad" : "good" }));
+    meters.append(gauge({ label: "Word-rule score", value: Math.min(heur.score / 3, 1), tick: 1 / 3,
+      text: heur.score.toFixed(1), sub: "mark = flag line 1.0", kind: heur.flagged ? "bad" : "good" }));
   }
   if (clf && clf.status === "evaluated") {
-    meters.append(gauge({ label: `AI checker: ${clf.flagged ? "suspicious" : "looks clean"}`, value: clf.score,
-      text: `${Math.round(clf.score * 100)}%`, sub: "how sure the checker is", kind: clf.flagged ? "bad" : "good" }));
+    meters.append(gauge({ label: `AI checker: ${clf.flagged ? "suspicious" : "clean"}`, value: clf.score,
+      text: `${Math.round(clf.score * 100)}%`, sub: "how sure it is", kind: clf.flagged ? "bad" : "good" }));
   }
   const on = [d.defenses.heuristic, d.defenses.classifier, d.defenses.structural].filter(Boolean).length;
-  meters.append(gauge({ label: "Protection layers on", value: on / 3, text: `${on} / 3`, sub: "L1, L2, L3", kind: "mid" }));
-  meters.append(gauge({ label: "Time taken", value: Math.min(d.latency_ms / 20000, 1), text: `${(d.latency_ms / 1000).toFixed(1)} s`,
-    sub: `${d.model_calls} model call(s)`, kind: "warn" }));
+  meters.append(gauge({ label: "Layers on", value: on / 3, text: `${on}/3`, sub: "L1 · L2 · L3", kind: "mid" }));
+  meters.append(gauge({ label: "Time", value: Math.min(d.latency_ms / 20000, 1), text: `${(d.latency_ms / 1000).toFixed(1)}s`,
+    sub: `${d.model_calls} model call${d.model_calls === 1 ? "" : "s"}`, kind: "warn" }));
   card.append(meters);
 
-  card.append(el("h3", { text: "What happened, step by step" }));
-  card.append(timeline(d));
+  card.append(el("h4", { text: "Step by step" }), timeline(d));
+  card.append(el("h4", { text: "The AI's answer" }));
+  card.append(el("pre", { class: `summary${d.summary === null ? " blocked" : ""}`, text: d.summary === null ? `No answer: blocked by ${d.blocked_by}.` : d.summary }));
 
-  card.append(el("h3", { text: "Answer" }));
-  card.append(el("pre", { class: "summary", text: d.summary === null ? `(no summary delivered; blocked by ${d.blocked_by})` : d.summary }));
-
-  const details = el("details", {}, el("summary", { text: "Technical details" }));
+  const details = el("details", { class: "tech" }, el("summary", { text: "Technical details" }));
   if (d.detections.length) {
-    const table = el("table");
+    const table = el("table", { class: "data" });
     table.append(rowOf(["layer", "status", "flagged", "score", "policy action", "explanation"], "th"));
     for (const det of d.detections) {
       const tr = rowOf([det.layer, det.status, String(det.flagged), det.score ?? "-", det.policy_action, det.explanation], "td");
@@ -424,9 +470,9 @@ function renderResult(title, d) {
     }
     details.append(table);
     const rules = d.detections.flatMap((x) => x.matched_rules.map((m) => `${m.rule_id} (weight ${m.weight}, ${m.spans.length}×): ${m.description}`));
-    if (rules.length) details.append(el("div", { class: "muted", text: "Matched rules: " + rules.join(" | ") }));
+    if (rules.length) details.append(el("div", { class: "small", text: "Matched rules: " + rules.join(" | ") }));
   }
-  if (d.output_validation) details.append(el("div", { class: "muted", text: `Output validation: ${d.output_validation.outcome}. ${d.output_validation.explanation}` }));
+  if (d.output_validation) details.append(el("div", { class: "small", text: `Output validation: ${d.output_validation.outcome}. ${d.output_validation.explanation}` }));
   const kv = el("dl", { class: "kv" });
   const add = (k, v) => { kv.append(el("dt", { text: k }), el("dd", { text: String(v) })); };
   add("request id", d.request_id);
@@ -443,30 +489,34 @@ function renderResult(title, d) {
 
 function timeline(d) {
   const list = el("ol", { class: "timeline" });
-  const step = (icon, sym, title, text) => list.append(el("li", {}, el("span", { class: `icon ${icon}`, text: sym }),
-    el("div", {}, el("b", { text: title }), document.createTextNode(` ${text}`))));
+  const step = (icon, sym, title, text) => {
+    const li = el("li", { class: icon === "off" ? "dim" : "" }, el("span", { class: `icon ${icon}`, text: sym }),
+      el("div", {}, el("b", { text: title }), document.createTextNode(` ${text}`)));
+    li.style.animationDelay = `${0.15 + list.children.length * 0.16}s`;
+    list.append(li);
+  };
   const action = { blocked: "The document was blocked.", sanitized: "The suspicious lines were cut out before the AI saw them.",
-    flagged_only: "It was only flagged (warning), not stopped.", ignored_error: "The failure was ignored and processing continued.", none: "" };
+    flagged_only: "Only flagged (a warning), not stopped.", ignored_error: "The failure was ignored and processing continued.", none: "" };
   step("info", "i", "Document received.", `${$("doc").value.length.toLocaleString()} characters, treated as untrusted.`);
   for (const [layer, label] of [["heuristic", "L1 Word rules:"], ["classifier", "L2 AI checker:"]]) {
     const det = d.detections.find((x) => x.layer === layer);
-    if (!d.defenses[layer]) { step("off", "–", label, "off in this preset."); continue; }
-    if (!det) { step("off", "–", label, "did not run (an earlier layer already blocked the document)."); continue; }
+    if (!d.defenses[layer]) { step("off", "–", label, "off."); continue; }
+    if (!det) { step("off", "–", label, "skipped; an earlier layer already blocked the document."); continue; }
     if (det.status !== "evaluated") { step("warn", "!", label, `could not run. ${action[det.policy_action]}`); continue; }
     if (det.flagged) {
-      const why = layer === "heuristic" ? `attack-like wording found (score ${det.score}, flag line 1.0).` : `judged the document suspicious (${Math.round(det.score * 100)}% sure).`;
+      const why = layer === "heuristic" ? `attack-like wording found (score ${det.score}, flag line 1.0).` : `judged it suspicious (${Math.round(det.score * 100)}% sure).`;
       step(det.policy_action === "blocked" ? "block" : "warn", "!", label, `${why} ${action[det.policy_action]}`);
     } else {
-      step("ok", "✓", label, layer === "heuristic" ? "no known attack wording found." : `judged the document clean (${Math.round(det.score * 100)}% sure).`);
+      step("ok", "✓", label, layer === "heuristic" ? "no known attack wording found." : `judged it clean (${Math.round(det.score * 100)}% sure).`);
     }
   }
-  if (!d.defenses.structural) step("off", "–", "L3 Safer instructions:", "off; the document was pasted straight into the AI's instructions.");
+  if (!d.defenses.structural) step("off", "–", "L3 Safer instructions:", "off; the document went straight into the AI's instructions.");
   else if (!d.reached_model) step("off", "–", "L3 Safer instructions:", "not needed; the document never reached the AI.");
-  else step("ok", "✓", "L3 Safer instructions:", `on; the document was wrapped in markers and the AI was told to treat it as data only (wording ${d.defenses.structural_variant}).`);
+  else step("ok", "✓", "L3 Safer instructions:", `on; wrapped in markers and labelled as data only (wording ${d.defenses.structural_variant}).`);
   if (d.reached_model) step("info", "AI", "Model answered:", `${d.model.is_mock ? "mock stand-in (not a real AI)" : d.model.name}, in ${((d.timings_ms.generation || 0) / 1000).toFixed(1)} s.`);
-  else step("block", "✕", "Model:", "never reached; no AI answer was generated.");
+  else step("block", "✕", "Model:", "never reached; no answer was generated.");
   if (d.output_validation) step(d.output_validation.outcome === "indicator_matched" ? "block" : "ok", "✓", "L4 Output check:", d.output_validation.explanation);
-  else step("off", "–", "L4 Output check:", "off (needs the attack's goal, which is only known in evaluations).");
+  else step("off", "–", "L4 Output check:", "off (needs the attack's goal, known only in experiments).");
   return list;
 }
 
@@ -485,7 +535,6 @@ function download(name, text, type) {
 
 // ---------- research results (verified findings) ----------
 async function loadFindings() {
-  if (findings) return;
   try {
     findings = await api("/findings");
     renderFindings();
@@ -506,48 +555,60 @@ function renderFindings() {
   const by = Object.fromEntries(rows.map((r) => [r.config, r]));
   const e0 = by.E0, e2 = by.E2, e5 = by.E5;
 
+  // Headline: attack success with no defense -> with the best single layer.
+  const n0 = el("div", { class: "big bad", text: "0.0%" }), n2 = el("div", { class: "big bad", text: "0.0%" });
+  $("f-headline").replaceChildren(
+    el("div", {}, n0, el("div", { class: "cap", text: `of attacks worked with no defense (E0) · ${e0.asr_k} of ${e0.asr_n}` })),
+    el("div", { class: "arrow", text: "→" }),
+    el("div", {}, n2, el("div", { class: "cap", text: `worked with safer instructions (E2) · ${e2.asr_k} of ${e2.asr_n}${e2.asr_unresolved ? `, ${e2.asr_unresolved} unresolved` : ""}` })));
+  countUp(n0, pct(e0.asr_k, e0.asr_n)); countUp(n2, pct(e2.asr_k, e2.asr_n));
+
   const resisted = e0.asr_n - e0.asr_k;
   $("f-gauges").replaceChildren(
-    gauge({ label: "Attacks that worked, no defense", value: pct(e0.asr_k, e0.asr_n) / 100, text: fmtPct(pct(e0.asr_k, e0.asr_n)),
-      sub: `${e0.asr_k} of ${e0.asr_n} attempts (E0)`, kind: "bad" }),
-    gauge({ label: "Attacks that worked, safer instructions", value: pct(e2.asr_k, e2.asr_n) / 100, text: fmtPct(pct(e2.asr_k, e2.asr_n)),
-      sub: `${e2.asr_k} of ${e2.asr_n} (E2)${e2.asr_unresolved ? `, ${e2.asr_unresolved} unresolved` : ""}`, kind: "bad" }),
+    gauge({ label: "Usable summaries, no defense", value: pct(e0.usable_k, e0.usable_n) / 100, text: fmtPct(pct(e0.usable_k, e0.usable_n)),
+      sub: `${e0.usable_k} of ${e0.usable_n} attacked documents`, kind: "good" }),
     gauge({ label: "Usable summaries, safer instructions", value: pct(e2.usable_k, e2.usable_n) / 100, text: fmtPct(pct(e2.usable_k, e2.usable_n)),
-      sub: `vs ${fmtPct(pct(e0.usable_k, e0.usable_n))} with no defense`, kind: "good" }),
-    gauge({ label: "Attacks the model ignored by itself", value: resisted / e0.asr_n, text: fmtPct(pct(resisted, e0.asr_n)),
-      sub: `${resisted} of ${e0.asr_n}, with no defense at all`, kind: "mid" }),
-    gauge({ label: "False alarms on clean docs (all layers)", value: pct(e5.fpr_k, e5.fpr_n) / 100, text: fmtPct(pct(e5.fpr_k, e5.fpr_n)),
-      sub: `${e5.fpr_k} of ${e5.fpr_n} clean runs (E5)`, kind: "bad" }),
+      sub: `${e2.usable_k} of ${e2.usable_n} attacked documents`, kind: "good" }),
+    gauge({ label: "Ignored by the model itself", value: resisted / e0.asr_n, text: fmtPct(pct(resisted, e0.asr_n)),
+      sub: `${resisted} of ${e0.asr_n} attacks failed with no defense`, kind: "mid" }),
+    gauge({ label: "False alarms, all layers on", value: pct(e5.fpr_k, e5.fpr_n) / 100, text: fmtPct(pct(e5.fpr_k, e5.fpr_n)),
+      sub: `${e5.fpr_k} of ${e5.fpr_n} clean documents (E5)`, kind: "bad" }),
   );
 
   const list = $("f-configs");
   list.replaceChildren();
   for (const r of rows) {
     const facts = [
-      r.fpr_n ? `false alarms ${r.fpr_k}/${r.fpr_n}` : "false alarms: n/a (no detector)",
-      r.detect_n ? `detected ${r.detect_k}/${r.detect_n} attacks` : "no detector",
-      `avg ${(r.latency_mean_ms / 1000).toFixed(1)} s per answer`,
-    ];
-    if (r.asr_unresolved) facts.push(`${r.asr_unresolved} unresolved (left out)`);
+      r.fpr_n ? `false alarms ${r.fpr_k}/${r.fpr_n}` : "no detector, so no false alarms possible",
+      r.detect_n ? `detected ${r.detect_k}/${r.detect_n}` : null,
+      `${(r.latency_mean_ms / 1000).toFixed(1)} s per answer`,
+      r.asr_unresolved ? `${r.asr_unresolved} unresolved` : null,
+    ].filter(Boolean);
     list.append(el("div", { class: "cfg-row" },
-      el("div", {}, el("b", { text: `${r.config}: ${shortPreset(r.config)}` }), el("div", { class: "desc", text: PRESET_TEXT[r.config] || "" })),
+      el("div", {}, el("div", { class: "name", text: `${r.config} · ${shortPreset(r.config)}` }), el("div", { class: "desc", text: PRESET_TEXT[r.config] || "" })),
       el("div", {}, bar("attack worked", r.asr_k, r.asr_n, "bad"), bar("usable summary", r.usable_k, r.usable_n, "good"),
-        el("div", { class: "muted", text: facts.join(" · ") }))));
+        el("div", { class: "facts", text: facts.join(" · ") }))));
   }
 
+  const parts = [["success->fail", "var(--safe)", "stopped"], ["success->success", "var(--attack)", "still worked"],
+    ["fail->success", "var(--warn)", "new success"], ["fail->fail", "var(--track)", "failed both times"], ["unresolved", "var(--ink-3)", "unresolved"]];
   const tr = $("f-transitions");
   tr.replaceChildren(el("div", { class: "legend" },
-    ...[["var(--good)", "stopped (worked before, failed now)"], ["var(--bad)", "still worked"], ["var(--warn)", "new success (failed before, worked now)"],
-      ["var(--track)", "failed both times"], ["var(--muted)", "unresolved"]].map(([c, t]) => { const i = el("i"); i.style.background = c; return el("span", {}, i, document.createTextNode(t)); })));
+    ...parts.map(([, c, t]) => { const i = el("i"); i.style.background = c; return el("span", {}, i, document.createTextNode(t)); })));
   for (const r of rows) {
     if (r.config === "E0") continue;
     const t = findings.transitions_vs_E0[`${findingsModel}|${r.config}`] || {};
-    const parts = [["success->fail", "var(--good)"], ["success->success", "var(--bad)"], ["fail->success", "var(--warn)"], ["fail->fail", "var(--track)"], ["unresolved", "var(--muted)"]];
     const total = parts.reduce((s, [k]) => s + (t[k] || 0), 0) || 1;
-    const stack = el("div", { class: "stack", role: "img", "aria-label": `${r.config} transitions` });
-    for (const [k, c] of parts) { const seg = el("div", { title: `${k}: ${t[k] || 0}` }); seg.style.width = `${(100 * (t[k] || 0)) / total}%`; seg.style.background = c; stack.append(seg); }
-    tr.append(el("div", { class: "cfg-row" }, el("b", { text: `${r.config}: ${shortPreset(r.config)}` }),
-      el("div", {}, stack, el("div", { class: "muted", text: `stopped ${t["success->fail"] || 0} · still worked ${t["success->success"] || 0} · new successes ${t["fail->success"] || 0} · net change ${(t["fail->success"] || 0) - (t["success->fail"] || 0)}` }))));
+    const stack = el("div", { class: "stack", role: "img", "aria-label": `${r.config}: stopped ${t["success->fail"] || 0}, new successes ${t["fail->success"] || 0}` });
+    for (const [k, c] of parts) {
+      const seg = el("div", { title: `${k}: ${t[k] || 0}` }); seg.style.background = c; stack.append(seg);
+      afterPaint(() => { seg.style.width = `${(100 * (t[k] || 0)) / total}%`; });
+    }
+    const stopped = t["success->fail"] || 0, induced = t["fail->success"] || 0;
+    tr.append(el("div", { class: "cfg-row" }, el("div", { class: "name", text: `${r.config} · ${shortPreset(r.config)}` }),
+      el("div", {}, stack, el("div", { class: "facts", text: stopped || induced
+        ? `stopped ${stopped} · let ${induced} new ones through · net ${stopped - induced} fewer successes`
+        : "changed nothing: exactly the same outcomes as no defense" }))));
   }
 
   const cat = $("f-categories");
@@ -557,10 +618,10 @@ function renderFindings() {
   const families = Object.keys(c0).sort((a, b) => c0[b].successes / (c0[b].decided || 1) - c0[a].successes / (c0[a].decided || 1));
   for (const f of families) {
     const a = c0[f], b = c2[f] || { successes: 0, decided: 0 };
-    cat.append(el("div", { class: "cfg-row" }, el("b", { text: prettyFamily(f) }),
+    cat.append(el("div", { class: "cfg-row" }, el("div", { class: "name", text: prettyFamily(f) }),
       el("div", {}, bar("no defense", a.successes, a.decided, "bad"), bar("safer instr.", b.successes, b.decided, "mid"))));
   }
-  cat.append(el("div", { class: "muted", text: "Reverse Text is scored only by exact character reversal, so its result is probably an underestimate." }));
+  cat.append(el("p", { class: "small", text: "Reverse Text is scored only by exact character reversal, so its result is probably an underestimate." }));
 }
 
 // ---------- evaluation results (advanced) ----------
@@ -570,10 +631,10 @@ async function loadRuns() {
   try {
     const { runs } = await api("/results");
     if (!runs.length) { root.append(el("p", { class: "muted", text: "No saved runs yet. Run an evaluation above or use scripts/run_experiments.py." })); return; }
-    const table = el("table");
+    const table = el("table", { class: "data" });
     table.append(rowOf(["run", "started", "model", "evidence status", "experiments", ""], "th"));
     for (const r of runs) {
-      const open = el("button", { type: "button", class: "secondary", text: "Open" });
+      const open = el("button", { type: "button", class: "btn ghost small-btn", text: "Open" });
       open.addEventListener("click", () => loadRun(r.run_id));
       const tr = rowOf([r.run_id, r.started_at || "-", `${r.model}${r.model_is_mock ? " (mock)" : ""}`, r.evidence_status, r.experiments.join(", ")], "td");
       const td = el("td"); td.append(open); tr.append(td);
@@ -588,13 +649,13 @@ async function loadRun(runId) {
   root.replaceChildren();
   try {
     const d = await api(`/results/${runId}`);
-    const card = el("div", { class: "card" });
-    card.append(el("h2", { text: `Run ${runId}` }));
+    const card = el("div", { class: "adv-card" });
+    card.append(el("h2", { class: "section-title", text: `Run ${runId}` }));
     card.append(el("div", { class: "note", text: d.metadata.evidence_status }));
     const m = d.metadata;
     card.append(el("div", { class: "muted", text: `model ${m.model.name}; dataset ${m.case_set || "?"} (${m.dataset.n_cases} cases); repetitions ${m.repetitions}; ${d.pending_manual_review} outcome(s) awaiting manual review` }));
     const keys = d.summary.length ? Object.keys(d.summary[0]) : [];
-    const table = el("table");
+    const table = el("table", { class: "data" });
     table.append(rowOf(keys, "th"));
     for (const row of d.summary) table.append(rowOf(keys.map((k) => row[k] ?? "-"), "td"));
     card.append(table);
