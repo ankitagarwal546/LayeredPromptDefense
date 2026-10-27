@@ -157,7 +157,7 @@ function selectStep(id) {
 // Semicircle gauge. value in [0, 1] (null = n/a); tick = optional threshold in [0, 1].
 function gauge({ label, value, text, sub, kind = "mid", tick = null }) {
   const arc = "M 10 60 A 50 50 0 0 1 110 60";
-  const color = { bad: "var(--attack)", good: "var(--safe)", mid: "var(--accent)", warn: "var(--warn)" }[kind];
+  const color = { bad: "var(--danger)", good: "var(--success)", mid: "var(--primary)", warn: "var(--warn)" }[kind];
   const v = value === null ? 0 : Math.max(0, Math.min(1, value));
   const fill = svg("path", { class: "arc", d: arc, fill: "none", stroke: color, "stroke-width": "10", "stroke-linecap": "round",
     pathLength: "100", "stroke-dasharray": "0 200", opacity: v < 0.01 ? "0" : "1" });
@@ -167,7 +167,7 @@ function gauge({ label, value, text, sub, kind = "mid", tick = null }) {
   if (tick !== null) {
     const a = Math.PI * tick, c = Math.cos(a), s = Math.sin(a);
     g.append(svg("line", { x1: String(60 - 42 * c), y1: String(60 - 42 * s), x2: String(60 - 58 * c), y2: String(60 - 58 * s),
-      stroke: "var(--ink)", "stroke-width": "2" }));
+      stroke: "var(--text)", "stroke-width": "2" }));
   }
   afterPaint(() => fill.setAttribute("stroke-dasharray", `${(v * 100).toFixed(2)} 200`));
   return el("div", { class: "gauge" }, g, el("div", { class: "g-label", text: label }), el("div", { class: "g-sub", text: sub || "" }));
@@ -217,7 +217,11 @@ async function init() {
     exps.append(el("label", { class: "check" }, box, ` ${name}`));
   }
   renderLearn();
-  document.querySelectorAll(".tab").forEach((tab) => tab.addEventListener("click", () => switchTab(tab.dataset.tab)));
+  const pill = $("model-pill");
+  pill.lastChild.textContent = real ? `${real.name} · ${real.is_local ? "local" : "remote"}` : "real model not configured";
+  pill.firstChild.classList.toggle("on", Boolean(real));
+  document.querySelectorAll(".nav-item").forEach((item) => item.addEventListener("click", () => switchTab(item.dataset.tab)));
+  $("menu-btn").addEventListener("click", () => setNav(!$("app").classList.contains("nav-open")));
   document.querySelectorAll("[data-goto]").forEach((b) => b.addEventListener("click", () => switchTab(b.dataset.goto)));
   document.querySelectorAll(".seg").forEach((b) => b.addEventListener("click", () => { findingsModel = b.dataset.model; renderFindings(); }));
   $("doc").addEventListener("input", () => { updateCount(); clearExample(); });
@@ -229,17 +233,106 @@ async function init() {
   $("runs-refresh").addEventListener("click", loadRuns);
   updateCount();
   loadExamples();
+  loadFindings();
+}
+
+// ---------- theme, intro, navigation ----------
+function setTheme(theme) {
+  document.documentElement.setAttribute("data-theme", theme);
+  try { localStorage.setItem("theme", theme); } catch { /* private mode: theme just isn't remembered */ }
+  const sun = "M12 4V2M12 22v-2M4 12H2M22 12h-2M5.6 5.6 4.2 4.2M19.8 19.8l-1.4-1.4M5.6 18.4l-1.4 1.4M19.8 4.2l-1.4 1.4";
+  document.querySelectorAll(".theme-toggle").forEach((b) => {
+    b.replaceChildren(theme === "dark"
+      ? svg("svg", { viewBox: "0 0 24 24" }, svg("circle", { cx: "12", cy: "12", r: "4.5" }), svg("path", { d: sun }))
+      : svg("svg", { viewBox: "0 0 24 24" }, svg("path", { d: "M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z" })));
+    b.title = theme === "dark" ? "Switch to light theme" : "Switch to dark theme";
+  });
+}
+
+function setupTheme() {
+  setTheme(document.documentElement.getAttribute("data-theme") || "light");
+  document.querySelectorAll(".theme-toggle").forEach((b) => b.addEventListener("click",
+    () => setTheme(document.documentElement.getAttribute("data-theme") === "dark" ? "light" : "dark")));
+}
+
+function setupIntro() {
+  // Split the heading into per-letter spans (grouped by word so lines wrap between words).
+  const title = $("intro-title"), words = title.textContent.split(" ");
+  title.replaceChildren();
+  let n = 0;
+  words.forEach((word, wi) => {
+    const w = el("span", { class: "w", "aria-hidden": "true" });
+    for (const ch of word) {
+      const span = el("span", { class: `ch${word.startsWith("orders") ? " accent" : ""}`, text: ch });
+      span.style.animationDelay = `${0.25 + n++ * 0.035}s`;
+      w.append(span);
+    }
+    title.append(w);
+    if (wi < words.length - 1) title.append(document.createTextNode(" "));
+  });
+
+  // Particles orbiting the 3D document stack; one red = the hidden instruction.
+  const stack = $("stack");
+  for (let i = 0; i < 9; i++) {
+    const p = el("span", { class: `particle${i === 4 ? " red" : ""}` });
+    p.style.setProperty("--a", `${i * 40}deg`); p.style.animationDelay = `${-i * 0.66}s`;
+    stack.append(p);
+  }
+  // Tilt the stack with the pointer.
+  $("intro").addEventListener("pointermove", (e) => {
+    const x = e.clientX / innerWidth - 0.5, y = e.clientY / innerHeight - 0.5;
+    stack.style.setProperty("--rx", `${x * 30}deg`); stack.style.setProperty("--ry", `${-y * 20}deg`);
+  });
+
+  // Typed line under the button.
+  const lines = ["scanning document for hidden orders…", "L1 word rules · L2 AI checker · L3 safer instructions", "75 real attacks · 2 local models · human-reviewed"];
+  let li = 0, ci = 0;
+  const typed = $("typed");
+  const type = () => {
+    if (!$("intro") || $("intro").classList.contains("hidden")) return;
+    const line = lines[li];
+    typed.textContent = line.slice(0, ++ci);
+    if (ci < line.length) setTimeout(type, 38);
+    else setTimeout(() => { ci = 0; li = (li + 1) % lines.length; type(); }, 1800);
+  };
+  setTimeout(type, 2200);
+
+  const enter = () => {
+    try { sessionStorage.setItem("introSeen", "1"); } catch { /* ignore */ }
+    $("intro").classList.add("leaving");
+    $("app").classList.remove("hidden");
+    setTimeout(() => $("intro").classList.add("hidden"), 600);
+  };
+  $("enter").addEventListener("click", enter);
+  document.addEventListener("keydown", (e) => { if (e.key === "Enter" && !$("intro").classList.contains("hidden")) enter(); });
+  let seen = false;
+  try { seen = sessionStorage.getItem("introSeen") === "1"; } catch { /* ignore */ }
+  if (seen) { $("intro").classList.add("hidden"); $("app").classList.remove("hidden"); }
+}
+
+function setNav(open) {
+  $("app").classList.toggle("nav-open", open);
+  const existing = document.querySelector(".scrim");
+  if (open && !existing) {
+    const scrim = el("div", { class: "scrim" });
+    scrim.addEventListener("click", () => setNav(false));
+    $("app").append(scrim);
+  } else if (!open && existing) existing.remove();
 }
 
 function fillSelect(select, values, label) {
   for (const v of values) select.append(el("option", { value: v, text: label(v) }));
 }
 
+const PAGE_TITLES = { overview: "Overview", summarize: "Test a document", findings: "Results", learn: "How it works", results: "Evaluations" };
+
 function switchTab(name) {
-  document.querySelectorAll(".tab").forEach((t) => t.classList.toggle("active", t.dataset.tab === name));
-  for (const pane of ["learn", "summarize", "findings", "results"]) $(`tab-${pane}`).classList.toggle("hidden", name !== pane);
+  document.querySelectorAll(".nav-item").forEach((t) => t.classList.toggle("active", t.dataset.tab === name));
+  for (const pane of Object.keys(PAGE_TITLES)) $(`tab-${pane}`).classList.toggle("hidden", name !== pane);
+  $("page-title").textContent = PAGE_TITLES[name];
   if (name === "results") loadRuns();
-  if (name === "findings") { if (findings) renderFindings(); else loadFindings(); }
+  if ((name === "findings" || name === "overview") && findings) renderFindings();
+  setNav(false);
   window.scrollTo({ top: 0 });
 }
 
@@ -288,13 +381,13 @@ async function loadExamples() {
   for (const ex of examples) {
     const b = el("button", { type: "button", class: "example" },
       el("span", { class: `dot ${ex.kind}`, title: ex.kind === "attack" ? "contains an attack" : "clean" }),
-      el("b", { text: ex.title }),
-      el("span", { class: "small", text: `${ex.kind === "attack" ? "Contains an attack" : "Clean"} · compares ${ex.suggested_compare.join(" vs ")}` }));
+      el("span", { text: ex.title }),
+      el("span", { class: "tag", text: ex.kind === "attack" ? "attack" : "clean" }));
     b.dataset.example = ex.id;
     b.addEventListener("click", () => pickExample(ex));
     root.append(b);
   }
-  root.append(el("div", { class: "small", text: "Demo texts written for this page; not part of any test set." }));
+  root.append(el("div", { class: "small", text: "Demo texts, not part of any test set." }));
 }
 
 function pickExample(ex) {
@@ -367,8 +460,8 @@ function scanning() {
   const advance = () => { items.forEach((li, j) => { li.className = j < i ? "done" : j === i ? "now" : ""; }); if (i < items.length - 1) i++; };
   advance();
   const timer = setInterval(advance, 1400);
-  const node = el("div", { class: "scan", role: "status" }, doc,
-    el("div", {}, el("h3", { text: "Testing the document…", style: "margin-bottom:10px" }), list,
+  const node = el("div", { class: "card scan", role: "status" }, doc,
+    el("div", {}, el("h3", { text: "Testing the document…", style: "font-size:16px" }), list,
       el("p", { class: "small", text: $("model").value === "real" ? "A real model takes a few seconds per answer." : "Mock model: almost instant." })));
   return { node, stop: () => clearInterval(timer) };
 }
@@ -395,7 +488,7 @@ async function onSubmit(event) {
     showError(err.message);
   } finally {
     scan.stop();
-    button.disabled = false; button.textContent = "Run the test";
+    button.disabled = false; button.textContent = "Run test";
   }
 }
 
@@ -404,17 +497,13 @@ function badge(text, cls) { return el("span", { class: `badge ${cls}`, text }); 
 function renderResults(results) {
   const root = $("results");
   root.replaceChildren();
-  if (currentExample) {
-    root.append(el("div", { class: "example-banner" }, el("b", { text: `${currentExample.title}. ` }), document.createTextNode(currentExample.what_to_look_for)));
-  }
   const cols = el("div", { class: "cols" });
   for (const r of results) cols.append(renderResult(r.title, r.data));
   root.append(cols);
-  root.append(el("div", { class: "how-judge" }, el("b", { text: "Read the answers yourself. " }),
-    document.createTextNode("The app cannot tell on its own whether a free-form answer obeyed a hidden instruction; that needs the attack's goal, which only the experiments have. Ask: does the answer describe the document, or does it do what the hidden text asked (another language, a link, an unrelated reply)?")));
-  const exportBtn = el("button", { type: "button", class: "btn ghost small-btn", text: "Download result JSON", style: "margin-top:14px" });
+  const exportBtn = el("button", { type: "button", class: "btn ghost sm", text: "Download JSON" });
   exportBtn.addEventListener("click", () => download("result.json", JSON.stringify(lastResults, null, 2), "application/json"));
-  root.append(exportBtn);
+  root.append(el("div", { class: "how-judge" },
+    el("span", { text: "Check the answer yourself: does it summarize the document, or do what the hidden text asked?" }), exportBtn));
 }
 
 const VERDICT = {
@@ -429,8 +518,12 @@ function renderResult(title, d) {
     ? ["Answer delivered. Nothing checked it.", d.defenses.structural ? "Only the safer instructions were used. Nothing scans the document, so judge the answer yourself." : "No protection at all: whatever the document says goes straight to the AI."]
     : VERDICT[d.enforcement_decision];
   const tone = unchecked ? "unchecked" : d.enforcement_decision;
-  const card = el("article", { class: `result ${tone}` });
-  card.append(el("div", { class: "cfg", text: title }), el("p", { class: `verdict ${tone}`, text: head }), el("p", { class: "verdict-sub", text: body }));
+  const outer = el("article", { class: `result ${tone}` });
+  const sym = { allow: "✓", warn: "!", block: "✕", unchecked: "–" }[tone];
+  outer.append(el("div", { class: "result-head" }, el("span", { class: "v-icon", text: sym }),
+    el("div", {}, el("div", { class: "cfg", text: title }), el("p", { class: "verdict", text: head }), el("p", { class: "verdict-sub", text: body }))));
+  const card = el("div", { class: "result-body" });
+  outer.append(card);
   const badges = el("div", { class: "badges" });
   badges.append(badge(d.enforcement_decision.toUpperCase(), d.enforcement_decision));
   badges.append(d.model.is_mock ? badge("MOCK MODEL", "mock") : badge(`REAL: ${d.model.name}`, "real"));
@@ -484,7 +577,7 @@ function renderResult(title, d) {
   add("defenses", d.defenses.name + ": " + (d.defenses.structural ? `structural ${d.defenses.structural_variant}, ` : "") + (["heuristic", "classifier", "output_validation"].filter((x) => d.defenses[x]).join(", ") || "no detectors"));
   details.append(kv);
   card.append(details);
-  return card;
+  return outer;
 }
 
 function timeline(d) {
@@ -548,6 +641,36 @@ function prettyFamily(f) {
   return f.replace(/^bipia_/, "").split("_").map((w) => w[0].toUpperCase() + w.slice(1)).join(" ");
 }
 
+function kpi({ label, value, sub, tone, ring }) {
+  const val = el("div", { class: "k-val", text: "0" });
+  const box = el("div", { class: `kpi ${tone}` }, el("div", {}, el("div", { class: "k-label", text: label }), val, el("div", { class: "k-sub", text: sub })));
+  if (ring !== undefined) {
+    const color = { danger: "var(--danger)", success: "var(--success)", primary: "var(--primary)" }[tone] || "var(--text-3)";
+    const fg = svg("circle", { class: "fg", cx: "27", cy: "27", r: "22", stroke: color, "stroke-dasharray": "0 200", pathLength: "100" });
+    box.append(svg("svg", { class: "ring-mini", viewBox: "0 0 54 54", "aria-hidden": "true" }, svg("circle", { class: "bg", cx: "27", cy: "27", r: "22" }), fg));
+    afterPaint(() => fg.setAttribute("stroke-dasharray", `${Math.max(0, Math.min(100, ring)).toFixed(1)} 200`));
+  }
+  typeof value === "number" ? countUp(val, value) : (val.textContent = value);
+  return box;
+}
+
+function renderOverview(rows, by) {
+  const e0 = by.E0, e2 = by.E2, e3 = by.E3;
+  const a0 = pct(e0.asr_k, e0.asr_n), a2 = pct(e2.asr_k, e2.asr_n);
+  $("ov-kpis").replaceChildren(
+    kpi({ label: "Attacks that worked, no defense", value: a0, sub: `${e0.asr_k} of ${e0.asr_n} attempts`, tone: "danger", ring: a0 }),
+    kpi({ label: "With safer instructions (E2)", value: a2, sub: `${e2.asr_k} of ${e2.asr_n} · ${(a0 - a2).toFixed(1)} points lower`, tone: "primary", ring: a2 }),
+    kpi({ label: "Usable summaries with it", value: pct(e2.usable_k, e2.usable_n), sub: `vs ${fmtPct(pct(e0.usable_k, e0.usable_n))} with no defense`, tone: "success", ring: pct(e2.usable_k, e2.usable_n) }),
+    kpi({ label: "AI checker caught", value: `${e3.detect_k}/${e3.detect_n}`, sub: "attacked documents flagged (E3)", tone: "", ring: pct(e3.detect_k, e3.detect_n) }),
+  );
+  const chart = $("ov-chart");
+  chart.replaceChildren();
+  for (const r of rows) {
+    chart.append(el("div", { class: "cfg-row" }, el("div", { class: "name", text: `${r.config} · ${shortPreset(r.config)}` }),
+      el("div", {}, bar("", r.asr_k, r.asr_n, r.config === "E2" ? "mid" : "bad"))));
+  }
+}
+
 function renderFindings() {
   if (!findings) return;
   document.querySelectorAll(".seg").forEach((b) => b.classList.toggle("active", b.dataset.model === findingsModel));
@@ -555,13 +678,7 @@ function renderFindings() {
   const by = Object.fromEntries(rows.map((r) => [r.config, r]));
   const e0 = by.E0, e2 = by.E2, e5 = by.E5;
 
-  // Headline: attack success with no defense -> with the best single layer.
-  const n0 = el("div", { class: "big bad", text: "0.0%" }), n2 = el("div", { class: "big bad", text: "0.0%" });
-  $("f-headline").replaceChildren(
-    el("div", {}, n0, el("div", { class: "cap", text: `of attacks worked with no defense (E0) · ${e0.asr_k} of ${e0.asr_n}` })),
-    el("div", { class: "arrow", text: "→" }),
-    el("div", {}, n2, el("div", { class: "cap", text: `worked with safer instructions (E2) · ${e2.asr_k} of ${e2.asr_n}${e2.asr_unresolved ? `, ${e2.asr_unresolved} unresolved` : ""}` })));
-  countUp(n0, pct(e0.asr_k, e0.asr_n)); countUp(n2, pct(e2.asr_k, e2.asr_n));
+  renderOverview(rows, by);
 
   const resisted = e0.asr_n - e0.asr_k;
   $("f-gauges").replaceChildren(
@@ -590,8 +707,8 @@ function renderFindings() {
         el("div", { class: "facts", text: facts.join(" · ") }))));
   }
 
-  const parts = [["success->fail", "var(--safe)", "stopped"], ["success->success", "var(--attack)", "still worked"],
-    ["fail->success", "var(--warn)", "new success"], ["fail->fail", "var(--track)", "failed both times"], ["unresolved", "var(--ink-3)", "unresolved"]];
+  const parts = [["success->fail", "var(--success)", "stopped"], ["success->success", "var(--danger)", "still worked"],
+    ["fail->success", "var(--warn)", "new success"], ["fail->fail", "var(--track)", "failed both times"], ["unresolved", "var(--text-3)", "unresolved"]];
   const tr = $("f-transitions");
   tr.replaceChildren(el("div", { class: "legend" },
     ...parts.map(([, c, t]) => { const i = el("i"); i.style.background = c; return el("span", {}, i, document.createTextNode(t)); })));
@@ -599,7 +716,7 @@ function renderFindings() {
     if (r.config === "E0") continue;
     const t = findings.transitions_vs_E0[`${findingsModel}|${r.config}`] || {};
     const total = parts.reduce((s, [k]) => s + (t[k] || 0), 0) || 1;
-    const stack = el("div", { class: "stack", role: "img", "aria-label": `${r.config}: stopped ${t["success->fail"] || 0}, new successes ${t["fail->success"] || 0}` });
+    const stack = el("div", { class: "stack-bar", role: "img", "aria-label": `${r.config}: stopped ${t["success->fail"] || 0}, new successes ${t["fail->success"] || 0}` });
     for (const [k, c] of parts) {
       const seg = el("div", { title: `${k}: ${t[k] || 0}` }); seg.style.background = c; stack.append(seg);
       afterPaint(() => { seg.style.width = `${(100 * (t[k] || 0)) / total}%`; });
@@ -700,4 +817,6 @@ async function runEvaluation() {
   finally { button.disabled = false; }
 }
 
+setupTheme();
+setupIntro();
 init().catch((err) => showError(`Could not load configuration: ${err.message}`));
