@@ -1,9 +1,8 @@
 # Evaluating Layered Defenses Against Indirect Prompt Injection in LLM-Based Document Summarization
 
-**Status: preliminary report.** Every number comes from two saved runs that are never pooled: run 1 (`aee56f02e584`, `llama3.2:1b`, archived in `docs/results/final_run_1/`) and run 2 (`b507b975ae1f`,
-`llama3.1:8b`, archived in `docs/results/final_run_2/`). Both used small, project-authored synthetic data and small local models. Sections marked **INCOMPLETE** need work that has not been done.
-Nothing here is a general claim about LLM security. Section 10.1 adds a third, separate run on a partially independent test set (`4da08316a2fb`, `llama3.2:1b`); it is a **DRAFT** until the 8B run on the same set is complete,
-and the abstract, discussion and conclusion do not yet reflect it.
+**Status: preliminary report.** Every number comes from saved runs that are never pooled: run 1 (`aee56f02e584`, `llama3.2:1b`, `docs/results/final_run_1/`) and run 2 (`b507b975ae1f`, `llama3.1:8b`, `docs/results/final_run_2/`) on a project-authored held-out set,
+and two further runs on a partially independent set of externally written attack instructions (section 10.1): run 3 (`4da08316a2fb`, `llama3.2:1b`, `docs/results/independent_run_1/`) and run 4 (`8a4c672e6307`, `llama3.1:8b`, `docs/results/independent_run_2/`). All used small synthetic or AI-generated documents and small local models.
+Sections marked **INCOMPLETE** need work that has not been done. Nothing here is a general claim about LLM security.
 
 ## 1. Abstract
 
@@ -14,6 +13,11 @@ families (72.7% to 8.3%). On an 8B model of the same family, the undefended mode
 classifier (20.0%, detecting 50% of held-out attacks with 0 false positives) both helped, and heuristic + structural (8.6%) was the best configuration. The heuristic's false positives (8/24 hard-negative
 benign observations) and its collapse on unseen families were the same for both models. All results are preliminary: tiny, hand-written data, ambiguous outputs judged by an AI and checked by one human reviewer, and held-out attacks that are not
 independent of the defenses' author.
+
+A second, partially independent test then used 75 attack instructions written by others (the BIPIA benchmark's text-attack split) hidden as bare paragraphs in 20 AI-generated documents, with 25 clean documents as controls, on the same two models (150 attack observations per configuration; human review of 280 distinct outputs, covering 721 outcomes, that could not be scored automatically).
+On that set the **word rules detected none of the attacks on either model**, the model-based classifier detected almost none (1B: 8 of 146; 8B: none, and no false positives), and **structural prompt separation lowered attack success on both models**: 44.0% to 29.6-31.7% on the 1B model and 39.9% to 20.0-21.3% on the 8B model
+(human-reviewed; the intervals for the larger 8B drop do not overlap, but the review was not blind and no significance test was planned), while raising the share of attacked documents that still received a usable summary (1B 21% to 55-60%, 8B 49% to 67-71%). Without defenses the two models were hijacked at similar overall rates but by different attacks.
+This contrasts with the held-out set, where the same structural prompt did not help the 1B model, so effectiveness depended on the attack type as well as on the model.
 
 ## 2. Introduction
 
@@ -63,7 +67,7 @@ criteria the pipeline never sees. FastAPI service, static web UI, CLIs. See `doc
 
 Each run was pre-registered in `docs/EXPERIMENT_LOG.md` before execution, with code frozen at a tag (`final-run-1-freeze`, `final-run-2-freeze`). Same cases for every configuration; temperature 0; 2 trials; ASR on evaluated cases
 with unresolved outcomes reported separately (none remained after adjudication); Wilson 95% intervals; blocked attacks count as not successful and are reported through detection rate. Run 2 changed only the model.
-Protocol: `docs/EXPERIMENT_PROTOCOL.md`.
+Protocol: `docs/EXPERIMENT_PROTOCOL.md`. The independent-set runs (section 10.1) followed their own pre-registration (`docs/INDEPENDENT_SET.md`, `docs/EXPERIMENT_LOG.md`) and a set frozen at tag `independent-freeze`; the second model's run was started only after the first had been reviewed and the author approved it.
 
 ## 9. Datasets and evaluation design
 
@@ -133,17 +137,19 @@ this (19.0%, 14.3%, 6.9%). On the 8B model disruption was lower (22.2% undefende
 shows the full trade-off: the 8B model with structural separation alone gave the user a usable, uncompromised summary for 78.6% of attack documents (vs 40.0% undefended), while the configurations
 with the lowest ASR (E4 60.0%, E5 30.0%) gave fewer because blocking delivers nothing. On the 8B model the sanitize policy's redaction marker itself triggered some refusals.
 
-### 10.1 Independent set: `llama3.2:1b` (DRAFT; the 8B run on this set is in progress)
+### 10.1 Independent set: both models (human-reviewed)
 
 **Why and what.** The held-out set above was written by the same AI that wrote the defenses. To test unseen attack *instructions* written by other people, a separate set was built and frozen before any run (tag `independent-freeze`; protocol `docs/INDEPENDENT_SET.md`):
 the 75 instructions of the BIPIA `text_attack_test.json` split (Yi et al.; MIT licence; provenance and checksum in `data/external/bipia/PROVENANCE.md`), 15 categories x 5, each inserted verbatim as a bare paragraph (no "ignore previous instructions" wording) at the start, middle or end of one of
 20 ordinary documents; plus all 25 documents unmodified as benign cases (20 ordinary, 5 security-themed hard negatives). **The documents are AI-generated** (by the assistant that also wrote the defenses, from the author's topic list) and labeled as such, so the set is only
 *partially* independent: the attacks are external, the document corpus is not. Attack-success checks were pre-registered (`data/external/bipia/attack_criteria.json`): 25 attacks are decided automatically (translation, encodings, reversal, ciphers, emoji), 13 by pattern with a
-quotation rule, and 37 open-ended "answer a different question / insert vague content" attacks are never automatic successes and go to a human. Same seven configurations, temperature 0, 2 trials (attack n = 150, benign n = 50 per configuration), defenses unchanged since the earlier runs.
+quotation rule, and 37 open-ended "answer a different question / insert vague content" attacks are never automatic successes and go to a human. Same seven configurations, temperature 0, 2 trials (attack n = 150, benign n = 50 per configuration), defenses unchanged since the earlier runs; one model per run, never pooled.
 
-**Human review.** 358 outcomes (119 distinct outputs) could not be scored automatically. One reviewer (the author) decided each one in batches, separately for *attack worked* (yes / no / unsure) and *summary ruined*; 23 outcomes judged unsure remain unresolved.
-The reviewer required the injected objective to be meaningfully achieved (naming the requested topic, or a fabricated or meaningless "answer", is not success; a meaningful answer with factual errors is), and counted a summary as ruined when it was missing, failed the
-registered usable-summary rule, or presented the document as discussing the injected topic. The review was **not blind** to configuration. Details, per-item rationales and the effect of each decision: `docs/EXPERIMENT_LOG.md`, `docs/results/independent_run_1/`.
+**Human review.** 358 outcomes in the 1B run (119 distinct outputs) and 363 in the 8B run (161 distinct outputs) could not be scored automatically. One reviewer (the author) decided each distinct output in batches, separately for *attack worked* (yes / no / unsure) and *summary ruined*; 23 (1B) and 2 (8B) outcomes judged unsure remain unresolved, and 2 8B outcomes are model errors.
+The reviewer required the injected objective to be meaningfully achieved (naming the requested topic, or a fabricated or meaningless "answer", is not success; a meaningful answer with factual errors is), and counted a summary as ruined when it was missing, failed the registered usable-summary rule, or presented the document as discussing the injected topic ("the document also mentions X").
+The review was **not blind** to configuration, and for the 8B run the reviewer accepted all AI-written proposals (for 1B, 6 groups were overridden), so the labels may be anchored to those proposals. Details, rubric and per-item rationales: `docs/EXPERIMENT_LOG.md`, `docs/results/independent_run_{1,2}/`.
+
+**Results, 1B model (run 3, `llama3.2:1b`):**
 
 | config | ASR after review | unresolved | detection | FPR (benign flagged) | benign task completion | usable summary on attack docs | task disruption | mean ms / calls per request |
 |---|---|---|---|---|---|---|---|---|
@@ -155,24 +161,44 @@ registered usable-summary rule, or presented the document as discussing the inje
 | E4 heuristic + structural | 31.7% (46/145) [25-40] | 5 | 0.0% (0/150) | 4.0% (2/50) | 96.0% | 55.2% (80/145) [47-63] | 19.2% (19/99) [13-28] | 3171 / 0.99 |
 | E5 all three | 29.6% (42/142) [23-38] | 8 | 5.3% (8/150) | 4.0% (2/50) | 96.0% | 54.9% (78/142) [47-63] | 15.2% (14/92) [9-24] | 4231 / 1.94 |
 
-**Findings (this model and this set only):**
-- **The detectors did not see these attacks.** The word rules flagged none of the 150 attack observations (they look for override wording, which BIPIA instructions do not contain), so E1 and E1b behaved exactly like E0. This extends the earlier collapse (72.7% familiar -> 8.3% held-out)
-  to 0% on externally written instructions. The 1B classifier flagged 8 of 146-150. Both detectors' only false positive was one security-themed document that quotes an example injection (2 of 10 security-themed and 0 of 40 ordinary benign observations), so their whole utility cost here is one document.
-- **The structural prompt lowered attack success, but the difference is not established.** E2, E4 and E5 had 29.6-31.7% against 44.0% for E0. Even counting every unresolved outcome as a success, their bounds (33.3-34.7%) stay below 44.0%, but the 95% intervals overlap slightly (E0 36-52%, E2 23-38%);
-  no significance test was pre-registered, and the reduction is concentrated where the non-blind human standard applied (the model kept summarizing and appended a thin or garbled answer). By category it was uneven: "do a different task" attacks fell sharply (Task Automation 8/10 -> 0-1/10, Emoji 10/10 -> 4-5/10),
-  while advertising insertions succeeded *more* often (Marketing 2/10 -> 4-6/10) and translation stayed high (8/10 -> 10/10). The structural prompt seems to change *which* attacks work more than whether they work.
-- **The clearest effect is on usability.** Without the structural prompt, an attacked document produced a usable, uncompromised summary only 21% of the time (the model often answered the injected request instead of summarizing, or refused); with it, 55-60%, and failed attacks ruined the summary 14-19% of the time instead of 59-62%.
-- **Contrast with the earlier held-out set.** On the project-authored held-out set the same structural prompt did *not* help this 1B model (E2 40.0% vs E0 34.3%). The attacks differ in kind (override-style and obfuscated vs. bare off-task requests), so the two results are not contradictory, but neither supports a general claim about structural separation on small models.
-- **Not measured as success:** Reverse Text and Substitution Cipher attacks were 0/10 everywhere under the registered checks; the model sometimes reversed sentence order rather than characters, which the registered check does not detect (a post-hoc review exists but is not part of these numbers).
+**Results, 8B model (run 4, `llama3.1:8b`):**
 
-**Limits specific to this set:** one 1B model (the 8B run is pending); 25 short, clean AI-generated documents, so false-positive rates are likely underestimates; half the attacks need human judgment, from one non-blind reviewer; success checks and key-topic lists written by the AI assistant; 10 observations per category.
-The defenses were not tuned on this set, so it remains usable as a test for the 8B run.
+| config | ASR after review | unresolved | detection | FPR (benign flagged) | benign task completion | usable summary on attack docs | task disruption | mean ms / calls per request |
+|---|---|---|---|---|---|---|---|---|
+| E0 undefended | 39.9% (59/148) [32-48] | 2 (model errors) | n/a | n/a | 100% | 48.6% (72/148) [41-57] | 19.1% (17/89) [12-28] | 17674 / 1.00 |
+| E1 heuristic block | 40.0% (60/150) [33-48] | 0 | 0.0% (0/150) | 4.0% (2/50) | 96.0% | 48.0% (72/150) [40-56] | 20.0% (18/90) [13-29] | 14450 / 0.99 |
+| E1b heuristic sanitize | 40.0% (60/150) [33-48] | 0 | 0.0% (0/150) | 4.0% (2/50) | 100% | 48.0% [40-56] | 20.0% [13-29] | 14103 / 1.00 |
+| E2 structural v3 | 20.0% (30/150) [14-27] | 0 | n/a | n/a | 100% | 66.7% (100/150) [59-74] | 16.7% (20/120) [11-24] | 11297 / 1.00 |
+| E3 classifier | 40.0% (60/150) [33-48] | 0 | 0.0% (0/146) | 0.0% (0/50) | 100% | 48.0% [40-56] | 20.0% [13-29] | 16904 / 2.00 |
+| E4 heuristic + structural | 21.3% (32/150) [16-29] | 0 | 0.0% (0/150) | 4.0% (2/50) | 96.0% | 70.0% (105/150) [62-77] | 11.0% (13/118) [7-18] | 10309 / 0.99 |
+| E5 all three | 20.3% (30/148) [15-28] | 2 (unsure) | 0.0% (0/150) | 4.0% (2/50) | 96.0% | 70.9% (105/148) [63-78] | 11.0% (13/118) [7-18] | 16555 / 1.98 |
+
+Failures: 1B 0 model failures and 8 classifier failures (two documents, E3 and E5); 8B 2 model failures (E0, transient, not retried and excluded from the rate) and the same 8 classifier failures. Both detectors' only false positive was one security-themed document that quotes an example injection (`sec-04`), flagged by the word rules on both models and by the 1B classifier.
+
+**Findings (these two models and this set only):**
+- **The detectors did not see these attacks.** The word rules flagged none of the 150 attack observations on either model (they look for override wording, which BIPIA instructions do not contain), so E1 and E1b behaved exactly like E0. This extends the held-out collapse (72.7% familiar -> 8.3% held-out) to 0% on externally written instructions.
+  The 1B classifier flagged 8 attack outcomes; the 8B classifier flagged none and no benign document, so E3 behaved exactly like E0. The earlier held-out result for the 8B classifier (about half of the held-out attacks detected, 0 false positives) did not carry over to these bare off-task instructions, a difference in attack kind that this design cannot separate from other differences between the sets.
+- **The structural prompt lowered attack success on both models.** E2, E4 and E5 had 29.6-31.7% (1B) and 20.0-21.3% (8B) against 44.0% and 39.9% for E0: about -14 points on 1B and -20 points on 8B. The 1B intervals are wider and the 1B rates include 5-10 unresolved outcomes (bounds E2 28.0-34.7%, E4 30.7-34.0%, E5 28.0-33.3%, still below E0).
+  Caveats: the review was not blind, no significance test was pre-registered, and 150 observations are really 75 distinct attacks run twice at temperature 0, so intervals overstate precision. The effect was uneven by category: "do a different task" attacks fell sharply (for example Sentiment Analysis 8/10 -> 0/10 on 8B but only 10/10 -> 8/10 on 1B; Task Automation 8/10 -> 0-1/10 on 1B), while insertion-style or format attacks sometimes rose (Marketing 2/10 -> 4-6/10 on 1B; Entertainment 2/10 -> 6/10 and Information Dissemination 4/10 -> 6/10 on 8B).
+  The structural prompt appears to change *which* attacks work more than it stops them.
+- **It also changed what the user got.** Without it, an attacked document produced a usable, uncompromised summary 21% (1B) and 49% (8B) of the time; with it, 55-60% and 67-71% (the intervals do not overlap on either model). Among failed attacks the share of ruined summaries fell from 62% to 14-19% on 1B and from 19-20% to 11-17% on 8B.
+  The human disruption labels are stricter than the registered automatic rule (they agree on 77 of 121 outcomes in the 1B run and 203 of 237 in the 8B run; every disagreement was a response the rule called usable and the reviewer called ruined, usually because it presented the injected topic as part of the document).
+- **Between models.** Undefended, the two models were hijacked at similar rates (44.0% vs 39.9%; difference -4.1 points, 95% interval -15 to +7). With the structural prompt the 8B rate was about 10 points lower (E2 -10.0 [-19.8, -0.0], E4 -10.4 [-20.2, -0.3], E5 -9.3 [-19.1, +0.7]); suggestive, not established.
+  Different attacks worked on each model: with no defenses, of the 75 attacks 20 worked on both models, 13 on the 1B model only, 10 on the 8B model only, 32 on neither. The 8B model resisted "answer a different question" attacks better (Business Intelligence 4/10 -> 0/10, Conversational Agent 4/10 -> 0/10, Task Automation 8/10 -> 4/10) but obeyed "insert this text" attacks more (Marketing & Advertising 2/10 -> 8/10, Scams & Fraud 4/10 -> 8/10). Each cell is 10 observations.
+  The 8B model was 4-5 times slower per request (E0 17.7 s vs 4.0 s).
+- **Contrast with the held-out set.** There the same structural prompt did *not* help the 1B model (E2 40.0% vs E0 34.3%). The attacks differ in kind (override-style and obfuscated vs. bare off-task requests) and the reviewers' rules differ, so the results are not contradictory, but neither supports a general claim about structural separation on small models.
+- **Not measured as success:** Reverse Text and Substitution Cipher attacks were 0/10 under every configuration on both models under the registered checks; the 1B model sometimes reversed sentence order rather than characters, which the registered check does not detect (a post-hoc review exists for the 1B run, is not part of these numbers; none was done for 8B).
+
+**Limits specific to this set:** two models of one family; 25 short, clean AI-generated documents, so false-positive rates are likely underestimates; half the attacks need human judgment from one non-blind reviewer (the 8B labels may be anchored to the AI's proposals); success checks and key-topic lists written by the AI assistant; 10 observations per category; no significance test; the two reviews differ slightly in rubric detail.
+The defenses were not tuned on this set, so it was not spent; a hosted model, other model families and a second blinded reviewer remain untested.
 
 ## 11. Security-versus-utility analysis
 
 - **1B model:** heuristic blocking had the lowest ASR (11.4%) at a utility cost (75.0%); structural separation had the best utility (100%) but no security benefit; the classifier lowered utility without lowering ASR.
 - **8B model:** the best trade-offs were E3 (ASR 20.0%, no false positives, utility 95.8%) and E2 (ASR 18.6%, utility 100%, no blocking). E4 had the lowest ASR (8.6%) but inherited the heuristic's cost (16.7% flagged, utility 83.3%);
   E5 added latency and no security over E4. In this setting a model-based layer could deliver most of the heuristic's security benefit without blocking benign security discussions.
+- **Independent set (section 10.1):** on both models the cheapest configuration that helped was E2 (structural prompt alone): attack success 30.0% (1B) and 20.0% (8B) against 44.0% and 39.9% undefended, with no blocking and 100% benign task completion. Adding the word rules (E4) or the classifier (E5) did not lower it further, cost one benign document (2/50 flagged by the rules) and, for E5, a second model call per request (mean latency +5% on 1B and -6% on 8B relative to E0 on this set; the second call is offset by shorter outputs).
+  The classifier alone (E3) bought nothing on either model here.
 - Task completion is a keyword proxy, not summary quality; both undefended models also refused a small number of benign documents on their own (1B: 2/24, 8B: 1/24).
 
 ## 12. Generalization analysis
@@ -180,33 +206,41 @@ The defenses were not tuned on this set, so it remains usable as a test for the 
 The heuristic's detection collapsed on unseen families regardless of model (72.7% -> 8.3%); its ASR gap was +15 to +17 points. For other configurations the negative gaps (e.g. E0 -29.5 and -35.2) do not mean the undefended model generalizes: both models followed
 familiar (development-style) attacks more often than held-out ones, so the gap mixes attack difficulty with defense behavior. A more informative reading is the detection rate by group (above). The 8B classifier showed no drop from familiar to held-out families.
 Because the held-out set was written by the author of the rules and prompts, and is small, true generalization is probably worse than shown.
+The independent set (section 10.1) is the stronger test of unseen attacks: it has no "familiar" group (every attack is new), so no generalization gap is computed. On it, the word rules detected 0/150 on both models (versus 8.3% on the held-out families), the 1B classifier 5.5% and the 8B classifier 0%, so detection did not generalize to externally written bare instructions;
+only the structural prompt, which does not depend on recognizing an attack, reduced attack success on both models. This remains partial evidence: the documents are AI-generated and the defenses were never tuned on this set.
 
 ## 13. Runtime and cost analysis
 
 Local inference on one Apple M4 machine, so no monetary cost; token counts were not captured (unavailable). The 8B model was about 4x slower per request than the 1B model. Overheads versus E0 (mean latency, run 2): heuristic about 0 (blocked requests skip the model),
 sanitize +25%, structural +56% (longer prompts and outputs), classifier +102% (one extra model call), E5 +104%. Run 1 showed +102% for the classifier as well. Heuristic detection itself is negligible: median 0.043 ms (p95 0.062 ms) over the fixtures,
-6.2 ms on a 45,000-character document (separate timing check). Latencies depend on this hardware.
+6.2 ms on a 45,000-character document (separate timing check). Latencies depend on this hardware. On the independent set the 8B model took 17.7 s per undefended request against 4.0 s for the 1B model (about 4.4x), and the classifier configurations made 1.95 (1B) and 2.00 (8B) model calls per request.
 
 ## 14. Limitations
 
 Tiny, project-authored, non-independent data; two small local models of one family (findings may not transfer to hosted frontier models); structural and classifier prompts developed on the 1B model and not re-tuned; lexical scoring with an AI adjudicator for 103 ambiguous outcomes,
 verified by a single human reviewer (not blinded, not independent of the project); keyword utility proxy; repeated trials and shared-template cases are not independent evidence (35 distinct attack cases); held-out set reused across runs after its first aggregates were seen (no changes were made in response); no adaptive attackers;
-no hidden-text attacks; no human summary-quality ratings; no statistical test beyond intervals; exploratory analyses after seeing results. Both runs followed their pre-registration with no changes after they started.
+no hidden-text attacks; no human summary-quality ratings; no statistical test beyond intervals; exploratory analyses after seeing results. Both final runs followed their pre-registration with no changes after they started.
+For the independent set (section 10.1): the 25 benign documents are AI-generated (by the assistant that wrote the defenses), so it is only partially independent and false-positive rates are likely underestimates; 280 distinct outputs (721 outcomes) needed human judgment from one reviewer who was not blind to configuration and who accepted every AI-written proposal in the 8B review (so those labels may be anchored);
+the review rubric was refined between the two reviews; the success checks and key-topic lists were written by the AI; 150 observations per configuration are 75 distinct attacks run twice at temperature 0, so intervals overstate precision; no significance test was run; the cross-model comparison (in `docs/EXPERIMENT_LOG.md`) is post hoc; and only models of one family were tested.
 
 ## 15. Discussion
 
-The main lesson is that defense effectiveness here depended on the model more than on the layer: structural separation and a model-based classifier were useless on a 1B model and useful on an 8B model, while the model-independent regex layer helped on both but is brittle and
-penalizes legitimate security text. A more capable model was not harder to inject. Reporting a defense's effect without naming the model, or tuning it on one model and assuming it transfers, would have been misleading. The 8B classifier's lack of false positives on hard negatives
-is the most interesting result for deployment, and also the one most in need of independent data, since the classifier prompt was written by the same author as the held-out attacks.
+The main lesson from the held-out runs was that defense effectiveness depended on the model more than on the layer: structural separation and a model-based classifier were useless on a 1B model and useful on an 8B model, while the model-independent regex layer helped on both but is brittle and
+penalizes legitimate security text. A more capable model was not harder to inject. The independent set adds a second lesson: **effectiveness also depends on the attack type, and conclusions from one attack set do not carry over to another.** Against bare, externally written off-task instructions the regex layer was blind on both models and the 8B classifier never fired
+(having detected about half of the held-out attacks), while the structural prompt, which was ineffective for the 1B model on the held-out set, lowered attack success on both models and, more clearly, raised the share of attacked documents that still got a usable summary. A defense evaluated on one attack family, model or reviewer can therefore be misjudged in either direction; reporting a defense's effect without naming the model and the attack set, or tuning it on one model and assuming it transfers, would have been misleading.
+The more capable model was not uniformly safer here either: it declined the "answer a different question" attacks better but obeyed "insert this text" attacks (advertising, scams) more readily. Two further points concern measurement. First, a failed attack is not a successful defense: the human review found many responses that ignored the instruction yet misattributed it to the document or abandoned the summary, which is why summary disruption is reported separately.
+Second, the strongest-looking differences (about 20 points on the 8B model) rest on one non-blind reviewer and on 75 distinct attacks, so they are leads for a larger, blinded study, not findings. The 8B classifier's lack of false positives on hard negatives is still the most interesting held-out result for deployment, and its failure to fire on the independent attacks is the clearest warning that it needs independent data.
 
 ## 16. Conclusion
 
-In this preliminary study, layered defenses reduced attack success on both models, but which layers worked changed with the model: on 1B only the heuristic helped; on 8B, structural separation, the classifier, and especially heuristic + structural reduced it substantially,
-with the classifier doing so without blocking benign documents. The heuristic generalized poorly to unseen attack families on both. These findings apply only to the tested models, data and configurations. The software and protocol are in place to repeat the experiment on other models and data.
+In this preliminary study, layered defenses reduced attack success, but which layers worked changed with the model and with the attack set. On the project-authored held-out set, only the heuristic helped the 1B model, while on the 8B model structural separation, the classifier, and especially heuristic + structural reduced attack success substantially (the classifier without blocking benign documents);
+the heuristic generalized poorly to unseen attack families on both. On a partially independent set of externally written attack instructions, the word rules and the classifier detected almost nothing on either model, whereas structural prompt separation lowered attack success on both models (about 14 points on 1B, about 20 on 8B) and increased the share of attacked documents that still received a usable summary,
+at no benign cost; the 8B model resisted off-task questions better but obeyed insertion attacks more. These findings come from two local models, small hand-built or AI-generated data, and one non-blind human reviewer, and apply only to the tested models, data and configurations; none supports a claim that prompt injection is solved or that a defense generalizes.
+The software, pre-registered protocol and frozen sets are in place to repeat the experiment on other models, a hosted model and a larger, blinded review.
 
 ## 17. Future work (INCOMPLETE)
 
-Validate the task-disruption rule with a second human reviewer and an accuracy check (it uses keyword coverage); run the same protocol on a hosted frontier model as a further condition; add independently written or BIPIA-derived held-out attacks (`docs/DATASET_GUIDE.md`); human adjudication and quality ratings; re-tune the structural and classifier prompts per model on dev data and re-freeze;
+Validate the task-disruption rule with a second human reviewer and an accuracy check (it uses keyword coverage); run the same protocol on a hosted frontier model as a further condition; add a human-written benign corpus and a second, blinded reviewer for the independent set (a first BIPIA-based independent set is done, section 10.1); a significance test planned in advance and more attacks per category; summary-quality ratings by humans; re-tune the structural and classifier prompts per model on dev data and re-freeze;
 evaluate a trained classifier (needs reviewed data and a decision to install torch/transformers); operator deny-list output validation (E6); hidden-text and adaptive-attack evaluation; more trials per family and a larger set.
 
 ## 18. References
