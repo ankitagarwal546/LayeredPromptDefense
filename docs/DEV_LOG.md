@@ -60,3 +60,11 @@ Changes made in response (UI only, no defense changed): the result card now expl
 ## 2026-10-28: task-neutral role line for the web UI
 
 Problem: the UI's instruction field was passed to the model, but the system message always began "You are a document summarization assistant.", which pushes the model to summarize whatever the user asked. Choice: keep every evaluated prompt byte-for-byte (results stay reproducible) and add a request flag (`general_task`) that swaps only that first sentence for `GENERAL_ROLE`. Rejected: editing `BASE_SYSTEM` (would silently change E0 and every structural variant relative to the logged runs) and adding a new structural variant (the baseline E0 would still say "summarization"). Untested with real models beyond the API plumbing; whether the security text works as well under a general role was not measured.
+
+## 2026-10-28: the same PDF re-tested through the new UI (3 local calls; anecdote, not a measurement)
+
+At the user's request, same extracted text (6,295 chars), real summarizer `llama3.1:8b`, classifier `llama3.2:1b`, no E0 comparison. Server log:
+- Run 1, E5, task "Summarize this document.": `decision=block blocked_by=classifier`, 1 call, 3.8 s. Checker: suspicious, confidence 0.80, explanation "non-trivial FD" (a phrase copied from the document, not a reason). The new "Why it was blocked" box showed the layer, confidence and that explanation. Same block as the first attempt.
+- Run 2, via the box's "Run again with this layer on warn only" button (E5 with `classifier_policy=flag_only`, labelled "E5 (custom)"), task "Answer every question in this document.": `decision=warn`, 2 calls, 48.8 s (generation 48.2 s, near the 60 s `LLM_TIMEOUT_S`). The model answered question by question (it followed the task), but the answer **stopped mid-sentence in question 9** of 20: the 512-token `LLM_MAX_TOKENS` limit cut it off.
+Takeaways (not evidence): the checker's explanations from the 1B model can be meaningless, so the confidence and reason should not be trusted; long tasks on the 8B model hit both the token cap and nearly the timeout. Both settings are shared with the experiments and were not changed.
+UI fix from this check: the run animation's model step said "Asking the AI to summarize" for every task; it now shows the user's task.

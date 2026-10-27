@@ -555,7 +555,7 @@ const STATIONS = {
   structural: { label: "L3 Wrap", icon: "M8 4H5v16h3M16 4h3v16h-3",
     head: "L3 · fencing the document as data", text: "The text is wrapped in markers with a random code, and the AI is told that nothing inside them is an order." },
   model: { label: "AI model", icon: "M7 7h10v10H7zM10 3v4M14 3v4M10 17v4M14 17v4M3 10h4M3 14h4M17 10h4M17 14h4",
-    head: "Asking the AI to summarize", text: "" },
+    head: "Asking the AI", text: "" },  // head and text are set per run from the task
   output: { label: "L4 Output", icon: "M4 6h10M4 12h10M4 18h6M15 16l2.5 2.5L22 14",
     head: "L4 · checking the answer", text: "The answer is compared with what the attack wanted, to see whether it slipped through." },
   answer: { label: "Answer", icon: "M4 5h16v11H9l-5 4z", head: "", text: "" },
@@ -643,8 +643,9 @@ async function playRun(view, run, index) {
   const keys = ["doc", ...["heuristic", "classifier", "structural"].filter((k) => d[k]), "model", ...(d.output_validation ? ["output"] : []), "answer"];
   view.title.textContent = `${view.total > 1 ? `Run ${index + 1} of ${view.total} · ` : ""}${run.title}`;
   setTrack(view, keys);
+  STATIONS.model.head = `Asking the AI: “${lastRun.instruction}”`;
   STATIONS.model.text = d.structural
-    ? "The AI gets your instruction plus the fenced document and writes the summary."
+    ? "The AI gets your task plus the fenced document and works on it."
     : "The document goes straight into the AI's instructions, so a hidden order looks just like yours.";
 
   let data = null, failure = null, settled = false;
