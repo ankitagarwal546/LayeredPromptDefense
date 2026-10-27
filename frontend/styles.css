@@ -35,21 +35,64 @@ button { font: inherit; }
 .small { font-size: 13px; color: var(--text-3); }
 
 /* ================= intro ================= */
-.intro { position: fixed; inset: 0; z-index: 50; background: radial-gradient(ellipse at 70% 40%, var(--surface-2), var(--intro-bg) 70%); overflow-y: auto; overscroll-behavior: contain; outline: none; scrollbar-width: none;
-  opacity: calc(1 - max(0, var(--p, 0) - .55) * 2.2); }
-.intro::-webkit-scrollbar { display: none; }
+.intro { position: fixed; inset: 0; z-index: 50; background: var(--intro-bg); overflow-y: auto; overscroll-behavior: contain; outline: none; scrollbar-width: thin; transition: opacity .6s ease, transform .6s ease; }
 body:has(#intro:not(.hidden)) { overflow: hidden; }
-.intro.leaving { opacity: 0; transform: scale(1.04); pointer-events: none; transition: opacity .6s ease, transform .6s ease; }
+.intro.leaving { opacity: 0; transform: scale(1.04); pointer-events: none; }
+.hero { height: 175vh; background: radial-gradient(ellipse at 70% 30%, var(--surface-2), var(--intro-bg) 60%); }
 .intro-pin { position: sticky; top: 0; height: 100vh; height: 100dvh; display: grid; place-items: center; overflow: hidden; }
-.intro-spacer { height: 120vh; }
-.intro .theme-toggle { position: absolute; top: 18px; right: 18px; }
+/* landing top bar: transparent over the hero, frosted once scrolled; thin progress bar for the whole page */
+.land-progress { position: fixed; top: 0; left: 0; z-index: 3; height: 3px; width: calc(var(--sp, 0) * 100%); background: linear-gradient(90deg, var(--primary), var(--danger)); }
+.land-nav { position: sticky; top: 0; z-index: 2; height: 64px; margin-bottom: -64px; display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 0 24px; border-bottom: 1px solid transparent; transition: background .3s, border-color .3s; }
+.intro.scrolled .land-nav { background: color-mix(in srgb, var(--intro-bg) 82%, transparent); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); border-color: var(--border); }
+.land-links { display: flex; align-items: center; gap: 6px; }
+.link-btn { border: 0; background: none; color: var(--text-2); font-size: 14px; font-weight: 500; padding: 7px 10px; border-radius: 8px; cursor: pointer; }
+.link-btn:hover { color: var(--text); background: var(--surface-2); }
+@media (max-width: 600px) { .link-btn { display: none; } .land-nav { padding: 0 14px; } .land-nav .brand-text small { display: none; } }
+.intro-cta .btn + .btn { margin-left: 8px; }
+@media (max-width: 860px) {
+  .intro-pin { place-items: start center; padding-top: 80px; }
+  .intro-cta .btn + .btn { margin-left: 0; margin-top: 8px; }
+  .intro-sub { font-size: 16px; margin: 14px auto 20px; }
+}
+@media (max-width: 860px) and (max-height: 900px) { .scene { height: 230px; } .intro .eyebrow { display: none; } }
+
+/* landing sections */
+.land-section { position: relative; padding: 96px 24px; overflow: hidden; }
+@media (max-width: 600px) { .land-section { padding: 64px 16px; } }
+.land-inner { position: relative; z-index: 1; max-width: 1160px; margin: 0 auto; }
+#ov-land .land-inner { display: grid; gap: 16px; }
+.eyebrow-sm { font-size: 12px; font-weight: 600; letter-spacing: .08em; text-transform: uppercase; color: var(--primary); margin: 0 0 10px; }
+.land-h2 { font-size: clamp(28px, 4vw, 44px); line-height: 1.1; letter-spacing: -.025em; font-weight: 700; margin-bottom: 8px; perspective: 600px; }
+.land-cta { text-align: center; padding-bottom: 130px; }
+.land-cta p { color: var(--text-2); font-size: 17px; max-width: 34em; margin: 10px auto 26px; }
+.cta-row { justify-content: center; }
+.blob { position: absolute; width: 520px; height: 520px; border-radius: 50%; filter: blur(80px); opacity: .22; pointer-events: none; animation: float 14s ease-in-out infinite; }
+.blob.b1 { background: var(--primary); left: -160px; top: calc(-40px - var(--sp, 0) * 220px); }
+.blob.b2 { background: var(--danger); right: -200px; bottom: calc(-120px + var(--sp, 0) * 260px); opacity: .14; animation-delay: -7s; }
+@keyframes float { 0%, 100% { transform: translate(0, 0) scale(1); } 50% { transform: translate(60px, 40px) scale(1.12); } }
+
+/* scroll reveal (class "in" is toggled by an IntersectionObserver, so it replays) */
+.reveal { opacity: 0; transform: translateY(46px) scale(.97); transition: opacity .8s ease, transform .8s cubic-bezier(.2, .8, .2, 1); transition-delay: var(--d, 0s); }
+.reveal.in { opacity: 1; transform: none; }
+.split .wd { display: inline-block; opacity: 0; transform: translateY(.7em) rotateX(-65deg); transform-origin: bottom; transition: opacity .5s ease, transform .6s cubic-bezier(.2, .9, .3, 1.25); transition-delay: calc(var(--i) * 70ms); }
+.split.in .wd { opacity: 1; transform: none; }
+#ov-land .kpi { animation: none; opacity: 0; transform: translateY(30px) rotateX(25deg); transition: opacity .6s ease, transform .7s cubic-bezier(.2, .8, .2, 1), box-shadow .25s; }
+#ov-kpis.in .kpi { opacity: 1; transform: none; }
+#ov-kpis.in .kpi:nth-child(2) { transition-delay: .08s; } #ov-kpis.in .kpi:nth-child(3) { transition-delay: .16s; } #ov-kpis.in .kpi:nth-child(4) { transition-delay: .24s; }
+#ov-kpis { perspective: 900px; }
+#ov-land .kpi:hover { transform: translateY(-4px) rotateX(6deg); box-shadow: 0 14px 30px rgba(0, 0, 0, .18); transition-delay: 0s; }
+#ov-chart .cfg-row { opacity: 0; transform: translateX(-24px); transition: opacity .5s ease, transform .5s ease; transition-delay: calc(var(--i) * 70ms); }
+#ov-chart.in .cfg-row { opacity: 1; transform: none; }
+#ov-chart .fill { transition-delay: calc(.2s + var(--i) * 90ms); }
+.takeaways li { opacity: 0; transform: translateX(30px); transition: opacity .5s ease, transform .6s cubic-bezier(.2, .8, .2, 1); }
+.takeaways.in li { opacity: 1; transform: none; }
+.takeaways.in li:nth-child(2) { transition-delay: .12s; } .takeaways.in li:nth-child(3) { transition-delay: .24s; }
 /* scroll progress: text slides up and fades, the 3D stack tips flat and flies toward the viewer */
 .intro-text { transform: translateY(calc(var(--p, 0) * -160px)); opacity: calc(1 - var(--p, 0) * 1.8); }
-.scroll-hint { position: absolute; bottom: 22px; left: 50%; transform: translateX(-50%); display: flex; flex-direction: column; align-items: center; gap: 8px; font-size: 12px; color: var(--text-3); opacity: 0; animation: fadeUp .7s 2.4s ease forwards; white-space: nowrap; }
+.scroll-hint { position: absolute; bottom: 22px; left: 0; right: 0; display: flex; flex-direction: column; align-items: center; gap: 8px; font-size: 12px; color: var(--text-3); opacity: 0; animation: fadeUp .7s 2.4s ease forwards; white-space: nowrap; }
 .scroll-hint .mouse { width: 22px; height: 34px; border: 2px solid var(--text-3); border-radius: 12px; display: flex; justify-content: center; padding-top: 6px; opacity: calc(1 - var(--p, 0) * 4); }
 .scroll-hint .mouse i { width: 3px; height: 7px; border-radius: 2px; background: var(--primary); animation: wheel 1.6s ease-in-out infinite; }
 @keyframes wheel { 0% { transform: translateY(0); opacity: 1; } 70% { transform: translateY(10px); opacity: 0; } 100% { opacity: 0; } }
-.app.rising { transform: translateY(calc((1 - var(--p, 1)) * 60px)) scale(calc(.96 + var(--p, 1) * .04)); transform-origin: 50% 0; }
 .intro-grid { width: min(1100px, 92vw); display: grid; grid-template-columns: 1.05fr 1fr; gap: 40px; align-items: center; }
 @media (max-width: 860px) { .intro-grid { grid-template-columns: 1fr; gap: 10px; text-align: center; } }
 .eyebrow { font-size: 13px; font-weight: 600; color: var(--primary); letter-spacing: .02em; margin: 0 0 16px; opacity: 0; animation: fadeUp .6s .1s ease forwards; }
@@ -99,7 +142,7 @@ body:has(#intro:not(.hidden)) { overflow: hidden; }
 .brand { display: flex; align-items: center; gap: 10px; font-weight: 700; font-size: 15px; padding: 4px 10px 20px; line-height: 1.2; }
 .brand-text small { display: block; font-size: 11px; font-weight: 500; color: var(--text-3); letter-spacing: .01em; }
 .top-brand { display: none; padding: 0; white-space: nowrap; }
-.intro-brand { position: absolute; top: 18px; left: 24px; padding: 0; font-size: 16px; opacity: 0; animation: fadeUp .6s .05s ease forwards; }
+.intro-brand { padding: 0; font-size: 16px; opacity: 0; animation: fadeUp .6s .05s ease forwards; }
 .intro-brand .logo { width: 36px; height: 36px; }
 
 /* logo: shield draws itself, then a scan beam sweeps the page and the red (hidden) line flashes when caught */

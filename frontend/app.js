@@ -223,7 +223,6 @@ async function init() {
   pill.firstChild.classList.toggle("on", Boolean(real));
   document.querySelectorAll(".nav-item").forEach((item) => item.addEventListener("click", () => switchTab(item.dataset.tab)));
   $("menu-btn").addEventListener("click", () => setNav(!$("app").classList.contains("nav-open")));
-  document.querySelectorAll("[data-goto]").forEach((b) => b.addEventListener("click", () => switchTab(b.dataset.goto)));
   document.querySelectorAll(".seg").forEach((b) => b.addEventListener("click", () => { findingsModel = b.dataset.model; renderFindings(); }));
   $("doc").addEventListener("input", () => { updateCount(); clearExample(); });
   $("file").addEventListener("change", onFile);
@@ -304,7 +303,7 @@ function setupIntro() {
   let li = 0, ci = 0;
   const typed = $("typed");
   const type = () => {
-    if (!$("intro") || $("intro").classList.contains("hidden")) return;
+    if ($("intro").classList.contains("hidden")) { setTimeout(type, 1000); return; }  // paused while the dashboard is shown
     const line = lines[li];
     typed.textContent = line.slice(0, ++ci);
     if (ci < line.length) setTimeout(type, 38);
@@ -312,36 +311,69 @@ function setupIntro() {
   };
   setTimeout(type, 2200);
 
-  let entered = false;
-  const enter = () => {
-    if (entered) return;
-    entered = true;
-    try { sessionStorage.setItem("introSeen", "1"); } catch { /* ignore */ }
-    $("intro").classList.add("leaving");
-    $("app").classList.remove("hidden");
-    document.documentElement.style.setProperty("--p", "1");
-    setTimeout(() => { $("intro").classList.add("hidden"); $("app").classList.remove("rising"); }, 600);
-  };
-  $("enter").addEventListener("click", enter);
-
-  // Scrolling the intro drives its animation (--p from 0 to 1); the dashboard rises behind it and takes over at the end.
-  const intro = $("intro");
+  // The landing page is always shown on load. Scrolling it sets --p (hero progress, 0..1) and --sp (whole page, 0..1).
+  const intro = $("intro"), hero = $("hero");
   if ("scrollRestoration" in history) history.scrollRestoration = "manual";
   intro.scrollTop = 0;
   intro.addEventListener("scroll", () => {
-    if (entered) return;
-    const max = intro.scrollHeight - intro.clientHeight;
-    const p = max > 0 ? Math.min(1, intro.scrollTop / max) : 0;
-    document.documentElement.style.setProperty("--p", p.toFixed(3));
-    $("app").classList.toggle("hidden", p === 0);
-    $("app").classList.add("rising");
-    if (p >= 0.97) enter();
+    const span = hero.offsetHeight - intro.clientHeight, total = intro.scrollHeight - intro.clientHeight;
+    intro.style.setProperty("--p", (span > 0 ? Math.min(1, intro.scrollTop / span) : 0).toFixed(3));
+    intro.style.setProperty("--sp", (total > 0 ? intro.scrollTop / total : 0).toFixed(3));
+    intro.classList.toggle("scrolled", intro.scrollTop > 10);
   }, { passive: true });
   intro.focus({ preventScroll: true });  // so arrow keys, Page Down and Space scroll it too
-  document.addEventListener("keydown", (e) => { if (e.key === "Enter" && !$("intro").classList.contains("hidden")) enter(); });
-  let seen = false;
-  try { seen = sessionStorage.getItem("introSeen") === "1"; } catch { /* ignore */ }
-  if (seen) { $("intro").classList.add("hidden"); $("app").classList.remove("hidden"); }
+
+  // Section headings rise word by word.
+  intro.querySelectorAll(".split").forEach((h) => {
+    const words = h.textContent.split(" ");
+    h.setAttribute("aria-label", h.textContent);
+    h.replaceChildren(...words.flatMap((w, i) => {
+      const span = el("span", { class: "wd", "aria-hidden": "true", text: w });
+      span.style.setProperty("--i", i);
+      return i < words.length - 1 ? [span, document.createTextNode(" ")] : [span];
+    }));
+  });
+
+  // Reveal on scroll, and replay each time an element comes back into view. The KPI and chart animations
+  // replay too, by redrawing that part of the overview when it enters the screen.
+  const io = new IntersectionObserver((entries) => {
+    for (const e of entries) {
+      e.target.classList.toggle("in", e.isIntersecting);
+      if (e.isIntersecting && (e.target.id === "ov-kpis" || e.target.id === "ov-chart")) drawOverview(e.target.id === "ov-kpis" ? "kpis" : "chart");
+    }
+  }, { root: intro, threshold: 0.25 });
+  intro.querySelectorAll(".reveal, .split, .takeaways, #ov-kpis, #ov-chart").forEach((n) => io.observe(n));
+
+  intro.querySelectorAll("[data-scroll]").forEach((b) => b.addEventListener("click", () => scrollLanding(b.dataset.scroll)));
+  intro.querySelectorAll("[data-goto]").forEach((b) => b.addEventListener("click", () => switchTab(b.dataset.goto)));
+  document.addEventListener("keydown", (e) => {
+    if (e.key === "Enter" && !intro.classList.contains("hidden") && !e.target.closest("button")) switchTab("summarize");
+  });
+}
+
+function scrollLanding(id, behavior = "smooth") {
+  $("intro").scrollTo({ top: id === "hero" ? 0 : $(id).offsetTop - 50, behavior });
+}
+
+// Landing page <-> dashboard.
+function landingOpen() { return !$("intro").classList.contains("hidden"); }
+
+function enterDashboard() {
+  if (!landingOpen()) return;
+  $("intro").classList.add("leaving");
+  $("app").classList.remove("hidden");
+  setTimeout(() => $("intro").classList.add("hidden"), 600);
+}
+
+function openLanding(target) {
+  const intro = $("intro");
+  intro.classList.remove("hidden");
+  $("app").classList.add("hidden");
+  afterPaint(() => intro.classList.remove("leaving"));
+  scrollLanding(target, "instant");
+  intro.focus({ preventScroll: true });
+  document.title = "Prompt-Injection Defense Lab";
+  setNav(false);
 }
 
 function setNav(open) {
@@ -358,15 +390,17 @@ function fillSelect(select, values, label) {
   for (const v of values) select.append(el("option", { value: v, text: label(v) }));
 }
 
-const PAGE_TITLES = { overview: "Overview", summarize: "Test a document", findings: "Results", learn: "How it works", results: "Evaluations" };
+const PAGE_TITLES = { summarize: "Test a document", findings: "Results", learn: "How it works", results: "Evaluations" };
 
 function switchTab(name) {
+  if (name === "overview") { openLanding("ov-land"); return; }
+  enterDashboard();
   document.querySelectorAll(".nav-item").forEach((t) => t.classList.toggle("active", t.dataset.tab === name));
   for (const pane of Object.keys(PAGE_TITLES)) $(`tab-${pane}`).classList.toggle("hidden", name !== pane);
   $("page-title").textContent = PAGE_TITLES[name];
   document.title = `${PAGE_TITLES[name]} · Defense Lab`;
   if (name === "results") loadRuns();
-  if ((name === "findings" || name === "overview") && findings) renderFindings();
+  if (name === "findings" && findings) renderFindings();
   setNav(false);
   window.scrollTo({ top: 0 });
 }
@@ -830,21 +864,31 @@ function kpi({ label, value, sub, tone, ring }) {
   return box;
 }
 
-function renderOverview(rows, by) {
+// Redraw one part of the landing overview ("kpis" or "chart"), which replays its animation.
+function drawOverview(part) {
+  if (!findings) return;
+  const rows = findings.comparison.filter((r) => r.model === findingsModel);
+  renderOverview(rows, Object.fromEntries(rows.map((r) => [r.config, r])), part);
+}
+
+function renderOverview(rows, by, part = "both") {
   const e0 = by.E0, e2 = by.E2, e3 = by.E3;
   const a0 = pct(e0.asr_k, e0.asr_n), a2 = pct(e2.asr_k, e2.asr_n);
-  $("ov-kpis").replaceChildren(
+  if (part !== "chart") $("ov-kpis").replaceChildren(
     kpi({ label: "Attacks that worked, no defense", value: a0, sub: `${e0.asr_k} of ${e0.asr_n} attempts`, tone: "danger", ring: a0 }),
     kpi({ label: "With safer instructions (E2)", value: a2, sub: `${e2.asr_k} of ${e2.asr_n} · ${(a0 - a2).toFixed(1)} points lower`, tone: "primary", ring: a2 }),
     kpi({ label: "Usable summaries with it", value: pct(e2.usable_k, e2.usable_n), sub: `vs ${fmtPct(pct(e0.usable_k, e0.usable_n))} with no defense`, tone: "success", ring: pct(e2.usable_k, e2.usable_n) }),
     kpi({ label: "AI checker caught", value: `${e3.detect_k}/${e3.detect_n}`, sub: "attacked documents flagged (E3)", tone: "", ring: pct(e3.detect_k, e3.detect_n) }),
   );
+  if (part === "kpis") return;
   const chart = $("ov-chart");
   chart.replaceChildren();
-  for (const r of rows) {
-    chart.append(el("div", { class: "cfg-row" }, el("div", { class: "name", text: `${r.config} · ${shortPreset(r.config)}` }),
-      el("div", {}, bar("", r.asr_k, r.asr_n, r.config === "E2" ? "mid" : "bad"))));
-  }
+  rows.forEach((r, i) => {
+    const row = el("div", { class: "cfg-row" }, el("div", { class: "name", text: `${r.config} · ${shortPreset(r.config)}` }),
+      el("div", {}, bar("", r.asr_k, r.asr_n, r.config === "E2" ? "mid" : "bad")));
+    row.style.setProperty("--i", i);
+    chart.append(row);
+  });
 }
 
 function renderFindings() {
