@@ -1,12 +1,12 @@
 # HANDOFF.md: canonical project state
 
-Last updated: 2026-10-27 (session 3, checkpoint 15; previously checkpoint 14: independent run 1 (1B) reviewed; independent run 2 (8B, `8a4c672e6307`) DONE, verified and human-reviewed; next: 1B-vs-8B comparison, then report). Update at every checkpoint (see L).
+Last updated: 2026-10-27 (session 3, checkpoint 15; previously checkpoint 14: independent run 1 (1B) reviewed; independent run 2 (8B, `8a4c672e6307`) DONE, verified and human-reviewed; 1B-vs-8B comparison written; next: report). Update at every checkpoint (see L).
 
 ## A. Project identity
 - **Title:** Evaluating Layered Defenses Against Indirect Prompt Injection in LLM-Based Document Summarization
 - **Objective:** working summarizer with a configurable defense pipeline + reproducible evaluation (RQ1-RQ6: `docs/RESEARCH_PLAN.md`)
 - **Repo:** `/Users/ankitagarwal546/Documents/Prompt Injection` (git, branch `master`, no remote). Tags `final-run-1-freeze` / `final-run-2-freeze` mark the frozen code for each final run; `independent-freeze` marks the frozen independent set. Check `git status` / `git log -1` for the current commit (do not trust a hash written here).
-- **Phase:** software complete; final runs 1 (1B) and 2 (8B) done, analyzed, logged, reported (preliminary). Independent run 1 (1B) done and human-reviewed. Independent run 2 (8B) done and human-reviewed (`8a4c672e6307`); next: the 1B-vs-8B comparison on the independent set, then the report.
+- **Phase:** software complete; final runs 1 (1B) and 2 (8B) done, analyzed, logged, reported (preliminary). Independent run 1 (1B) done and human-reviewed. Independent run 2 (8B) done and human-reviewed (`8a4c672e6307`); comparison done (EXPERIMENT_LOG); next: complete the report section for both models.
 
 ## B. Current status
 
@@ -69,7 +69,8 @@ Still open, optional:
 **Independent run 2 (8B) DONE, verified AND human-reviewed (2026-10-27):** run id `8a4c672e6307`, 1,400 unique outcomes, `llama3.1:8b`, commit `fd66e17`. 2 transient model failures (E0 trial 1, `ind-a31`, `ind-a34`; not retried, excluded from ASR), 8 detector failures (E3/E5, `ind-a51`/`ind-a61`), 6 blocked (all benign sec-04). Logged in EXPERIMENT_LOG ("Independent run 2" and "...human review and post-review results"), archived in `docs/results/independent_run_2/` (post-review top level, pre-review in `pre_review/`).
 **Review DONE:** reviewer Ankit, 161 groups / 363 outcomes, 9 batches; attack YES 34 groups (124 outcomes), NO 125 (237), UNSURE 2 (2 outcomes, E5, left unresolved); summary-ruined decided for all. The reviewer accepted every AI proposal (no override), so labels may be anchored; not blind to config. 361 labels applied; `outcomes.jsonl` checksum unchanged. Local review files: `results/review_independent_run2/`.
 Post-review ASR: E0 39.9% (59/148) [32-48], E1/E1b/E3 40.0% (60/150), E2 20.0% (30/150) [14-27], E4 21.3%, E5 20.3% (30/148). Detectors added nothing (word rules 0/150; 8B classifier 0/146 attacks and 0/50 benign). Usable summary on attack docs 48% without vs 67-71% with the structural prompt. Intervals do not overlap for E0 vs E2/E4/E5; no significance test run.
-**NEXT (step 4, not started):** compare 1B (run 1) vs 8B (run 2) on the independent set in the log (state clearly that models differ; same set and protocol), then step 5: complete FINAL_REPORT 10.1 with the 8B results and update abstract, discussion, limitations, conclusion, future work. Helper scripts used for the review were in the session scratchpad (not in the repo): re-create if a similar review is needed (`prepare_review.py` + `apply_review.py` are the repo tools).
+**Step 4 DONE (2026-10-27):** 1B-vs-8B comparison written in EXPERIMENT_LOG ("Cross-model comparison on the independent set"; exploratory, post hoc; docs only). Findings: undefended ASR similar (44.0% vs 39.9%); structural prompt lowered ASR on both (about -14 pts 1B, -20 pts 8B); detectors useless on both (8B classifier fired on nothing); 8B resisted off-task questions more but obeyed insertion attacks more; intervals on 150 observations overstate precision (effective n about 75).
+**NEXT (step 5):** complete FINAL_REPORT 10.1 with the 8B results and the comparison; update abstract, discussion, limitations, conclusion, future work; then the literature review (section 5), frontend improvements, demo script. Helper scripts used for the review were in the session scratchpad (not in the repo): re-create if a similar review is needed (`prepare_review.py` + `apply_review.py` are the repo tools).
 Do not change any defense, prompt, check or scorer before the first results are logged (done: pre-review results are logged); any tuning against this set means it is spent for generalization claims (docs/INDEPENDENT_SET.md). Tool fix this session: `load_all_cases` (task_disruption/prepare_review now find independent cases); `prepare_review.py --include-unlabeled --proposals`.
 
 ## F. Architecture and decisions (why)
@@ -110,7 +111,7 @@ Independent run 1 (1B, post-review): ASR E0/E1/E1b 44.0%, E2 30.0%, E3 42.7%, E4
 - Python 3.13 on macOS may skip the hidden editable `.pth` (README troubleshooting).
 
 ## K. Immediate next steps
-1. Write the 1B-vs-8B comparison on the independent set (EXPERIMENT_LOG). 2. Complete FINAL_REPORT 10.1 with the 8B results; update abstract, discussion, limitations, conclusion, future work. 3. Literature review (section 5). 4. Demo script after the run. 5. Optional: Reverse Text post-hoc review (kept separate); a second, blinded reviewer.
+1. (done) 1B-vs-8B comparison in EXPERIMENT_LOG. 2. Complete FINAL_REPORT 10.1 with the 8B results; update abstract, discussion, limitations, conclusion, future work. 3. Literature review (section 5). 4. Demo script after the run. 5. Optional: Reverse Text post-hoc review (kept separate); a second, blinded reviewer.
 
 ## L. Continuation instructions
 Read `AGENTS.md`, `CLAUDE.md`, `HANDOFF.md`, `README.md`, and `docs/EXPERIMENT_PROTOCOL.md`. Inspect `git status` and the actual files. Verify the recorded state (`pytest`) before continuing. Resume the highest-priority incomplete task without redoing verified work or discarding existing changes. Checkpoint checklist: stop starting big tasks; save work; `git status`; quick `pytest`; update this file (status, E, K); commit.

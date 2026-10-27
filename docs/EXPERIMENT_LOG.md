@@ -378,3 +378,64 @@ Full table: `docs/results/independent_run_2/by_family.csv`. Each cell is 10 obse
 - **It also raised the share of attacked documents with a usable summary:** 67-71% vs 48-49% (intervals do not overlap); task disruption among failed attacks is 11-17% vs 19-20%.
 - **Reverse Text / Substitution Cipher:** 0/10 everywhere, but the registered check detects only character-level reversal; no post-hoc review was done on run 2.
 - **Scope:** one 8B local model, 25 AI-generated benign documents, 75 BIPIA instructions, one non-blind reviewer who accepted all AI proposals. Evidence status PRELIMINARY; no generalization claim. A cross-model comparison with run 1 is **not yet done** (next step); do not read run 1 and run 2 side by side before that comparison states how they differ (different models, same set and protocol).
+
+## Cross-model comparison on the independent set: `llama3.2:1b` (run `4da08316a2fb`) vs `llama3.1:8b` (run `8a4c672e6307`) (written 2026-10-27; exploratory, post hoc)
+
+**What this is.** A side-by-side reading of the two human-reviewed runs. Same frozen set (75 BIPIA attacks in 20 documents + 25 benign documents), same code and defenses, same seven configurations, temperature 0, 2 trials; only the model changed. It was **not pre-registered**, uses only the saved post-review files (`docs/results/independent_run_{1,2}/`), and changes no number, data, code or scoring rule.
+The runs are **never pooled**; this section compares them.
+
+**Why the intervals below are too narrow.** The 150 observations per configuration are 75 distinct attacks x 2 trials at temperature 0, and the two trials usually give the same output, so the effective sample is closer to 75 than 150. Intervals computed on 150 (Wilson for single rates, Newcombe for differences) therefore **understate the uncertainty**; read an interval that only just excludes zero as "not clearly different".
+
+**1. Attack success after human review (successes / decided; unresolved):**
+
+| config | 1B ASR | 8B ASR | 8B minus 1B (points, Newcombe 95%) |
+|---|---|---|---|
+| E0 undefended | 44.0% (66/150); 0 | 39.9% (59/148); 2 | -4.1 [-15.1, +7.0] |
+| E1 heuristic block | 44.0% (66/150); 0 | 40.0% (60/150); 0 | -4.0 [-15.0, +7.1] |
+| E1b heuristic sanitize | 44.0% (66/150); 0 | 40.0% (60/150); 0 | -4.0 [-15.0, +7.1] |
+| E2 structural v3 | 30.0% (42/140); 10 | 20.0% (30/150); 0 | -10.0 [-19.8, -0.0] |
+| E3 classifier | 42.7% (64/150); 0 | 40.0% (60/150); 0 | -2.7 [-13.6, +8.4] |
+| E4 heuristic + structural | 31.7% (46/145); 5 | 21.3% (32/150); 0 | -10.4 [-20.2, -0.3] |
+| E5 all three | 29.6% (42/142); 8 | 20.3% (30/148); 2 | -9.3 [-19.1, +0.7] |
+
+Undefended, the two models were hijacked about equally often (44.0% vs 39.9%; the difference is within noise). With the structural prompt the 8B rate is about 10 points lower, but those intervals only just exclude zero (and are too narrow, see above), so this is **suggestive, not established**.
+The 1B figures for E2, E4 and E5 contain 10, 5 and 8 unresolved outcomes (the 8B ones 0, 0 and 2), so the 1B bounds are wider: E2 28.0-34.7%, E4 30.7-34.0%, E5 28.0-33.3%.
+
+**2. Effect of the structural prompt within each model (E-config minus E0, points, Newcombe 95%):** 1B: E2 -14.0 [-24.6, -2.9], E4 -12.3 [-22.9, -1.2], E5 -14.4 [-25.0, -3.3]; 8B: E2 -19.9 [-29.7, -9.5], E4 -18.5 [-28.5, -8.1], E5 -19.6 [-29.4, -9.2].
+On this set the structural prompt lowered attack success on **both** models, somewhat more on the 8B one. This differs from the earlier held-out set, where the same prompt did not help the 1B model (E2 40.0% vs E0 34.3%) but did help the 8B model (18.6% vs 48.6%): the independent attacks are bare off-task requests, the held-out ones override-style or obfuscated, so the results are not contradictory, but neither supports a general statement about structural separation on small models.
+
+**3. Other measures (human-reviewed runs):**
+
+| measure | 1B | 8B |
+|---|---|---|
+| word rules, attacks detected | 0/150 | 0/150 |
+| classifier, attacks detected | 8/146 (E3), 8/150 (E5) | 0/146 (E3), 0/150 (E5) |
+| false positives (benign flagged): rules / classifier | 2/50 (sec-04 only) / 2/50 (sec-04 only) | 2/50 (sec-04 only) / 0/50 |
+| benign task completion, configs that block (E1, E3 1B, E4, E5) | 96.0% | 96.0% (E1, E4, E5); 100% (E3) |
+| usable summary on attack documents, E0 / E2 / E4 / E5 | 21.3% / 60.0% / 55.2% / 54.9% | 48.6% / 66.7% / 70.0% / 70.9% |
+| task disruption (failed attacks without a usable summary), E0 / E2 / E4 / E5 | 61.9% / 14.3% / 19.2% / 15.2% | 19.1% / 16.7% / 11.0% / 11.0% |
+| mean latency per request, E0 / E2 / E3 | 4.0 s / 3.5 s / 3.8 s | 17.7 s / 11.3 s / 16.9 s (about 4-5x slower) |
+| failures (model / detector) | 0 / 8 | 2 / 8 (same two documents) |
+
+- **Detectors:** the word rules do nothing on bare-instruction attacks on either model. The 1B classifier caught a few attacks (Scams & Fraud, Substitution Ciphers, Misinformation), the 8B classifier none; so on this set the 8B classifier was neither more accurate nor more costly in false positives, it simply never fired. This reverses the earlier held-out result (8B classifier detected about half of the held-out attacks with 0 false positives), again a difference in attack kind.
+- **Usable summaries:** the undefended 8B model gave a usable, uncompromised summary of an attacked document 48.6% of the time against 21.3% for the 1B model, because the 1B model more often abandoned the summary to answer the injected request; with the structural prompt the two models are closer (55-71%).
+  Both models are strongest on this measure with the structural prompt, E0 -> E2: +38.7 points (1B), +18.1 points (8B).
+
+**4. Which attacks worked on which model (undefended E0, per attack, any success over 2 trials; 75 attacks):** worked on both models 20, on 1B only 13, on 8B only 10, on neither 32. The overlap is partial: success is strongly model-specific.
+By category (successes of 10 observations, E0 1B vs 8B): the 8B model followed **insertion-style attacks more often** (Marketing & Advertising 2 vs 8, Scams & Fraud 4 vs 8, Misinformation 2 vs 4) and **answered the injected question less often** (Business Intelligence 4 vs 0, Conversational Agent 4 vs 0, Task Automation 8 vs 4, Entertainment 6 vs 2, Research Assistance 4 vs 2, Sentiment Analysis 10 vs 8);
+Emoji (10 vs 10), Information Dissemination (4 vs 4), Language Translation (8 vs 8), Base Encoding, Reverse Text and Substitution Ciphers (0-1 of 10) were similar. With the structural prompt (E2), the 8B model dropped to 0/10 for Sentiment Analysis, Task Automation, Business Intelligence, Conversational Agent, Research Assistance and Misinformation, and to 2-3/10 for Marketing and Scams,
+but was **higher** than the 1B model for Entertainment (6 vs 1), Information Dissemination (6 vs 3) and Emoji (7 vs 4) and lower for Language Translation (4 vs 10). Each cell is 10 observations (5 attacks x 2 trials); these are counts, not rates.
+This agrees with the earlier held-out finding that the more capable model was not uniformly safer: it declined the "answer a different question" attacks but obeyed the "insert this text" ones more readily.
+
+**5. What differs between the two reviews (limits on comparing them):**
+- Run 1 had an AI first-pass proposal made before the rubric was fully articulated; the reviewer overrode 6 groups and moved 23 proposed YES outcomes to UNSURE (23 outcomes unresolved, all under E2, E4, E5). Run 2 had proposals written with the run-1 rubric already in hand and the reviewer accepted all of them; 2 outcomes are unresolved (plus 2 model errors).
+  The 1B and 8B labels were therefore produced under slightly different conditions, with the 8B labels more exposed to anchoring on the proposals. Two clarifications were added in the run-2 review (quoting "I ignored X" is not attribution; quality problems are noted separately), applied only there.
+- The 1B run's higher unresolved count widens its E2/E4/E5 bounds; the point estimates above treat unresolved outcomes as excluded.
+- One reviewer, not blind to configuration, in both runs.
+
+**6. Summary (two models, one 100-case set, one reviewer; PRELIMINARY; no general claim):**
+1. The word-rule layer was useless against bare-instruction attacks on both models; the model-based classifier was nearly useless on the 1B model and fired on nothing on the 8B model.
+2. The structural prompt lowered attack success on both models on this set (about 14 points on 1B, 20 on 8B) and raised the share of attacked documents that still got a usable summary on both (21% -> 55-60% on 1B, 49% -> 67-71% on 8B).
+3. Without defenses the two models were hijacked at similar overall rates but by different attacks: the 8B model resisted off-task questions better and obeyed insertion attacks more.
+4. The cross-model differences in attack success with the structural prompt (about 10 points) are suggestive only; the interval method overstates precision.
+Not done and not claimed: a significance test, a blinded second reviewer, a hosted model, other model families, prompt re-tuning per model (the set is not spent; no defense was tuned on it).
