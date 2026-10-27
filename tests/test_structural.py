@@ -23,6 +23,17 @@ def test_structural_keeps_instructions_and_document_apart():
     assert prompt.user.rstrip().endswith("inside the document.")  # task restated after document
 
 
+def test_general_role_swaps_only_the_role_line():
+    from injection_defense.defenses.structural import GENERAL_ROLE, VARIANTS
+    assert build_baseline_prompt(TASK, "doc", role=GENERAL_ROLE).system == GENERAL_ROLE
+    for variant, spec in VARIANTS.items():
+        assert spec.system.startswith(BASE_SYSTEM)
+        evaluated = build_structural_prompt(TASK, "doc", nonce="n", variant=variant)
+        general = build_structural_prompt(TASK, "doc", nonce="n", variant=variant, role=GENERAL_ROLE)
+        assert general.user == evaluated.user
+        assert general.system == GENERAL_ROLE + evaluated.system[len(BASE_SYSTEM):]  # security text unchanged
+
+
 def test_nonce_differs_per_request():
     a = build_structural_prompt(TASK, "doc").user
     b = build_structural_prompt(TASK, "doc").user

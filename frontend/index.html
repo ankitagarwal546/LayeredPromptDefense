@@ -137,20 +137,29 @@
                 <textarea id="doc" rows="8" placeholder="Paste text here" aria-label="Document text"></textarea>
                 <div class="row"><input id="file" type="file" accept=".txt,.md,.pdf,.docx"><span id="doc-count" class="small"></span></div>
                 <div id="extract-note" class="note hidden"></div>
-                <label for="instruction">Instruction to the AI</label>
-                <input id="instruction" type="text" value="Summarize this document.">
               </details>
               <div id="example-hint" class="note hidden"></div>
+
+              <div class="step-label"><span class="sn">2</span><label for="instruction">What should the AI do?</label></div>
+              <input id="instruction" type="text" value="Summarize this document." maxlength="1000">
+              <div class="chips" id="task-chips" role="group" aria-label="Example tasks">
+                <button type="button" class="task-chip">Summarize this document.</button>
+                <button type="button" class="task-chip">Answer every question in this document.</button>
+                <button type="button" class="task-chip">List the key points as bullets.</button>
+                <button type="button" class="task-chip">Explain this document simply, for a beginner.</button>
+                <button type="button" class="task-chip">Check this document for mistakes.</button>
+              </div>
+              <div class="small">The AI does this task on the document. Hidden orders inside the document should not change it.</div>
               </div>
 
               <div class="fcol-set">
-              <div class="step-label"><span class="sn">2</span>AI model</div>
+              <div class="step-label"><span class="sn">3</span>AI model</div>
               <select id="model">
                 <option value="mock">Mock (fake stand-in, for testing the app)</option>
               </select>
               <div id="model-note" class="small" style="margin-top:6px"></div>
 
-              <div class="step-label"><span class="sn">3</span>Protection</div>
+              <div class="step-label"><span class="sn">4</span>Protection</div>
               <select id="preset" aria-label="Preset"></select>
               <div id="preset-desc" class="small" style="margin-top:6px"></div>
               <details class="more">

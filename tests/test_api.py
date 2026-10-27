@@ -90,6 +90,18 @@ def test_real_mode_can_pick_an_allowed_extra_model_but_not_an_arbitrary_one():
     assert bad.status_code == 422 and bad.json()["detail"]["error"] == "unknown_model"
 
 
+def test_general_task_tells_the_model_to_do_the_users_task_not_only_summarize(settings):
+    from injection_defense.defenses.structural import BASE_SYSTEM, GENERAL_ROLE
+    llm = ScriptedLLM("Answers.")
+    c = TestClient(create_app(settings, llm_factory=lambda s: llm))
+    body = {"document_text": DOC, "model": "real", "instruction": "List every species named.", "defenses": {"name": "E2", "structural": True}}
+    c.post("/summarize", json=body)
+    c.post("/summarize", json={**body, "general_task": True})
+    evaluated, general = llm.prompts
+    assert evaluated.system.startswith(BASE_SYSTEM) and general.system.startswith(GENERAL_ROLE)
+    assert "List every species named." in general.user
+
+
 def test_provider_failure_returns_502_without_details(settings):
     class Failing(ScriptedLLM):
         def generate(self, prompt):

@@ -37,9 +37,11 @@ class DefensePipeline:
         heuristic: Detector | None = None,
         classifier: Detector | None = None,
         validator: OutputValidator | None = None,
+        role: str | None = None,
     ):
         self.llm = llm
         self.config = config
+        self.role = role  # None = the evaluated summarization role line (see structural.GENERAL_ROLE)
         self.heuristic = heuristic or HeuristicDetector()
         self.classifier = classifier
         self.validator = validator or OutputValidator()
@@ -71,9 +73,9 @@ class DefensePipeline:
                 text = redact_matches(text, result)
 
         prompt = (
-            build_structural_prompt(instruction, text, variant=self.config.structural_variant)
+            build_structural_prompt(instruction, text, variant=self.config.structural_variant, role=self.role)
             if self.config.structural
-            else build_baseline_prompt(instruction, text)
+            else build_baseline_prompt(instruction, text, role=self.role)
         )
         t0 = time.perf_counter()
         output = self.llm.generate(prompt).text

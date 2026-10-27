@@ -18,6 +18,9 @@ class SummarizeRequest(BaseModel):
     model: Literal["mock", "real"] | None = None
     # Real mode only: one of the configured names (LLM_MODEL or LLM_EXTRA_MODELS). None -> LLM_MODEL.
     model_name: str | None = Field(default=None, max_length=200)
+    # True: the instruction may be any task on the document (the web UI sends this), so the model is
+    # not told it is a summarizer. Experiments always summarize and never set it.
+    general_task: bool = False
     # None -> server default preset (DEFAULT_DEFENSE_PRESET).
     defenses: DefenseConfig | None = None
 

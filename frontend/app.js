@@ -9,6 +9,7 @@ let config = null;
 let lastResults = null;
 let examples = [];
 let currentExample = null;
+let lastRun = null;  // the document text and instruction of the test being run (fixed at "Run test")
 let findings = null;
 let findingsModel = "1B";
 
@@ -229,6 +230,9 @@ async function init() {
   $("model").addEventListener("change", updateModelNote);
   $("preset").addEventListener("change", () => applyPreset($("preset").value));
   $("form").addEventListener("submit", onSubmit);
+  document.querySelectorAll("#task-chips .task-chip").forEach((c) => c.addEventListener("click", () => { $("instruction").value = c.textContent; syncChips(); }));
+  $("instruction").addEventListener("input", syncChips);
+  syncChips();
   $("ev-run").addEventListener("click", runEvaluation);
   $("runs-refresh").addEventListener("click", loadRuns);
   updateCount();
@@ -415,7 +419,7 @@ function applyPreset(name) {
 }
 
 function currentDefenses() {
-  return {
+  const d = {
     name: $("preset").value,
     heuristic: $("d-heuristic").checked, heuristic_policy: $("p-heuristic").value,
     classifier: $("d-classifier").checked, classifier_policy: $("p-classifier").value,
@@ -423,6 +427,11 @@ function currentDefenses() {
     output_validation: $("d-output").checked,
     fail_closed_on_detector_error: $("d-failclosed").checked,
   };
+  // Say so when the layers no longer match the chosen preset, so results are never shown under a preset's name.
+  const preset = config.presets[d.name];
+  const relevant = (k) => (k.endsWith("_policy") || k === "structural_variant") ? d[k.replace(/_policy$|_variant$/, "")] : true;
+  if (preset && Object.keys(d).some((k) => k !== "name" && relevant(k) && preset[k] !== d[k])) d.name = `${d.name} (custom)`;
+  return d;
 }
 
 function updateCount() {
@@ -509,18 +518,24 @@ async function onFile() {
 }
 
 // ---------- summarize ----------
+// general_task: the instruction may be any task (answer questions, list points, ...), not only "summarize".
 async function summarize(defenses) {
   return api("/summarize", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
-      document_text: $("doc").value,
-      instruction: $("instruction").value,
+      document_text: lastRun.doc,
+      instruction: lastRun.instruction,
       model: chosenModel().mode,
       model_name: chosenModel().name,
+      general_task: true,
       defenses,
     }),
   });
+}
+
+function syncChips() {
+  document.querySelectorAll("#task-chips .task-chip").forEach((c) => c.classList.toggle("picked", c.textContent === $("instruction").value.trim()));
 }
 
 // ---------- live run view ----------
@@ -661,20 +676,61 @@ async function playRun(view, run, index) {
   view.packet.classList.add(tone);
   keys.forEach((k, j) => setTimeout(() => view.stations[j].classList.add("final", stationState(k, data)), j * 110));
   narrate(view, "result", head, body, tone);
-  const stopper = data.detections.find((x) => x.layer === data.blocked_by);
-  if (stopper) {
-    view.say.append(el("p", { class: "small", text: `Stopped at ${STATIONS[blockKey(data)].label}: ${stopper.layer === "heuristic"
-      ? `attack-like wording found (score ${Number(stopper.score).toFixed(1)}, flag line 1.0).` : `the checker judged it suspicious (${Math.round(stopper.score * 100)}% sure).`}` }));
-  }
+  if (data.blocked_by) view.say.append(el("p", { class: "small", text: `Stopped at ${STATIONS[blockKey(data)].label}: ${blockReason(data)}` }));
   const where = data.reached_model ? `answer ${data.enforcement_decision === "allow" ? "delivered" : data.enforcement_decision === "warn" ? "delivered with a warning" : "withheld"}` : `stopped at ${STATIONS[blockKey(data)].label}`;
   view.log.append(el("li", { class: tone }, el("b", { text: run.title }), document.createTextNode(` · ${where} · ${(data.latency_ms / 1000).toFixed(1)} s`)));
   await sleep(REDUCED_MOTION ? 300 : 1900);
   return data;
 }
 
+// One-line, plain-language reason for a blocked result, from what the blocking layer reported.
+function blockReason(d) {
+  const det = d.detections.find((x) => x.layer === d.blocked_by);
+  if (d.blocked_by === "output_validation") return "the answer matched what the attack wanted, so it was withheld.";
+  if (!det) return "a layer stopped it.";
+  const name = det.layer === "heuristic" ? "L1 word rules" : "L2, the AI checker,";
+  if (det.status !== "evaluated") return `${name} could not run, and “Block if a detector fails” is on.`;
+  return det.layer === "heuristic"
+    ? `the word rules found attack-like wording (score ${Number(det.score).toFixed(1)}; the block line is 1.0).`
+    : `the AI checker judged it suspicious (${Math.round(det.score * 100)}% sure)${det.explanation ? `: “${det.explanation}”` : "."}`;
+}
+
+// The "Why it was blocked" box: the reason, the evidence the layer gave, and a way to run the test again.
+function whyBlocked(d) {
+  const box = el("div", { class: "why" }, el("h5", { text: "Why it was blocked" }));
+  const det = d.detections.find((x) => x.layer === d.blocked_by);
+  box.append(el("p", { text: `Stopped at ${STATIONS[blockKey(d)].label}: ${blockReason(d)}` }));
+  if (det && det.status === "evaluated" && det.layer === "heuristic") {
+    const list = el("ul");
+    for (const m of det.matched_rules) {
+      const quotes = m.spans.slice(0, 2).map(([a, b]) => lastRun.doc.slice(a, b).trim()).filter(Boolean)
+        .map((s) => el("q", { text: s.length > 120 ? `${s.slice(0, 120)}…` : s }));
+      list.append(el("li", {}, el("b", { text: m.description }), document.createTextNode(` (weight ${m.weight}) `), ...quotes));
+    }
+    box.append(el("p", { text: "Wording it matched in your document:" }), list,
+      el("p", { text: "Word rules only look at wording, so a document that talks about attacks can match without being one." }));
+  } else if (det && det.status === "evaluated") {
+    box.append(el("p", { text: `The checker (${det.model_name || "a model"}) is itself a small AI and makes mistakes. Documents full of ordinary instructions, such as exam questions, code or how-to steps, can look like orders to it. In the study the 1B checker wrongly flagged 2 of 50 clean documents.` }));
+  }
+  if (!det) return box;
+  const fix = det.status !== "evaluated"
+    ? { label: "Run again, don't block on errors", apply: () => { $("d-failclosed").checked = false; } }
+    : { label: "Run again with this layer on warn only", apply: () => { $(det.layer === "heuristic" ? "p-heuristic" : "p-classifier").value = "flag_only"; } };
+  const again = el("button", { type: "button", class: "btn sm", text: fix.label });
+  again.addEventListener("click", () => {
+    fix.apply();
+    document.querySelector("#form details.more fieldset").closest("details").open = true;
+    $("form").requestSubmit();
+  });
+  box.append(el("p", { text: "If you trust this document, you can run it again with this layer only warning instead of blocking: the AI then answers, and the warning stays visible." }),
+    el("div", { class: "row" }, again));
+  return box;
+}
+
 async function onSubmit(event) {
   event.preventDefault();
   showError("");
+  lastRun = { doc: $("doc").value, instruction: $("instruction").value.trim() || "Summarize this document." };
   const button = $("submit");
   button.disabled = true; button.textContent = "Testing…";
   const defenses = currentDefenses();
@@ -715,7 +771,7 @@ function renderResults(results) {
 const VERDICT = {
   allow: ["Answer delivered. Nothing flagged.", "No layer noticed anything. That does not prove the document is safe; quiet attacks are often missed."],
   warn: ["Answer delivered, with a warning.", "Something was flagged or cleaned, or a layer could not run. Read the answer with care."],
-  block: ["Blocked. No answer delivered.", "A defense stopped the document before the AI answered, so the attack could not work, but you got no summary either."],
+  block: ["Blocked. No answer delivered.", "A layer stopped this document. If it held an attack, the attack could not work; if it is a normal document, this is a false alarm. See why below."],
 };
 
 function verdictOf(d) {
@@ -739,6 +795,7 @@ function renderResult(title, d) {
   badges.append(d.model.is_mock ? badge("MOCK MODEL", "mock") : badge(`REAL: ${d.model.name}`, "real"));
   badges.append(badge(d.reached_model ? "reached model" : "blocked before model", d.reached_model ? "" : "block"));
   card.append(badges);
+  if (d.blocked_by) card.append(whyBlocked(d));
   for (const w of d.warnings || []) card.append(el("div", { class: "note", text: w }));
 
   const meters = el("div", { class: "gauges" });
@@ -759,8 +816,9 @@ function renderResult(title, d) {
   card.append(meters);
 
   card.append(el("h4", { text: "Step by step" }), timeline(d));
-  card.append(el("h4", { text: "The AI's answer" }));
-  card.append(el("pre", { class: `summary${d.summary === null ? " blocked" : ""}`, text: d.summary === null ? `No answer: blocked by ${d.blocked_by}.` : d.summary }));
+  card.append(el("h4", { text: "The AI's answer" }), el("p", { class: "task-line" }, document.createTextNode("Task: "), el("b", { text: lastRun.instruction })));
+  card.append(el("pre", { class: `summary${d.summary === null ? " blocked" : ""}`,
+    text: d.summary === null ? `No answer. Stopped at ${STATIONS[blockKey(d)].label}: ${blockReason(d)}` : d.summary }));
 
   const details = el("details", { class: "tech" }, el("summary", { text: "Technical details" }));
   if (d.detections.length) {

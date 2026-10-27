@@ -249,6 +249,21 @@ details.more > summary::-webkit-details-marker { display: none; }
 details.more > summary::before { content: "+ "; }
 details.more[open] > summary::before { content: "− "; }
 .note { background: var(--surface-2); border: 1px solid var(--border); border-radius: 8px; padding: 9px 12px; margin: 10px 0 0; font-size: 13px; color: var(--text-2); }
+.step-label label { display: inline; margin: 0; font: inherit; color: inherit; }
+.chips { display: flex; flex-wrap: wrap; gap: 6px; margin: 8px 0 6px; }
+.task-chip { border: 1px solid var(--border); background: var(--surface-2); color: var(--text-2); border-radius: 999px; padding: 4px 11px; font-size: 12.5px; cursor: pointer; transition: border-color .15s, color .15s, background .15s; }
+.task-chip:hover { color: var(--text); border-color: var(--text-3); }
+.task-chip.picked { background: var(--primary-soft); border-color: var(--primary); color: var(--primary); }
+/* "why it was blocked" explanation in a blocked result card */
+.why { border: 1px solid color-mix(in srgb, var(--danger) 40%, var(--border)); background: var(--danger-soft); border-radius: 10px; padding: 12px 14px; margin: 12px 0 4px; font-size: 13.5px; color: var(--text); }
+.why h5 { margin: 0 0 6px; font-size: 13px; text-transform: uppercase; letter-spacing: .05em; color: var(--danger); }
+.why p { margin: 6px 0; color: var(--text-2); }
+.why ul { margin: 6px 0; padding-left: 18px; }
+.why li { margin: 4px 0; }
+.why q { font-family: ui-monospace, Menlo, Consolas, monospace; font-size: 12.5px; background: var(--surface); border-radius: 4px; padding: 1px 5px; quotes: "“" "”"; }
+.why .row { margin-top: 10px; }
+.task-line { font-size: 13px; color: var(--text-2); margin: 2px 0 8px; }
+.task-line b { color: var(--text); }
 .error { background: var(--danger-soft); color: var(--danger); border-radius: 10px; padding: 12px 14px; margin-bottom: 14px; white-space: pre-wrap; font-weight: 500; font-size: 14px; }
 
 /* ================= test a document ================= */

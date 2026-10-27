@@ -24,7 +24,7 @@ from injection_defense.config import (
 )
 from injection_defense.defenses.base import Detector
 from injection_defense.defenses.classifier import UnavailableClassifier, create_classifier
-from injection_defense.defenses.structural import VARIANTS
+from injection_defense.defenses.structural import GENERAL_ROLE, VARIANTS
 from injection_defense.documents import (
     MAX_UPLOAD_BYTES, SUPPORTED_EXTENSIONS, ExtractionError, extract_text,
 )
@@ -199,7 +199,8 @@ def create_app(
         llm = MockLLM() if mode == "mock" else real_llm_for(request.model_name)
         config = request.defenses or get_preset(settings.default_defense_preset)
         classifier = make_classifier(settings) if config.classifier else None
-        return DefensePipeline(llm, config, classifier=classifier).run(request.document_text, request.instruction)
+        role = GENERAL_ROLE if request.general_task else None
+        return DefensePipeline(llm, config, classifier=classifier, role=role).run(request.document_text, request.instruction)
 
     @app.post("/evaluate", status_code=202)
     def evaluate(request: EvaluateRequest) -> dict:

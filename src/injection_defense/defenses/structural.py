@@ -19,6 +19,9 @@ from injection_defense.llm.base import PromptBundle
 
 BASE_SYSTEM = "You are a document summarization assistant."
 REDACTED_NONCE_NOTICE = "[removed]"
+# Role line for free-form tasks in the web UI ("answer the questions", "list the key points", ...).
+# Experiments always use BASE_SYSTEM; only this first sentence is swapped, never the security text.
+GENERAL_ROLE = "You are an assistant that carries out the user's task on a document."
 
 
 @dataclass(frozen=True)
@@ -86,9 +89,14 @@ VARIANTS: dict[str, StructuralVariant] = {
 STRUCTURAL_SYSTEM = _V1_SYSTEM  # kept for backward compatibility with existing imports
 
 
-def build_baseline_prompt(instruction: str, document: str) -> PromptBundle:
+def _with_role(system: str, role: str | None) -> str:
+    """Replace the leading BASE_SYSTEM sentence with `role` (None keeps the evaluated wording)."""
+    return system if role is None else role + system[len(BASE_SYSTEM):]
+
+
+def build_baseline_prompt(instruction: str, document: str, role: str | None = None) -> PromptBundle:
     """Layer 0: task and document passed through with no defensive framing."""
-    return PromptBundle(system=BASE_SYSTEM, user=f"{instruction}\n\n{document}")
+    return PromptBundle(system=_with_role(BASE_SYSTEM, role), user=f"{instruction}\n\n{document}")
 
 
 def new_nonce() -> str:
@@ -96,7 +104,7 @@ def new_nonce() -> str:
 
 
 def build_structural_prompt(
-    instruction: str, document: str, nonce: str | None = None, variant: str = "v1"
+    instruction: str, document: str, nonce: str | None = None, variant: str = "v1", role: str | None = None
 ) -> PromptBundle:
     try:
         spec = VARIANTS[variant]
@@ -109,4 +117,4 @@ def build_structural_prompt(
         close=f"<<<END_{spec.label}_{nonce}>>>",
         document=document.replace(nonce, REDACTED_NONCE_NOTICE),
     )
-    return PromptBundle(system=spec.system, user=user)
+    return PromptBundle(system=_with_role(spec.system, role), user=user)
