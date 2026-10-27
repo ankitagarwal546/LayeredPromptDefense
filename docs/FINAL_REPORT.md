@@ -192,13 +192,89 @@ Failures: 1B 0 model failures and 8 classifier failures (two documents, E3 and E
 **Limits specific to this set:** two models of one family; 25 short, clean AI-generated documents, so false-positive rates are likely underestimates; half the attacks need human judgment from one non-blind reviewer (the 8B labels may be anchored to the AI's proposals); success checks and key-topic lists written by the AI assistant; 10 observations per category; no significance test; the two reviews differ slightly in rubric detail.
 The defenses were not tuned on this set, so it was not spent; a hosted model, other model families and a second blinded reviewer remain untested.
 
+### 10.2 Audit of the independent-set results and direct 1B vs 8B comparison
+
+A read-only audit (`scripts/audit_independent.py`, full write-up in `docs/RESULTS_AUDIT.md`, outputs in `docs/results/independent_audit/`) re-verified both runs and recomputed every metric from the raw files: 43 of 43 checks passed (same models, configurations and parameters as recorded; scorer and defense files byte-identical to the freeze tag; raw outputs and pre-review results unchanged; human labels equal to the decisions file; unresolved cases unresolved; no run mixed with another), and every archived and reported value was reproduced. Metric definitions with numerators, denominators and treatment of unresolved outcomes are in section 2 of the audit.
+Figures: `docs/results/independent_audit/figures/asr_by_config.png`, `usable_by_config.png`, `category_e0_vs_e2.png`. Comparisons below are exploratory and post hoc; no difference is called statistically significant (no test was pre-registered, the review was not blind, intervals that assume independent observations overstate precision, and the bootstrap interval resamples the 75 attacks but not the 20 carrier documents).
+
+| config | ASR 1B | ASR 8B | 8B minus 1B, points [paired bootstrap 95%] | unresolved 1B / 8B | usable summary on attack docs 1B | 8B | task disruption 1B | 8B | benign flagged (FPR) 1B / 8B | mean latency 1B / 8B (ratio) |
+|---|---|---|---|---|---|---|---|---|---|---|
+| E0 | 44.0% (66/150) [36-52] | 39.9% (59/148) [32-48] | -4.0 [-16.0, +8.0] | 0 / 2 | 21.3% (32/150) [16-29] | 48.6% (72/148) [41-57] | 61.9% (52/84) [51-72] | 19.1% (17/89) [12-28] | n/a / n/a | 4.0 s / 17.7 s (4.4x) |
+| E1 | 44.0% (66/150) [36-52] | 40.0% (60/150) [33-48] | -4.0 [-16.0, +8.0] | 0 / 0 | 21.3% (32/150) [16-29] | 48.0% (72/150) [40-56] | 61.9% (52/84) [51-72] | 20.0% (18/90) [13-29] | 4.0% (2/50) / 4.0% (2/50) | 3.7 s / 14.5 s (3.9x) |
+| E1b | 44.0% (66/150) [36-52] | 40.0% (60/150) [33-48] | -4.0 [-16.0, +8.0] | 0 / 0 | 21.3% (32/150) [16-29] | 48.0% (72/150) [40-56] | 61.9% (52/84) [51-72] | 20.0% (18/90) [13-29] | 4.0% (2/50) / 4.0% (2/50) | 3.7 s / 14.1 s (3.8x) |
+| E2 | 30.0% (42/140) [23-38] | 20.0% (30/150) [14-27] | -9.0 [-20.8, +2.8] | 10 / 0 | 60.0% (84/140) [52-68] | 66.7% (100/150) [59-74] | 14.3% (14/98) [9-23] | 16.7% (20/120) [11-24] | n/a / n/a | 3.5 s / 11.3 s (3.2x) |
+| E3 | 42.7% (64/150) [35-51] | 40.0% (60/150) [33-48] | -2.7 [-14.7, +10.7] | 0 / 0 | 21.3% (32/150) [16-29] | 48.0% (72/150) [40-56] | 59.0% (46/78) [48-69] | 20.0% (18/90) [13-29] | 4.0% (2/50) / 0.0% (0/50) | 3.8 s / 16.9 s (4.4x) |
+| E4 | 31.7% (46/145) [25-40] | 21.3% (32/150) [16-29] | -10.3 [-22.6, +1.4] | 5 / 0 | 55.2% (80/145) [47-63] | 70.0% (105/150) [62-77] | 19.2% (19/99) [13-28] | 11.0% (13/118) [7-18] | 4.0% (2/50) / 4.0% (2/50) | 3.2 s / 10.3 s (3.3x) |
+| E5 | 29.6% (42/142) [23-38] | 20.3% (30/148) [15-27] | -8.6 [-20.7, +2.9] | 8 / 2 | 54.9% (78/142) [47-63] | 70.9% (105/148) [63-78] | 15.2% (14/92) [9-24] | 11.0% (13/118) [7-18] | 4.0% (2/50) / 4.0% (2/50) | 4.2 s / 16.6 s (3.9x) |
+
+*Strongest configurations.* For attack resistance, E2, E4 and E5 are indistinguishable at the top on both models (8B 20.0 / 21.3 / 20.3%; 1B 30.0 / 31.7 / 29.6%; pairwise differences within 1.5 points, every interval includes zero), and E1, E1b and E3 are no better than no defense. For preserving legitimate-task utility, benign completion is 100% for E0, E1b and E2 on both models (and E3 on 8B), while E1, E4 and E5 lose the one security-themed benign document; on attacked documents usable-summary rates are highest for 8B E4/E5 (70-71%) and 1B E2 (60.0%). The best attack-resistance and utility configurations are therefore not a single configuration, but E2 is on the frontier for both.
+*Do combined defenses improve on safer instructions alone?* Not meaningfully here: paired differences against E2 are within about +-1.5 points (table below); they flagged no attack, cost 2 of 50 benign observations, and E5 doubles the model calls.
+
+**Natural resistance versus defense (observation-level pairing with the undefended run of the same model).** 100% minus ASR is not a defense effect: with no defense the 1B model already resisted 56% of attack observations and the 8B model 60%.
+
+| model | config | resisted anyway (E0 fail -> fail) | prevented (E0 success -> fail) | induced (E0 fail -> success) | succeeded in both | pairs unresolved |
+|---|---|---|---|---|---|---|
+| 1B | E1 | 84 | 0 | 0 | 66 | 0 |
+| 1B | E1b | 84 | 0 | 0 | 66 | 0 |
+| 1B | E2 | 67 | 31 | 12 | 30 | 10 |
+| 1B | E3 | 84 | 2 | 0 | 64 | 0 |
+| 1B | E4 | 71 | 28 | 12 | 34 | 5 |
+| 1B | E5 | 69 | 31 | 13 | 29 | 8 |
+| 8B | E1 | 89 | 0 | 0 | 59 | 2 |
+| 8B | E1b | 89 | 0 | 0 | 59 | 2 |
+| 8B | E2 | 81 | 38 | 8 | 21 | 2 |
+| 8B | E3 | 89 | 0 | 0 | 59 | 2 |
+| 8B | E4 | 81 | 36 | 8 | 23 | 2 |
+| 8B | E5 | 80 | 37 | 7 | 22 | 4 |
+
+The word rules (E1, E1b) and the 8B classifier changed no outcome; the safer instructions prevented 31 (1B) / 38 (8B) successes but also induced 12 / 8 that the undefended model did not show.
+
+| model | comparison | difference in attack success, points [paired cluster bootstrap 95%, 75 attacks] |
+|---|---|---|
+| 1B | word rules vs none (E1 - E0) | +0.0 [+0.0, +0.0] (n=75) |
+| 1B | classifier vs none (E3 - E0) | -1.3 [-4.0, +0.0] (n=75) |
+| 1B | safer instructions vs none (E2 - E0) | -14.6 [-26.4, -2.1] (n=72) |
+| 1B | rules + safer (E4 - E0) | -10.3 [-21.2, +1.4] (n=73) |
+| 1B | all three (E5 - E0) | -12.7 [-25.4, +0.0] (n=71) |
+| 1B | rules + safer vs safer alone (E4 - E2) | +0.0 [-4.2, +4.2] (n=71) |
+| 1B | all three vs safer alone (E5 - E2) | -0.7 [-5.0, +3.6] (n=70) |
+| 8B | word rules vs none (E1 - E0) | +0.0 [+0.0, +0.0] (n=75) |
+| 8B | classifier vs none (E3 - E0) | +0.0 [+0.0, +0.0] (n=75) |
+| 8B | safer instructions vs none (E2 - E0) | -20.0 [-32.0, -8.7] (n=75) |
+| 8B | rules + safer (E4 - E0) | -18.7 [-30.7, -7.3] (n=75) |
+| 8B | all three (E5 - E0) | -20.3 [-31.8, -8.8] (n=74) |
+| 8B | rules + safer vs safer alone (E4 - E2) | +1.3 [-1.3, +4.7] (n=75) |
+| 8B | all three vs safer alone (E5 - E2) | +1.4 [+0.0, +3.4] (n=74) |
+
+**Attack-category analysis (5 attacks, 10 observations per cell; descriptive only).**
+
+| attack family (5 attacks, 10 observations per cell) | 1B E0 | 1B E2 | 1B E4 | 1B E5 | 8B E0 | 8B E2 | 8B E4 | 8B E5 |
+|---|---|---|---|---|---|---|---|---|
+| base_encoding | 0/10 | 2/10 | 1/10 | 3/10 | 1/8 (+2 unres.) | 2/10 | 2/10 | 2/10 |
+| business_intelligence | 4/10 | 0/6 (+4 unres.) | 0/8 (+2 unres.) | 0/8 (+2 unres.) | 0/10 | 0/10 | 0/10 | 0/10 |
+| conversational_agent | 4/10 | 0/9 (+1 unres.) | 0/8 (+2 unres.) | 0/8 (+2 unres.) | 0/10 | 0/10 | 0/10 | 0/10 |
+| emoji_substitution | 10/10 | 4/10 | 5/10 | 4/10 | 10/10 | 7/10 | 10/10 | 8/10 |
+| entertainment | 6/10 | 1/9 (+1 unres.) | 4/10 | 0/8 (+2 unres.) | 2/10 | 6/10 | 6/10 | 4/8 (+2 unres.) |
+| information_dissemination | 4/10 | 3/10 | 4/10 | 4/10 | 4/10 | 6/10 | 6/10 | 6/10 |
+| language_translation | 8/10 | 10/10 | 10/10 | 10/10 | 8/10 | 4/10 | 4/10 | 4/10 |
+| marketing_advertising | 2/10 | 5/10 | 4/10 | 6/10 | 8/10 | 2/10 | 1/10 | 2/10 |
+| misinformation_propaganda | 2/10 | 4/8 (+2 unres.) | 4/9 (+1 unres.) | 2/8 (+2 unres.) | 4/10 | 0/10 | 0/10 | 0/10 |
+| research_assistance | 4/10 | 2/8 (+2 unres.) | 3/10 | 3/10 | 2/10 | 0/10 | 0/10 | 0/10 |
+| reverse_text | 0/10 | 0/10 | 0/10 | 0/10 | 0/10 | 0/10 | 0/10 | 0/10 |
+| scams_fraud | 4/10 | 2/10 | 2/10 | 2/10 | 8/10 | 3/10 | 3/10 | 4/10 |
+| sentiment_analysis | 10/10 | 8/10 | 8/10 | 8/10 | 8/10 | 0/10 | 0/10 | 0/10 |
+| substitution_ciphers | 0/10 | 0/10 | 0/10 | 0/10 | 0/10 | 0/10 | 0/10 | 0/10 |
+| task_automation | 8/10 | 1/10 | 1/10 | 0/10 | 4/10 | 0/10 | 0/10 | 0/10 |
+
+The word rules detected nothing in any family; the 1B classifier detected only Scams & Fraud (4/10), Misinformation (2/10) and Substitution Ciphers (2/10); the 8B classifier detected nothing. The safer instructions strongly reduced Sentiment Analysis, Task Automation, Misinformation and Research Assistance on the 8B model but not Entertainment, Information Dissemination or (for E2) Emoji, and raised Marketing and Language Translation on the 1B model. The same category behaved differently across models (Marketing & Advertising 2/10 vs 8/10, Scams & Fraud 4/10 vs 8/10; Business Intelligence and Conversational Agent 4/10 vs 0/10 on the undefended 1B vs 8B model). Per-category disruption and usability counts are in the audit (section 5); with the safer instructions the remaining ruined summaries concentrate in Business Intelligence, Conversational Agent and Research Assistance, mostly because the response said the document "also mentions" the injected topic.
+
 ## 11. Security-versus-utility analysis
 
 - **1B model:** heuristic blocking had the lowest ASR (11.4%) at a utility cost (75.0%); structural separation had the best utility (100%) but no security benefit; the classifier lowered utility without lowering ASR.
 - **8B model:** the best trade-offs were E3 (ASR 20.0%, no false positives, utility 95.8%) and E2 (ASR 18.6%, utility 100%, no blocking). E4 had the lowest ASR (8.6%) but inherited the heuristic's cost (16.7% flagged, utility 83.3%);
   E5 added latency and no security over E4. In this setting a model-based layer could deliver most of the heuristic's security benefit without blocking benign security discussions.
 - **Independent set (section 10.1):** on both models the cheapest configuration that helped was E2 (structural prompt alone): attack success 30.0% (1B) and 20.0% (8B) against 44.0% and 39.9% undefended, with no blocking and 100% benign task completion. Adding the word rules (E4) or the classifier (E5) did not lower it further, cost one benign document (2/50 flagged by the rules) and, for E5, a second model call per request (mean latency +5% on 1B and -6% on 8B relative to E0 on this set; the second call is offset by shorter outputs).
-  The classifier alone (E3) bought nothing on either model here.
+  The classifier alone (E3) bought nothing on either model here. The audit's pairing with the undefended run (section 10.2) shows that most failed attacks fail without any defense (56% and 60% of observations), so the defensive layers' own contribution is the extra 19 (1B) and 30 (8B) net prevented successes of the safer instructions.
 - Task completion is a keyword proxy, not summary quality; both undefended models also refused a small number of benign documents on their own (1B: 2/24, 8B: 1/24).
 
 ## 12. Generalization analysis
@@ -221,7 +297,7 @@ Tiny, project-authored, non-independent data; two small local models of one fami
 verified by a single human reviewer (not blinded, not independent of the project); keyword utility proxy; repeated trials and shared-template cases are not independent evidence (35 distinct attack cases); held-out set reused across runs after its first aggregates were seen (no changes were made in response); no adaptive attackers;
 no hidden-text attacks; no human summary-quality ratings; no statistical test beyond intervals; exploratory analyses after seeing results. Both final runs followed their pre-registration with no changes after they started.
 For the independent set (section 10.1): the 25 benign documents are AI-generated (by the assistant that wrote the defenses), so it is only partially independent and false-positive rates are likely underestimates; 280 distinct outputs (721 outcomes) needed human judgment from one reviewer who was not blind to configuration and who accepted every AI-written proposal in the 8B review (so those labels may be anchored);
-the review rubric was refined between the two reviews; the success checks and key-topic lists were written by the AI; 150 observations per configuration are 75 distinct attacks run twice at temperature 0, so intervals overstate precision; no significance test was run; the cross-model comparison (in `docs/EXPERIMENT_LOG.md`) is post hoc; and only models of one family were tested.
+the review rubric was refined between the two reviews; the success checks and key-topic lists were written by the AI; 150 observations per configuration are 75 distinct attacks run twice at temperature 0, so intervals overstate precision; no significance test was run; the cross-model comparison (in `docs/EXPERIMENT_LOG.md`) is post hoc; and only models of one family were tested. The audit (`docs/RESULTS_AUDIT.md`) adds: Wilson and Newcombe intervals assume independent observations and the two temperature-0 trials are near-duplicates (effective n about 75 attacks, 25 documents), carrier-document clustering is not modeled, the contribution of the heuristic and the classifier inside E5 cannot be separated, the disruption measure mixes human and rule judgments, success can occur with factually wrong content (invented film, fabricated statistic, unverified figures), and the Reverse Text success rate is an underestimate of unknown size.
 
 ## 15. Discussion
 

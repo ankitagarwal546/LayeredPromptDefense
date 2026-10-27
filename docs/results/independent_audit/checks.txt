@@ -1,0 +1,46 @@
+[PASS] [1B] run id in metadata equals 4da08316a2fb
+[PASS] [1B] model  (llama3.2:1b (openai_compatible), params {'temperature': 0.0, 'max_tokens': 512}, is_mock=False)
+[PASS] [1B] not a mock model
+[PASS] [1B] classifier is the same model  ({'available': True, 'model': 'llama3.2:1b'})
+[PASS] [1B] case set / repetitions / configs
+[PASS] [1B] code clean at run time  (a9991f5)
+[PASS] [1B] dataset checksum equals the frozen attacks.jsonl
+[PASS] [1B] benign file checksum equals the frozen benign.jsonl
+[PASS] [1B] scorer and defense files identical at run commit and freeze tag  (12/12 files; differing: [])
+[PASS] [1B] 1,400 unique outcomes, 7 configs x 2 trials x 100 cases
+[PASS] [1B] every outcome carries this run id
+[PASS] [1B] raw outputs carry no human labels (labels are separate)
+[PASS] [1B] outcomes.jsonl sha256 equals the checksum recorded before the review  (807b423d4e7a)
+[PASS] [1B] archived pre-review outcomes match the raw automatic results  (0 mismatches)
+[PASS] [1B] every needs_review outcome belongs to a decided review group  (358 outcomes, 0 unmatched)
+[PASS] [1B] manual_labels.jsonl equals the decisions CSV (yes/no only)  (335 labels vs 335 expected)
+[PASS] [1B] labels only on needs_review outcomes
+[PASS] [1B] UNSURE outcomes remain unresolved  (23 unsure outcome(s))
+[PASS] [1B] decisions file complete (all rows have both judgments)  (119 groups)
+[PASS] [8B] run id in metadata equals 8a4c672e6307
+[PASS] [8B] model  (llama3.1:8b (openai_compatible), params {'temperature': 0.0, 'max_tokens': 512}, is_mock=False)
+[PASS] [8B] not a mock model
+[PASS] [8B] classifier is the same model  ({'available': True, 'model': 'llama3.1:8b'})
+[PASS] [8B] case set / repetitions / configs
+[PASS] [8B] code clean at run time  (fd66e17)
+[PASS] [8B] dataset checksum equals the frozen attacks.jsonl
+[PASS] [8B] benign file checksum equals the frozen benign.jsonl
+[PASS] [8B] scorer and defense files identical at run commit and freeze tag  (12/12 files; differing: [])
+[PASS] [8B] 1,400 unique outcomes, 7 configs x 2 trials x 100 cases
+[PASS] [8B] every outcome carries this run id
+[PASS] [8B] raw outputs carry no human labels (labels are separate)
+[PASS] [8B] outcomes.jsonl sha256 equals the checksum recorded before the review  (c3a42af0451c)
+[PASS] [8B] archived pre-review outcomes match the raw automatic results  (0 mismatches)
+[PASS] [8B] every needs_review outcome belongs to a decided review group  (363 outcomes, 0 unmatched)
+[PASS] [8B] manual_labels.jsonl equals the decisions CSV (yes/no only)  (361 labels vs 361 expected)
+[PASS] [8B] labels only on needs_review outcomes
+[PASS] [8B] UNSURE outcomes remain unresolved  (2 unsure outcome(s))
+[PASS] [8B] decisions file complete (all rows have both judgments)  (161 groups)
+[PASS] [both] identical defense configurations
+[PASS] [both] identical dataset and generation parameters
+[PASS] [both] different models, as intended  (llama3.2:1b vs llama3.1:8b)
+[PASS] [both] same case ids in both runs
+[PASS] [both] distinct run ids
+
+archive discrepancies: none
+report values missing: none

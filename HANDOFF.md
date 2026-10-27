@@ -1,6 +1,6 @@
 # HANDOFF.md: canonical project state
 
-Last updated: 2026-10-27 (session 3, checkpoint 15; previously checkpoint 14: independent run 1 (1B) reviewed; independent run 2 (8B, `8a4c672e6307`) DONE, verified and human-reviewed; comparison and report updated; next: literature review, frontend, demo). Update at every checkpoint (see L).
+Last updated: 2026-10-27 (session 3, checkpoint 16: final results audit DONE, read-only; see E and RESULTS_AUDIT.md; earlier checkpoint 15; previously checkpoint 14: independent run 1 (1B) reviewed; independent run 2 (8B, `8a4c672e6307`) DONE, verified and human-reviewed; comparison and report updated; next: literature review, frontend, demo). Update at every checkpoint (see L).
 
 ## A. Project identity
 - **Title:** Evaluating Layered Defenses Against Indirect Prompt Injection in LLM-Based Document Summarization
@@ -38,7 +38,7 @@ Last updated: 2026-10-27 (session 3, checkpoint 15; previously checkpoint 14: in
 | Human summary-quality ratings | TODO | needs a human |
 
 ## C. Completed and verified
-- `pytest` -> **237 passed** (2026-10-25, offline, ~10-20 s). Includes API, evaluation, CLI subprocess (incl. review tools), frontend-static, extraction, adapter, attack-check, disruption and independent-set freeze tests.
+- `pytest` -> **242 passed** (2026-10-27, offline, ~10-20 s). Includes API, evaluation, CLI subprocess (incl. review tools), frontend-static, extraction, adapter, attack-check, disruption and independent-set freeze tests.
 - Live API smoke check 2026-10-25 (mock mode, port 8765): `/health` ok, `/` -> `/app/` 200, `/summarize` blocked an injected document at the heuristic without a model call, `/results` listed 20 runs. Real-model UI flow last verified by hand in an earlier session.
 - Live checks: Ollama real-model summarize via API/UI; `run_experiments.py --dry-run` plan and guards (needs `--yes`, `--final-ack`); mock run + analyze; adjudicate flow.
 - Dev real-model smoke runs and structural-prompt tuning: `docs/DEV_LOG.md`.
@@ -70,6 +70,7 @@ Still open, optional:
 **Review DONE:** reviewer Ankit, 161 groups / 363 outcomes, 9 batches; attack YES 34 groups (124 outcomes), NO 125 (237), UNSURE 2 (2 outcomes, E5, left unresolved); summary-ruined decided for all. The reviewer accepted every AI proposal (no override), so labels may be anchored; not blind to config. 361 labels applied; `outcomes.jsonl` checksum unchanged. Local review files: `results/review_independent_run2/`.
 Post-review ASR: E0 39.9% (59/148) [32-48], E1/E1b/E3 40.0% (60/150), E2 20.0% (30/150) [14-27], E4 21.3%, E5 20.3% (30/148). Detectors added nothing (word rules 0/150; 8B classifier 0/146 attacks and 0/50 benign). Usable summary on attack docs 48% without vs 67-71% with the structural prompt. Intervals do not overlap for E0 vs E2/E4/E5; no significance test run.
 **Step 4 DONE (2026-10-27):** 1B-vs-8B comparison written in EXPERIMENT_LOG ("Cross-model comparison on the independent set"; exploratory, post hoc; docs only). Findings: undefended ASR similar (44.0% vs 39.9%); structural prompt lowered ASR on both (about -14 pts 1B, -20 pts 8B); detectors useless on both (8B classifier fired on nothing); 8B resisted off-task questions more but obeyed insertion attacks more; intervals on 150 observations overstate precision (effective n about 75).
+**Results audit DONE (2026-10-27, read-only):** `scripts/audit_independent.py` (43/43 checks pass; recomputes all metrics from raw files; writes `docs/results/independent_audit/`), write-up `docs/RESULTS_AUDIT.md`, FINAL_REPORT section 10.2 (direct 1B-vs-8B comparison, natural-resistance pairing, bootstrap, category analysis), EXPERIMENT_LOG entry. No defense, data, prompt, model, scoring or result changed. Findings: E2/E4/E5 tie for attack resistance (8B about 20%, 1B about 30%); combining defenses does not improve on safer instructions alone; E2 is on the utility frontier too; detectors add nothing on this set; 56-60% of attacks fail without any defense; nothing is called statistically significant. Minor discrepancy: FINAL_REPORT 8B E5 interval [15-28] vs exact 14.6-27.5 (rounding). Application verified by running it (see RESULTS_AUDIT 7): ready for a supervised local demo, not for public hosting; gaps: generic 502 message, no demo presets, no automated browser test, no comparison page.
 **Step 5 DONE (2026-10-27):** FINAL_REPORT updated for both models: header, abstract, section 10.1 (both result tables + comparison), 11, 12, 13, 14, 15, 16, 17 (docs only; table numbers machine-checked against the archived CSVs).
 **NEXT:** literature review (report section 5, only sources that can be verified), frontend improvements (author asked, not started), demo script, optional second blinded reviewer / hosted-model run / Transformers classifier / Reverse Text post-hoc review. Helper scripts used for the review were in the session scratchpad (not in the repo): re-create if a similar review is needed (`prepare_review.py` + `apply_review.py` are the repo tools).
 Do not change any defense, prompt, check or scorer before the first results are logged (done: pre-review results are logged); any tuning against this set means it is spent for generalization claims (docs/INDEPENDENT_SET.md). Tool fix this session: `load_all_cases` (task_disruption/prepare_review now find independent cases); `prepare_review.py --include-unlabeled --proposals`.
@@ -96,10 +97,19 @@ Ollama (`/opt/homebrew/bin/ollama`) has `llama3.2:1b` (1.3 GB) and `llama3.1:8b`
 Local-only data on this machine: `results/` (git-ignored: run folders with model outputs, `results/review/`, `results/review_independent_run1/`). Archived copies without model text are in `docs/results/final_run_{1,2}/` and `docs/results/independent_run_1/`.
 
 ## H. Commands and outcomes
-- `pytest` -> 237 passed (2026-10-25). `python scripts/verify_environment.py` -> ok (mock mode + Ollama configured; classifier via Ollama).
+- `pytest` -> 242 passed (2026-10-27). `python scripts/verify_environment.py` -> ok (mock mode + Ollama configured; classifier via Ollama).
 - `python scripts/run_experiments.py ... --dry-run` -> plan printed, no calls. Mock `run_experiments` + `analyze_results` -> ok.
 - Real dev runs (smoke): see DEV_LOG. Final run 1: `python scripts/run_experiments.py --case-set final --final-ack --configs E0,E1,E1b,E2,E3,E4,E5 --repetitions 2 --real --yes` -> completed (826 outcomes); `analyze_results.py aee56f02e584` -> ok.
 - Not run: Anthropic live; Transformers classifier with a real model; any hosted model.
+
+## H2. Exact commands (verified 2026-10-27)
+- Setup: `python3 -m venv .venv && source .venv/bin/activate && pip install -e ".[dev]" && cp .env.example .env && python scripts/verify_environment.py`
+- Tests: `PYTHONPATH=src .venv/bin/python -m pytest` (242 passed).
+- App: `PYTHONPATH=src .venv/bin/uvicorn injection_defense.api:create_app --factory --app-dir src` then open http://127.0.0.1:8000/ (mock mode default; real mode needs `ollama serve` and the `.env` model).
+- Independent set, one model: `python scripts/run_experiments.py --case-set independent --final-ack --configs E0,E1,E1b,E2,E3,E4,E5 --repetitions 2 --real --yes` (8B: prefix `LLM_MODEL=llama3.1:8b CLASSIFIER_MODEL=llama3.1:8b`; add `--dry-run` first; about 1,800-2,000 calls; 1B about 1.5 h, 8B about 5.5 h).
+- Review: `python scripts/prepare_review.py <run_id> --include-unlabeled --out <folder>`; fill decisions; `python scripts/apply_review.py <folder>/review_decisions.csv --dry-run` then without `--dry-run`; `python scripts/analyze_results.py <run_id>`; `python scripts/task_disruption.py <run_id> --review <folder>/review_decisions.csv`.
+- Audit: `PYTHONPATH=src python scripts/audit_independent.py --write` (read-only; needs `results/4da08316a2fb` and `results/8a4c672e6307`).
+- Next milestone: literature review (FINAL_REPORT section 5), then frontend improvements and the demo script.
 
 ## I. Research and experimental state
 Datasets: dev 18, held-out attacks 24, held-out benign 24 (all project-authored synthetic; see DATASET_GUIDE); independent set 75 attacks + 25 benign (BIPIA `text_attack_test.json` instructions, MIT, in 25 AI-generated documents; see INDEPENDENT_SET).
