@@ -28,6 +28,9 @@ class Settings(BaseSettings):
     llm_temperature: float = 0.0
     llm_max_tokens: int = 512
     llm_timeout_s: float = 60.0
+    # Comma-separated extra model names on the same provider and base URL (e.g. a second local
+    # Ollama model) that the web UI may choose per request. LLM_MODEL stays the default.
+    llm_extra_models: str = ""
 
     classifier_provider: ClassifierProvider = "none"
     classifier_model: str = ""
@@ -43,6 +46,11 @@ class Settings(BaseSettings):
     default_model_mode: Literal["mock", "real"] = "mock"
     default_defense_preset: str = "E4"
     log_level: str = "INFO"
+
+    def real_model_names(self) -> list[str]:
+        """LLM_MODEL first, then LLM_EXTRA_MODELS; blanks and duplicates dropped."""
+        names = [self.llm_model, *self.llm_extra_models.split(",")]
+        return list(dict.fromkeys(n.strip() for n in names if n.strip()))
 
 
 class DefenseConfig(BaseModel):

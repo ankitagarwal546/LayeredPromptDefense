@@ -77,6 +77,19 @@ def test_real_mode_uses_the_injected_real_client(settings):
     assert body["summary"] == "real-ish reply" and body["model"]["is_mock"] is False and body["warnings"] == []
 
 
+def test_real_mode_can_pick_an_allowed_extra_model_but_not_an_arbitrary_one():
+    s = Settings(_env_file=None, llm_provider="openai_compatible", llm_model="small", llm_extra_models="big, small,",
+                 llm_api_key="ollama", llm_base_url="http://localhost:11434/v1")
+    seen = []
+    c = TestClient(create_app(s, llm_factory=lambda x: seen.append(x.llm_model) or ScriptedLLM("ok")))
+    assert [m["name"] for m in c.get("/config").json()["real_models"]] == ["small", "big"]
+    for name in (None, "small", "big"):
+        assert c.post("/summarize", json={"document_text": DOC, "model": "real", "model_name": name}).status_code == 200
+    assert seen == ["small", "small", "big"]
+    bad = c.post("/summarize", json={"document_text": DOC, "model": "real", "model_name": "other"})
+    assert bad.status_code == 422 and bad.json()["detail"]["error"] == "unknown_model"
+
+
 def test_provider_failure_returns_502_without_details(settings):
     class Failing(ScriptedLLM):
         def generate(self, prompt):

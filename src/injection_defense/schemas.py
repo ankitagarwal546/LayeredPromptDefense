@@ -16,6 +16,8 @@ class SummarizeRequest(BaseModel):
     )
     # None -> server default (DEFAULT_MODEL_MODE). "real" never falls back to the mock.
     model: Literal["mock", "real"] | None = None
+    # Real mode only: one of the configured names (LLM_MODEL or LLM_EXTRA_MODELS). None -> LLM_MODEL.
+    model_name: str | None = Field(default=None, max_length=200)
     # None -> server default preset (DEFAULT_DEFENSE_PRESET).
     defenses: DefenseConfig | None = None
 

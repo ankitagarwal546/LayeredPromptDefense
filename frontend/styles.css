@@ -258,6 +258,8 @@ details.more[open] > summary::before { content: "− "; }
 .station.final.warn .st-dot::after { content: "!"; background: var(--warn); }
 .station.final.block .st-dot { background: var(--danger-soft); border-color: var(--danger); color: var(--danger); }
 .station.final.block .st-dot::after { content: "✕"; background: var(--danger); }
+.station.final.applied .st-dot { background: var(--primary-soft); border-color: var(--primary); color: var(--primary); }
+.station.final.applied .st-dot::after { content: "+"; background: var(--primary); }
 .station.final.skip { opacity: .4; }
 .station.final.skip .st-dot { border-style: dashed; background: var(--surface); color: var(--text-3); }
 .packet { position: absolute; top: 0; left: 0; width: 15px; height: 19px; margin-left: -7.5px; background: var(--page); border: 1.5px solid var(--primary); border-radius: 3px; padding: 3px 2px; transition: left .6s cubic-bezier(.5, 0, .3, 1); animation: bob 1s ease-in-out infinite; box-shadow: 0 2px 8px color-mix(in srgb, var(--primary) 35%, transparent); }
@@ -365,7 +367,7 @@ pre.summary.blocked { color: var(--text-3); font-style: italic; }
 .timeline li { position: relative; display: grid; grid-template-columns: 20px 1fr; gap: 10px; padding: 4px 0; font-size: 13.5px; opacity: 0; animation: fadeUp .35s ease forwards; }
 .timeline .icon { width: 19px; height: 19px; border-radius: 50%; display: grid; place-items: center; font-size: 10px; font-weight: 700; color: #fff; z-index: 1; }
 .icon.ok { background: var(--success); } .icon.warn { background: var(--warn); } .icon.block { background: var(--danger); }
-.icon.off { background: var(--surface); border: 1.5px solid var(--border); color: var(--text-3); } .icon.info { background: var(--primary); }
+.icon.off { background: var(--surface); border: 1.5px solid var(--border); color: var(--text-3); } .icon.info, .icon.applied { background: var(--primary); }
 .timeline li.dim { color: var(--text-3); }
 details.tech { margin-top: 12px; font-size: 13px; }
 details.tech summary { cursor: pointer; color: var(--text-3); }

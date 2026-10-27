@@ -202,10 +202,11 @@ async function init() {
   $("preset").value = config.default_defense_preset === "E0" ? "E2" : config.default_defense_preset;
   applyPreset($("preset").value);
 
-  const real = config.real_model;
-  $("real-option").textContent = real ? `Real model: ${real.name} (${real.is_local ? "on this computer" : "remote provider"})` : "Real model (not configured)";
-  $("real-option").disabled = !real;
-  if (config.default_model_mode === "real" && real) $("model").value = "real";
+  // One option per real model the server offers (LLM_MODEL, then LLM_EXTRA_MODELS); value "real:<name>".
+  const real = config.real_model, reals = config.real_models || (real ? [real] : []);
+  for (const m of reals) $("model").append(el("option", { value: `real:${m.name}`, text: `Real model: ${m.name} (${m.is_local ? "on this computer" : "remote provider"})` }));
+  if (!reals.length) $("model").append(el("option", { value: "real:", text: "Real model (not configured)", disabled: "" }));
+  if (config.default_model_mode === "real" && real) $("model").value = `real:${real.name}`;
   $("clf-state").textContent = config.classifier_available ? "" : "(not configured)";
   $("d-classifier").disabled = !config.classifier_available;
   updateModelNote();
@@ -218,7 +219,7 @@ async function init() {
   }
   renderLearn();
   const pill = $("model-pill");
-  pill.lastChild.textContent = real ? `${real.name} · ${real.is_local ? "local" : "remote"}` : "real model not configured";
+  pill.lastChild.textContent = real ? `${reals.map((m) => m.name).join(" / ")} · ${real.is_local ? "local" : "remote"}` : "real model not configured";
   pill.firstChild.classList.toggle("on", Boolean(real));
   document.querySelectorAll(".nav-item").forEach((item) => item.addEventListener("click", () => switchTab(item.dataset.tab)));
   $("menu-btn").addEventListener("click", () => setNav(!$("app").classList.contains("nav-open")));
@@ -395,14 +396,23 @@ function updateCount() {
   $("doc-count").textContent = `${n.toLocaleString()} / ${max.toLocaleString()} characters`;
 }
 
+// The model select holds "mock" or "real:<name>".
+function chosenModel() {
+  const value = $("model").value;
+  return value === "mock" ? { mode: "mock", name: null } : { mode: "real", name: value.slice(5) || null };
+}
+
 function updateModelNote() {
   const note = $("model-note"), real = config && config.real_model;
-  if ($("model").value === "mock") {
+  if (chosenModel().mode === "mock") {
     note.textContent = "Not an AI: it copies sentences and obeys obvious \"ignore previous instructions\" lines. Good for seeing how the app works, not for judging AI safety.";
-  } else if (real && real.is_local) {
-    note.textContent = "Runs on this computer through Ollama (start it with `ollama serve`). Nothing leaves the machine.";
-  } else {
-    note.textContent = "Privacy notice: your document text will be sent to the external model provider configured for this app.";
+    return;
+  }
+  note.textContent = real && real.is_local
+    ? "Runs on this computer through Ollama (start it with `ollama serve`). Nothing leaves the machine."
+    : "Privacy notice: your document text will be sent to the external model provider configured for this app.";
+  if (config.classifier_available && config.classifier_model) {
+    note.textContent += ` The AI checker (L2) always uses ${config.classifier_model}, whichever model writes the summary.`;
   }
 }
 
@@ -472,7 +482,8 @@ async function summarize(defenses) {
     body: JSON.stringify({
       document_text: $("doc").value,
       instruction: $("instruction").value,
-      model: $("model").value,
+      model: chosenModel().mode,
+      model_name: chosenModel().name,
       defenses,
     }),
   });
@@ -571,7 +582,8 @@ function stationState(key, d) {
     if (det.status !== "evaluated") return "warn";
     return !det.flagged ? "ok" : det.policy_action === "blocked" ? "block" : "warn";
   }
-  if (key === "structural" || key === "model") return d.reached_model ? "ok" : "skip";
+  if (key === "structural") return d.reached_model ? "applied" : "skip";  // a prompt change, not a check
+  if (key === "model") return d.reached_model ? "ok" : "skip";
   if (key === "output") return !d.output_validation ? "skip" : d.output_validation.outcome === "indicator_matched" ? "block" : "ok";
   if (key === "answer") return { block: "block", warn: "warn" }[d.enforcement_decision] || "ok";
   return "ok";
@@ -769,7 +781,7 @@ function timeline(d) {
   }
   if (!d.defenses.structural) step("off", "–", "L3 Safer instructions:", "off; the document went straight into the AI's instructions.");
   else if (!d.reached_model) step("off", "–", "L3 Safer instructions:", "not needed; the document never reached the AI.");
-  else step("ok", "✓", "L3 Safer instructions:", `on; wrapped in markers and labelled as data only (wording ${d.defenses.structural_variant}).`);
+  else step("applied", "+", "L3 Safer instructions: applied.", `The document was wrapped in markers and labelled as data only (wording ${d.defenses.structural_variant}). This changes what the AI is told; it does not check the document.`);
   if (d.reached_model) step("info", "AI", "Model answered:", `${d.model.is_mock ? "mock stand-in (not a real AI)" : d.model.name}, in ${((d.timings_ms.generation || 0) / 1000).toFixed(1)} s.`);
   else step("block", "✕", "Model:", "never reached; no answer was generated.");
   if (d.output_validation) step(d.output_validation.outcome === "indicator_matched" ? "block" : "ok", "✓", "L4 Output check:", d.output_validation.explanation);

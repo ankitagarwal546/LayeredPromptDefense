@@ -65,6 +65,8 @@ Settings live in `.env` (git-ignored); every variable is documented in [.env.exa
 For a real model set `LLM_PROVIDER` (`openai_compatible` or `anthropic`), `LLM_MODEL`, `LLM_API_KEY` (and `LLM_BASE_URL` for non-OpenAI servers, e.g.
 `http://localhost:11434/v1` for Ollama with any non-empty key). A consumer chat subscription does not include API access. The classifier (L2) is configured
 separately with `CLASSIFIER_*`; with `CLASSIFIER_PROVIDER=none` it is reported as **unavailable**, never simulated. Real calls happen only when requested.
+`LLM_EXTRA_MODELS` (comma-separated, e.g. `llama3.1:8b`) adds models on the same provider that the web UI's model menu may pick per test; the
+AI checker keeps its own `CLASSIFIER_MODEL`, and evaluations always use `LLM_MODEL`.
 
 ## Run the application
 
