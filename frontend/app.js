@@ -311,13 +311,32 @@ function setupIntro() {
   };
   setTimeout(type, 2200);
 
+  let entered = false;
   const enter = () => {
+    if (entered) return;
+    entered = true;
     try { sessionStorage.setItem("introSeen", "1"); } catch { /* ignore */ }
     $("intro").classList.add("leaving");
     $("app").classList.remove("hidden");
-    setTimeout(() => $("intro").classList.add("hidden"), 600);
+    document.documentElement.style.setProperty("--p", "1");
+    setTimeout(() => { $("intro").classList.add("hidden"); $("app").classList.remove("rising"); }, 600);
   };
   $("enter").addEventListener("click", enter);
+
+  // Scrolling the intro drives its animation (--p from 0 to 1); the dashboard rises behind it and takes over at the end.
+  const intro = $("intro");
+  if ("scrollRestoration" in history) history.scrollRestoration = "manual";
+  intro.scrollTop = 0;
+  intro.addEventListener("scroll", () => {
+    if (entered) return;
+    const max = intro.scrollHeight - intro.clientHeight;
+    const p = max > 0 ? Math.min(1, intro.scrollTop / max) : 0;
+    document.documentElement.style.setProperty("--p", p.toFixed(3));
+    $("app").classList.toggle("hidden", p === 0);
+    $("app").classList.add("rising");
+    if (p >= 0.97) enter();
+  }, { passive: true });
+  intro.focus({ preventScroll: true });  // so arrow keys, Page Down and Space scroll it too
   document.addEventListener("keydown", (e) => { if (e.key === "Enter" && !$("intro").classList.contains("hidden")) enter(); });
   let seen = false;
   try { seen = sessionStorage.getItem("introSeen") === "1"; } catch { /* ignore */ }
@@ -484,7 +503,7 @@ const STATIONS = {
 
 function runView(total) {
   const title = el("h3"), clock = el("span", { class: "run-clock", text: "0.0 s" });
-  const track = el("div", { class: "track" });
+  const track = el("div", { class: "run-track" });
   const scene = el("div", { class: "scene-box", "aria-hidden": "true" });
   const say = el("div", { class: "say" });
   const log = el("ul", { class: "run-log" });
@@ -617,12 +636,13 @@ async function onSubmit(event) {
   if ($("compare").checked) runs.push({ title: "No protection · E0", payload: { name: "E0" }, defenses: {} });
   const view = runView(runs.length);
   $("results").replaceChildren(view.node);
-  if (window.innerWidth < 1050) $("results").scrollIntoView({ behavior: "smooth" });
+  $("results").scrollIntoView({ behavior: "smooth", block: "start" });
   try {
     const results = [];
     for (const [i, run] of runs.entries()) results.push({ title: run.title, data: await playRun(view, run, i) });
     lastResults = results.reverse();  // show "No protection" first, as before
     renderResults(lastResults);
+    $("results").scrollIntoView({ behavior: "smooth", block: "start" });
   } catch (err) {
     $("results").replaceChildren();
     showError(err.message);

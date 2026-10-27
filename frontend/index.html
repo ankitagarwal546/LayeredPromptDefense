@@ -17,13 +17,15 @@
 </head>
 <body>
   <!-- ================= INTRO ================= -->
-  <div id="intro" class="intro">
+  <!-- The intro scrolls: the pinned screen animates with scroll progress (--p) and hands over to the dashboard at the end. -->
+  <div id="intro" class="intro" tabindex="-1">
+   <div class="intro-pin">
     <div class="brand intro-brand"><span class="logo-slot"></span><span class="brand-text">Defense Lab<small>Prompt-injection research</small></span></div>
     <button type="button" class="icon-btn theme-toggle" aria-label="Toggle dark or light theme">
       <svg viewBox="0 0 24 24" class="i-moon"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/></svg>
     </button>
     <div class="intro-grid">
-      <div>
+      <div class="intro-text">
         <p class="eyebrow">Student research project · Indirect prompt injection</p>
         <h1 id="intro-title" aria-label="When the document gives the orders.">When the document gives the orders.</h1>
         <p class="intro-sub">AI assistants read web pages, emails and PDFs for us. A hidden sentence inside one of them can take control of the answer. This lab measures how well layered defenses stop that.</p>
@@ -43,6 +45,9 @@
         </div>
       </div>
     </div>
+    <div class="scroll-hint" aria-hidden="true"><span class="mouse"><i></i></span>Scroll to open the dashboard</div>
+   </div>
+   <div class="intro-spacer"></div>
   </div>
 
   <!-- ================= APP ================= -->
@@ -101,7 +106,8 @@
         <!-- ===== TEST A DOCUMENT ===== -->
         <section id="tab-summarize" class="tabpane hidden">
           <div class="lab">
-            <form id="form" class="card" autocomplete="off">
+            <form id="form" class="card form-grid" autocomplete="off">
+              <div class="fcol-doc">
               <div class="step-label"><span class="sn">1</span>Document</div>
               <div id="examples" class="examples"></div>
               <details class="more">
@@ -113,7 +119,9 @@
                 <input id="instruction" type="text" value="Summarize this document.">
               </details>
               <div id="example-hint" class="note hidden"></div>
+              </div>
 
+              <div class="fcol-set">
               <div class="step-label"><span class="sn">2</span>AI model</div>
               <select id="model">
                 <option value="mock">Mock (fake stand-in, for testing the app)</option>
@@ -139,6 +147,7 @@
               </details>
               <label class="check"><input type="checkbox" id="compare" checked> Compare with no protection (E0)</label>
               <button type="submit" id="submit" class="btn" style="width:100%;margin-top:6px">Run test</button>
+              </div>
             </form>
 
             <div>
