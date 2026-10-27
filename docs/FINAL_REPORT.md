@@ -37,19 +37,32 @@ Full model: `docs/THREAT_MODEL.md`; residual risks: `docs/SECURITY_LIMITATIONS.m
 
 ## 5. Related work
 
-Bibliographic details were verified against arXiv abstract pages; **only the BIPIA and AgentDojo entries were read beyond title and authors, and only at abstract/README level.**
-A proper literature review is INCOMPLETE and no novelty is claimed.
+All seven sources below were re-checked on 2026-10-27 against their arXiv abstract pages. **Everything stated here comes from the abstracts only; the full papers were not read, so no method detail, number or comparison beyond what an abstract says is claimed.** This is a short, honest related-work section, not a systematic review, and no novelty is claimed.
 
-- Perez & Ribeiro, *Ignore Previous Prompt: Attack Techniques For Language Models*, arXiv:2211.09527 (2022).
-- Greshake, Abdelnabi, Mishra, Endres, Holz, Fritz, *Not what you've signed up for: Compromising Real-World LLM-Integrated Applications with Indirect Prompt Injection*, arXiv:2302.12173 (2023).
-- Liu, Jia, Geng, Jia, Gong, *Formalizing and Benchmarking Prompt Injection Attacks and Defenses*, USENIX Security 2024, arXiv:2310.12815.
-- Yi, Xie, Zhu, Kiciman, Sun, Xie, Wu, *Benchmarking and Defending Against Indirect Prompt Injection Attacks on Large Language Models* (BIPIA), arXiv:2312.14197, KDD 2025. Introduces a benchmark for
-  indirect injection and reports that evaluated LLMs were all vulnerable; proposes boundary-awareness and explicit-reminder defenses (per the abstract).
-- Hines, Lopez, Hall, Zarfati, Zunger, Kiciman, *Defending Against Indirect Prompt Injection Attacks With Spotlighting*, arXiv:2403.14720 (2024).
-- Wallace, Xiao, Leike, Weng, Heidecke, Beutel, *The Instruction Hierarchy: Training LLMs to Prioritize Privileged Instructions*, arXiv:2404.13208 (2024).
-- Debenedetti, Zhang, Balunovic, Beurer-Kellner, Fischer, Tramer, *AgentDojo*, arXiv:2406.13352 (2024): 97 agent tasks and 629 security test cases (per the abstract); tool-using agents, outside this project's threat model.
+### 5.1 Attacks and threat model
 
-Our structural layer resembles the "explicit reminder"/delimiting ideas in this literature; we did not reproduce any published method or number.
+- Perez & Ribeiro, *Ignore Previous Prompt: Attack Techniques For Language Models*, arXiv:2211.09527 (2022; NeurIPS ML Safety Workshop). Introduces PromptInject and studies *goal hijacking* and *prompt leaking* on GPT-3; argues simple handcrafted inputs suffice. These are **direct** attacks by the user of the model; our threat model is the indirect case (section 4).
+- Greshake, Abdelnabi, Mishra, Endres, Holz, Fritz, *Not what you've signed up for: Compromising Real-World LLM-Integrated Applications with Indirect Prompt Injection*, arXiv:2302.12173 (2023). Introduces indirect prompt injection (instructions planted in data an application retrieves) and a taxonomy of harms (data theft, worming, information-ecosystem contamination), demonstrated on Bing Chat, code-completion engines and synthetic GPT-4 apps. Our setting (summarizing an untrusted document) is the simplest instance of this threat; we do not evaluate data theft or tool use.
+
+### 5.2 Benchmarks and measurement
+
+- Liu, Jia, Geng, Jia, Gong, *Formalizing and Benchmarking Prompt Injection Attacks and Defenses*, USENIX Security 2024, arXiv:2310.12815. A formal framework, five attacks and ten defenses over ten LLMs and seven tasks, with a public platform. It is a systematic benchmark; ours is a small single-project study.
+- Yi, Xie, Zhu, Kiciman, Sun, Xie, Wu, *Benchmarking and Defending Against Indirect Prompt Injection Attacks on Large Language Models* (BIPIA), arXiv:2312.14197, KDD 2025. The first benchmark for indirect injection; reports that the tested LLMs were all vulnerable, attributes this to models failing to separate information from instructions, and reports that black-box boundary-awareness and explicit-reminder defenses give substantial mitigation. **We use only its 75 text-attack instructions** (section 10.1), not its tasks or its white-box method.
+- Debenedetti, Zhang, Balunovic, Beurer-Kellner, Fischer, Tramer, *AgentDojo*, arXiv:2406.13352 (2024). A dynamic environment of 97 agent tasks and 629 security test cases; its focus is tool-using agents, **outside our threat model**.
+
+### 5.3 Defenses
+
+- Hines, Lopez, Hall, Zarfati, Zunger, Kiciman, *Defending Against Indirect Prompt Injection Attacks With Spotlighting*, arXiv:2403.14720 (2024). Prompt-engineering transformations that mark the source of untrusted input; the abstract reports attack success falling from above 50% to below 2% on GPT-family models. Our structural layer (E2) is related in spirit (labelling the document as data) but is **not** spotlighting and we did not reproduce it.
+- Wallace, Xiao, Leike, Weng, Heidecke, Beutel, *The Instruction Hierarchy*, arXiv:2404.13208 (2024). Trains the model to prefer privileged instructions; needs model training, which our deployment-layer approach (no training, local models) does not do.
+
+### 5.4 How this work relates
+
+- **Consistent in direction, not comparable in size.** BIPIA's abstract reports substantial mitigation from black-box reminder-style defenses; our E2 lowered attack success by about 15 points (1B) and 20 points (8B), a smaller effect on much smaller local models, with a different attack-success rule. We do not claim agreement or disagreement with their numbers.
+- **Detection-only layers.** Our word rules and small classifier flagged almost none of the externally written attacks (section 10.1); the cited defenses are prompt- or training-based rather than filters, so this gap is a finding of this study about our filters, not a comparison with the literature.
+- **Gaps in our coverage.** No tool-using agents (AgentDojo), no white-box or fine-tuned defenses (BIPIA, Instruction Hierarchy), no frontier hosted models, no adaptive attackers; only a small set of attacks and two small local models.
+
+Adaptive attacks and later literature (after the sources above) were not surveyed.
+
 
 ## 6. Architecture
 
