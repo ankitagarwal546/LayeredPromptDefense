@@ -34,6 +34,8 @@
    the mock. With `model_name`, a real request may use one of `LLM_EXTRA_MODELS` (same provider
    and base URL); any other name is rejected with 422 `unknown_model`. The classifier always uses
    `CLASSIFIER_MODEL`.
+   `/summarize` builds the real client with `UI_MAX_TOKENS` / `UI_TIMEOUT_S` (web UI only);
+   `/evaluate` and the CLIs keep `LLM_MAX_TOKENS` / `LLM_TIMEOUT_S`. The classifier is unaffected.
 2b. `general_task=true` (sent by the web UI) gives the pipeline `role=GENERAL_ROLE`: the prompt
    builders swap only the leading `BASE_SYSTEM` sentence, so the model does the user's task
    instead of being told it is a summarizer. Default `false`; the evaluation runner never sets it,

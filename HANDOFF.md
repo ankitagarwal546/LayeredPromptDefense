@@ -38,7 +38,7 @@ Last updated: 2026-10-28 (session 4, checkpoint 17: web UI follows the user's ta
 | Human summary-quality ratings | TODO | needs a human |
 
 ## C. Completed and verified
-- `pytest` -> **249 passed** (2026-10-28, offline, ~10-20 s). Includes API, evaluation, CLI subprocess (incl. review tools), frontend-static, extraction, adapter, attack-check, disruption and independent-set freeze tests.
+- `pytest` -> **250 passed** (2026-10-28, offline, ~10-20 s). Includes API, evaluation, CLI subprocess (incl. review tools), frontend-static, extraction, adapter, attack-check, disruption and independent-set freeze tests.
 - Live API smoke check 2026-10-25 (mock mode, port 8765): `/health` ok, `/` -> `/app/` 200, `/summarize` blocked an injected document at the heuristic without a model call, `/results` listed 20 runs. Real-model UI flow last verified by hand in an earlier session.
 - Live checks: Ollama real-model summarize via API/UI; `run_experiments.py --dry-run` plan and guards (needs `--yes`, `--final-ack`); mock run + analyze; adjudicate flow.
 - Dev real-model smoke runs and structural-prompt tuning: `docs/DEV_LOG.md`.
@@ -77,7 +77,7 @@ Do not change any defense, prompt, check or scorer before the first results are 
 
 ## F. Architecture and decisions (why)
 - OpenAI-compatible HTTP adapter first (Ollama/local + hosted); no vendor SDKs, no LangChain.
-- Models: Ollama `llama3.2:1b` (run 1) and `llama3.1:8b` (run 2, ~4.9 GB pulled; selected per run via `LLM_MODEL`/`CLASSIFIER_MODEL` env overrides, `.env` stays on 1B). Findings are model-specific and PRELIMINARY; classifier = the same model as the summarizer in each run. Structural v3 and the classifier prompt were developed on the 1B model and not re-tuned for 8B. Web UI (2026-10-28): the model menu offers `LLM_MODEL` plus `LLM_EXTRA_MODELS`; the classifier stays on `CLASSIFIER_MODEL`. The UI sends `general_task=true`, which swaps only the role sentence (`structural.GENERAL_ROLE`); experiments never set it, so all reported numbers used the evaluated wording.
+- Models: Ollama `llama3.2:1b` (run 1) and `llama3.1:8b` (run 2, ~4.9 GB pulled; selected per run via `LLM_MODEL`/`CLASSIFIER_MODEL` env overrides, `.env` stays on 1B). Findings are model-specific and PRELIMINARY; classifier = the same model as the summarizer in each run. Structural v3 and the classifier prompt were developed on the 1B model and not re-tuned for 8B. Web UI (2026-10-28): the model menu offers `LLM_MODEL` plus `LLM_EXTRA_MODELS`; the classifier stays on `CLASSIFIER_MODEL`. The UI sends `general_task=true`, which swaps only the role sentence (`structural.GENERAL_ROLE`); experiments never set it, so all reported numbers used the evaluated wording. Web UI answers use `UI_MAX_TOKENS`=2048 and `UI_TIMEOUT_S`=180 (`/summarize` only; defaults in `config.py`, not set in `.env`); experiments keep `LLM_MAX_TOKENS`=512 / `LLM_TIMEOUT_S`=60. Ollama's default context (4096 tokens) still caps prompt + answer.
 - Detection vs policy separated; enforcement decision reported (allow/warn/block); `flag_only` = warn.
 - **Oracle leakage rule:** pipeline gets no ground-truth criteria; the runner scores afterwards; E5 excludes L4.
 - Structural prompt versions: v1 (original, byte-stable), v2, v3 (default; chosen on dev by a pre-set rule; fixed v1's over-refusal but showed no ASR benefit on the 1B model).
@@ -97,14 +97,14 @@ Ollama (`/opt/homebrew/bin/ollama`) has `llama3.2:1b` (1.3 GB) and `llama3.1:8b`
 Local-only data on this machine: `results/` (git-ignored: run folders with model outputs, `results/review/`, `results/review_independent_run1/`). Archived copies without model text are in `docs/results/final_run_{1,2}/` and `docs/results/independent_run_1/`.
 
 ## H. Commands and outcomes
-- `pytest` -> 249 passed (2026-10-28). `python scripts/verify_environment.py` -> ok (mock mode + Ollama configured; classifier via Ollama).
+- `pytest` -> 250 passed (2026-10-28). `python scripts/verify_environment.py` -> ok (mock mode + Ollama configured; classifier via Ollama).
 - `python scripts/run_experiments.py ... --dry-run` -> plan printed, no calls. Mock `run_experiments` + `analyze_results` -> ok.
 - Real dev runs (smoke): see DEV_LOG. Final run 1: `python scripts/run_experiments.py --case-set final --final-ack --configs E0,E1,E1b,E2,E3,E4,E5 --repetitions 2 --real --yes` -> completed (826 outcomes); `analyze_results.py aee56f02e584` -> ok.
 - Not run: Anthropic live; Transformers classifier with a real model; any hosted model.
 
 ## H2. Exact commands (verified 2026-10-27)
 - Setup: `python3 -m venv .venv && source .venv/bin/activate && pip install -e ".[dev]" && cp .env.example .env && python scripts/verify_environment.py`
-- Tests: `PYTHONPATH=src .venv/bin/python -m pytest` (249 passed).
+- Tests: `PYTHONPATH=src .venv/bin/python -m pytest` (250 passed).
 - App: `PYTHONPATH=src .venv/bin/uvicorn injection_defense.api:create_app --factory --app-dir src` then open http://127.0.0.1:8000/ (mock mode default; real mode needs `ollama serve` and the `.env` model).
 - Independent set, one model: `python scripts/run_experiments.py --case-set independent --final-ack --configs E0,E1,E1b,E2,E3,E4,E5 --repetitions 2 --real --yes` (8B: prefix `LLM_MODEL=llama3.1:8b CLASSIFIER_MODEL=llama3.1:8b`; add `--dry-run` first; about 1,800-2,000 calls; 1B about 1.5 h, 8B about 5.5 h).
 - Review: `python scripts/prepare_review.py <run_id> --include-unlabeled --out <folder>`; fill decisions; `python scripts/apply_review.py <folder>/review_decisions.csv --dry-run` then without `--dry-run`; `python scripts/analyze_results.py <run_id>`; `python scripts/task_disruption.py <run_id> --review <folder>/review_decisions.csv`.

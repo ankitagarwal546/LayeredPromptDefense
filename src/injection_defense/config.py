@@ -5,7 +5,7 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Literal
 
-from pydantic import BaseModel, SecretStr
+from pydantic import BaseModel, Field, SecretStr
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
@@ -31,6 +31,10 @@ class Settings(BaseSettings):
     # Comma-separated extra model names on the same provider and base URL (e.g. a second local
     # Ollama model) that the web UI may choose per request. LLM_MODEL stays the default.
     llm_extra_models: str = ""
+    # Web UI only (POST /summarize): room for free-form tasks such as "answer every question".
+    # Experiments (/evaluate and scripts/) keep LLM_MAX_TOKENS / LLM_TIMEOUT_S, so logged runs stay comparable.
+    ui_max_tokens: int = Field(default=2048, gt=0)
+    ui_timeout_s: float = Field(default=180.0, gt=0)
 
     classifier_provider: ClassifierProvider = "none"
     classifier_model: str = ""

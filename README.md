@@ -68,6 +68,9 @@ For a real model set `LLM_PROVIDER` (`openai_compatible` or `anthropic`), `LLM_M
 separately with `CLASSIFIER_*`; with `CLASSIFIER_PROVIDER=none` it is reported as **unavailable**, never simulated. Real calls happen only when requested.
 `LLM_EXTRA_MODELS` (comma-separated, e.g. `llama3.1:8b`) adds models on the same provider that the web UI's model menu may pick per test; the
 AI checker keeps its own `CLASSIFIER_MODEL`, and evaluations always use `LLM_MODEL`.
+`UI_MAX_TOKENS` (default 2048) and `UI_TIMEOUT_S` (default 180) apply only to the web UI's `POST /summarize`, so long tasks such as "answer every
+question" are not cut off at 512 tokens; experiments keep `LLM_MAX_TOKENS` / `LLM_TIMEOUT_S`. With Ollama, its context window
+(`OLLAMA_CONTEXT_LENGTH`, default 4096 tokens for prompt plus answer) can still cut long answers on long documents.
 
 ## Run the application
 
@@ -177,7 +180,7 @@ Layer 4 (output validation) needs explicit criteria and acts as the evaluation s
 
 ## Current status
 
-See [HANDOFF.md](HANDOFF.md) for the authoritative, verified status. The application, API, UI, defenses, evaluation harness and CLIs are implemented and tested offline (249 tests passing, 2026-10-28). Live demo walkthrough: [docs/DEMO_SCRIPT.md](docs/DEMO_SCRIPT.md). The web UI opens on a scrolling landing page (animated intro, then the overview of the verified independent-set numbers from `GET /findings`), then a sidebar dashboard: "Test a document" (demo examples or your own file, a task for the AI, model and protection, an animated walk through each layer, results with meters and, when blocked, why), "Results", "How it works" and "Evaluations".
+See [HANDOFF.md](HANDOFF.md) for the authoritative, verified status. The application, API, UI, defenses, evaluation harness and CLIs are implemented and tested offline (250 tests passing, 2026-10-28). Live demo walkthrough: [docs/DEMO_SCRIPT.md](docs/DEMO_SCRIPT.md). The web UI opens on a scrolling landing page (animated intro, then the overview of the verified independent-set numbers from `GET /findings`), then a sidebar dashboard: "Test a document" (demo examples or your own file, a task for the AI, model and protection, an animated walk through each layer, results with meters and, when blocked, why), "Results", "How it works" and "Evaluations".
 Two pre-registered final runs are complete and written up as a **preliminary** report: [docs/FINAL_REPORT.md](docs/FINAL_REPORT.md) (run 1: `llama3.2:1b`, run 2: `llama3.1:8b`; same code, data and configs),
 with [docs/EXPERIMENT_LOG.md](docs/EXPERIMENT_LOG.md) and archived artifacts in `docs/results/final_run_{1,2}/`. The headline: which defenses helped depended strongly on the model.
 On the **independent set**, the `llama3.2:1b` run is complete and human-reviewed (`docs/results/independent_run_1/`); the `llama3.1:8b` run is complete and human-reviewed (`docs/results/independent_run_2/`); the cross-model comparison is in `docs/EXPERIMENT_LOG.md` and both models are written up in FINAL_REPORT section 10.1.

@@ -455,8 +455,10 @@ function updateModelNote() {
     ? "Runs on this computer through Ollama (start it with `ollama serve`). Nothing leaves the machine."
     : "Privacy notice: your document text will be sent to the external model provider configured for this app.";
   if (config.classifier_available && config.classifier_model) {
-    note.textContent += ` The AI checker (L2) always uses ${config.classifier_model}, whichever model writes the summary.`;
+    note.textContent += ` The AI checker (L2) always uses ${config.classifier_model}, whichever model writes the answer.`;
   }
+  const lim = config.ui_limits;
+  if (lim) note.textContent += ` Answers can be up to ${lim.max_tokens.toLocaleString()} tokens (about ${Math.round(lim.max_tokens * 0.75).toLocaleString()} words); a test gives up after ${lim.timeout_s} s.`;
 }
 
 // ---------- demo examples ----------
