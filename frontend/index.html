@@ -18,6 +18,7 @@
 <body>
   <!-- ================= INTRO ================= -->
   <div id="intro" class="intro">
+    <div class="brand intro-brand"><span class="logo-slot"></span><span class="brand-text">Defense Lab<small>Prompt-injection research</small></span></div>
     <button type="button" class="icon-btn theme-toggle" aria-label="Toggle dark or light theme">
       <svg viewBox="0 0 24 24" class="i-moon"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/></svg>
     </button>
@@ -47,10 +48,7 @@
   <!-- ================= APP ================= -->
   <div id="app" class="app hidden">
     <aside class="sidebar" id="sidebar">
-      <div class="brand">
-        <svg viewBox="0 0 26 26" aria-hidden="true"><rect x="3" y="2" width="15" height="21" rx="2.5" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M7 8h7M7 12h7" stroke="currentColor" stroke-width="1.6"/><path d="M7 16h5" stroke="#d93b2b" stroke-width="2.2"/><path d="M21.5 8v15" stroke="#2f6fe4" stroke-width="2" stroke-dasharray="3 2"/></svg>
-        Defense Lab
-      </div>
+      <div class="brand"><span class="logo-slot"></span><span class="brand-text">Defense Lab<small>Prompt-injection research</small></span></div>
       <button class="nav-item active" data-tab="overview"><svg viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="9" rx="1.5"/><rect x="14" y="3" width="7" height="5" rx="1.5"/><rect x="14" y="12" width="7" height="9" rx="1.5"/><rect x="3" y="16" width="7" height="5" rx="1.5"/></svg>Overview</button>
       <button class="nav-item" data-tab="summarize"><svg viewBox="0 0 24 24"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5M9 13h6M9 17h4"/></svg>Test a document</button>
       <button class="nav-item" data-tab="findings"><svg viewBox="0 0 24 24"><path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/></svg>Results</button>
@@ -64,6 +62,7 @@
     <div class="main">
       <header class="topbar">
         <button type="button" class="icon-btn menu-btn" id="menu-btn" aria-label="Open menu"><svg viewBox="0 0 24 24"><path d="M4 6h16M4 12h16M4 18h16"/></svg></button>
+        <div class="brand top-brand"><span class="logo-slot"></span><span class="brand-text">Defense Lab</span></div>
         <h1 id="page-title">Overview</h1>
         <div class="spacer"></div>
         <span class="pill" id="model-pill"><span class="led"></span><span>checking model…</span></span>

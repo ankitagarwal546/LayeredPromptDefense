@@ -236,7 +236,21 @@ async function init() {
   loadFindings();
 }
 
-// ---------- theme, intro, navigation ----------
+// ---------- theme, brand, intro, navigation ----------
+// Site mark: a shield guarding a page. A scan beam sweeps the page and the hidden (red) line flashes when caught.
+function logo() {
+  return svg("svg", { viewBox: "0 0 32 32", class: "logo", "aria-hidden": "true" },
+    svg("path", { class: "lg-shield", pathLength: "100", d: "M16 2.5 27 6.5V15c0 7-4.8 12-11 14.5C9.8 27 5 22 5 15V6.5Z" }),
+    svg("rect", { class: "lg-page", x: "10.5", y: "9", width: "11", height: "13.5", rx: "1.6" }),
+    svg("path", { class: "lg-line", d: "M13 12.5h6M13 18.8h4.5" }),
+    svg("path", { class: "lg-bad", d: "M13 15.6h6" }),
+    svg("path", { class: "lg-beam", d: "M9.5 10h13" }));
+}
+
+function setupBrand() {
+  document.querySelectorAll(".logo-slot").forEach((slot) => slot.replaceWith(logo()));
+}
+
 function setTheme(theme) {
   document.documentElement.setAttribute("data-theme", theme);
   try { localStorage.setItem("theme", theme); } catch { /* private mode: theme just isn't remembered */ }
@@ -330,6 +344,7 @@ function switchTab(name) {
   document.querySelectorAll(".nav-item").forEach((t) => t.classList.toggle("active", t.dataset.tab === name));
   for (const pane of Object.keys(PAGE_TITLES)) $(`tab-${pane}`).classList.toggle("hidden", name !== pane);
   $("page-title").textContent = PAGE_TITLES[name];
+  document.title = `${PAGE_TITLES[name]} · Defense Lab`;
   if (name === "results") loadRuns();
   if ((name === "findings" || name === "overview") && findings) renderFindings();
   setNav(false);
@@ -444,26 +459,152 @@ async function summarize(defenses) {
   });
 }
 
-// "Scanning" placeholder shown while requests run. The stages are illustrative pacing, not live progress.
-function scanning() {
-  const d = currentDefenses();
-  const stages = ["Reading the document"];
-  if (d.heuristic) stages.push("L1 · checking for attack wording");
-  if (d.classifier) stages.push("L2 · asking the AI checker");
-  stages.push(d.structural ? "L3 · wrapping it as data, asking the AI" : "Asking the AI");
-  if ($("compare").checked) stages.push("Running again with no protection (E0)");
-  const doc = el("div", { class: "scan-doc", "aria-hidden": "true" });
-  for (let i = 0; i < 9; i++) doc.append(el("i", { class: i === 5 ? "bad" : "", style: `width:${[92, 80, 88, 70, 85, 90, 76, 84, 60][i]}%` }));
-  const list = el("ul", { class: "scan-steps" }, ...stages.map((s) => el("li", { text: s })));
-  const items = [...list.children];
-  let i = 0;
-  const advance = () => { items.forEach((li, j) => { li.className = j < i ? "done" : j === i ? "now" : ""; }); if (i < items.length - 1) i++; };
-  advance();
-  const timer = setInterval(advance, 1400);
-  const node = el("div", { class: "card scan", role: "status" }, doc,
-    el("div", {}, el("h3", { text: "Testing the document…", style: "font-size:16px" }), list,
-      el("p", { class: "small", text: $("model").value === "real" ? "A real model takes a few seconds per answer." : "Mock model: almost instant." })));
-  return { node, stop: () => clearInterval(timer) };
+// ---------- live run view ----------
+// Walks the document through the layers while the request runs. Steps before the model are paced so they
+// can be read; the model step waits for the server's real reply, and then every station is coloured from
+// that reply (so where the document stopped, and why, is real, not animation).
+const STEP_MS = REDUCED_MOTION ? 150 : 1150;
+const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+
+const STATIONS = {
+  doc: { label: "Document", icon: "M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8zM14 3v5h5",
+    head: "Reading the document", text: "The text is loaded and treated as untrusted: any sentence in it could be a hidden order." },
+  heuristic: { label: "L1 Words", icon: "M17 11a6 6 0 1 1-12 0 6 6 0 0 1 12 0zM20 20l-4.5-4.5",
+    head: "L1 · scanning for attack wording", text: "Fast word rules look for phrases such as “ignore previous instructions” or “you are now”." },
+  classifier: { label: "L2 Checker", icon: "M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12zM15 12a3 3 0 1 1-6 0 3 3 0 0 1 6 0z",
+    head: "L2 · asking the AI checker", text: "A second AI reads the document and answers one question: does this look like an attack?" },
+  structural: { label: "L3 Wrap", icon: "M8 4H5v16h3M16 4h3v16h-3",
+    head: "L3 · fencing the document as data", text: "The text is wrapped in markers with a random code, and the AI is told that nothing inside them is an order." },
+  model: { label: "AI model", icon: "M7 7h10v10H7zM10 3v4M14 3v4M10 17v4M14 17v4M3 10h4M3 14h4M17 10h4M17 14h4",
+    head: "Asking the AI to summarize", text: "" },
+  output: { label: "L4 Output", icon: "M4 6h10M4 12h10M4 18h6M15 16l2.5 2.5L22 14",
+    head: "L4 · checking the answer", text: "The answer is compared with what the attack wanted, to see whether it slipped through." },
+  answer: { label: "Answer", icon: "M4 5h16v11H9l-5 4z", head: "", text: "" },
+};
+
+function runView(total) {
+  const title = el("h3"), clock = el("span", { class: "run-clock", text: "0.0 s" });
+  const track = el("div", { class: "track" });
+  const scene = el("div", { class: "scene-box", "aria-hidden": "true" });
+  const say = el("div", { class: "say" });
+  const log = el("ul", { class: "run-log" });
+  const node = el("div", { class: "card run", role: "status", "aria-live": "polite" },
+    el("div", { class: "run-head" }, title, clock), track, el("div", { class: "stage" }, scene, say), log);
+  const started = performance.now();
+  const timer = setInterval(() => { clock.textContent = `${((performance.now() - started) / 1000).toFixed(1)} s`; }, 100);
+  return { node, title, track, scene, say, log, total, stations: [], stop: () => clearInterval(timer) };
+}
+
+function setTrack(view, keys) {
+  const fill = el("div", { class: "track-fill" });
+  const packet = el("div", { class: "packet" }, el("i"), el("i"), el("i"));
+  view.track.replaceChildren(el("div", { class: "track-line" }, fill), packet);
+  view.track.style.setProperty("--n", keys.length);
+  view.stations = keys.map((k) => {
+    const s = el("div", { class: "station" },
+      el("span", { class: "st-dot" }, svg("svg", { viewBox: "0 0 24 24" }, svg("path", { d: STATIONS[k].icon }))),
+      el("span", { class: "st-label", text: STATIONS[k].label }));
+    view.track.append(s);
+    return s;
+  });
+  Object.assign(view, { fill, packet });
+}
+
+function moveTo(view, i) {
+  const n = view.stations.length;
+  view.packet.style.left = `${((i + 0.5) / n) * 100}%`;
+  view.fill.style.width = `${(i / (n - 1)) * 100}%`;
+  view.stations.forEach((s, j) => { s.classList.toggle("now", j === i); s.classList.toggle("passed", j < i); });
+}
+
+// Small decorative scene for each step (aria-hidden; the text beside it says the same thing).
+function miniPage() {
+  const page = el("div", { class: "mp" });
+  [88, 72, 94, 80, 66, 84].forEach((w, i) => { const line = el("i", { class: i === 3 ? "bad" : "" }); line.style.setProperty("--w", `${w}%`); page.append(line); });
+  return page;
+}
+
+function sceneFor(key, tone) {
+  switch (key) {
+    case "doc": case "heuristic": return [miniPage(), ...(key === "heuristic" ? [el("div", { class: "lens" })] : [])];
+    case "classifier": return [miniPage(), el("div", { class: "bot" }, el("i")), el("div", { class: "bubble", text: "attack?" })];
+    case "structural": return [el("div", { class: "fence" }, miniPage()), el("div", { class: "fence-tag", text: "DATA ONLY" })];
+    case "model": return [el("div", { class: "chip" }, el("i")), el("div", { class: "stream" }, el("i"), el("i"), el("i"))];
+    case "output": return [el("div", { class: "ans" }, ...[0, 1, 2].map(() => el("div", {}, el("i"), el("b", { text: "✓" }))))];
+    default: return [el("div", { class: `ball ${tone}`, text: { allow: "✓", warn: "!", block: "✕", unchecked: "–" }[tone] })];
+  }
+}
+
+function narrate(view, key, head, text, tone = "") {
+  view.scene.className = `scene-box s-${key}`;
+  view.scene.replaceChildren(...sceneFor(key, tone));
+  view.say.replaceChildren(el("h4", { text: head }), el("p", { text }));
+}
+
+function blockKey(d) {
+  return { heuristic: "heuristic", classifier: "classifier", output_validation: "output" }[d.blocked_by] || "answer";
+}
+
+function stationState(key, d) {
+  if (key === "heuristic" || key === "classifier") {
+    const det = d.detections.find((x) => x.layer === key);
+    if (!det) return "skip";
+    if (det.status !== "evaluated") return "warn";
+    return !det.flagged ? "ok" : det.policy_action === "blocked" ? "block" : "warn";
+  }
+  if (key === "structural" || key === "model") return d.reached_model ? "ok" : "skip";
+  if (key === "output") return !d.output_validation ? "skip" : d.output_validation.outcome === "indicator_matched" ? "block" : "ok";
+  if (key === "answer") return { block: "block", warn: "warn" }[d.enforcement_decision] || "ok";
+  return "ok";
+}
+
+async function playRun(view, run, index) {
+  const d = run.defenses;
+  const keys = ["doc", ...["heuristic", "classifier", "structural"].filter((k) => d[k]), "model", ...(d.output_validation ? ["output"] : []), "answer"];
+  view.title.textContent = `${view.total > 1 ? `Run ${index + 1} of ${view.total} · ` : ""}${run.title}`;
+  setTrack(view, keys);
+  STATIONS.model.text = d.structural
+    ? "The AI gets your instruction plus the fenced document and writes the summary."
+    : "The document goes straight into the AI's instructions, so a hidden order looks just like yours.";
+
+  let data = null, failure = null, settled = false;
+  const request = summarize(run.payload).then((r) => { data = r; }, (e) => { failure = e; }).finally(() => { settled = true; });
+  const modelAt = keys.indexOf("model");
+  for (let i = 0; i <= modelAt; i++) {
+    moveTo(view, i);
+    narrate(view, keys[i], STATIONS[keys[i]].head, STATIONS[keys[i]].text);
+    await sleep(STEP_MS);
+    if (failure) throw failure;
+    if (data && !data.reached_model && keys.indexOf(blockKey(data)) <= i) break;  // stopped before the AI
+  }
+  if (!settled) {
+    view.scene.classList.add("waiting");
+    view.say.append(el("p", { class: "small", text: "Waiting for the server: the checks and the AI's answer run there. The stations are coloured from its real reply." }));
+    await request;
+  }
+  if (failure) throw failure;
+  if (data.reached_model && keys.includes("output")) {
+    moveTo(view, keys.indexOf("output"));
+    narrate(view, "output", STATIONS.output.head, STATIONS.output.text);
+    await sleep(STEP_MS * 0.8);
+  }
+
+  // Reveal what really happened.
+  const { tone, head, body } = verdictOf(data);
+  const stopAt = keys.indexOf(blockKey(data));
+  moveTo(view, stopAt < 0 ? keys.length - 1 : stopAt);
+  view.packet.classList.add(tone);
+  keys.forEach((k, j) => setTimeout(() => view.stations[j].classList.add("final", stationState(k, data)), j * 110));
+  narrate(view, "result", head, body, tone);
+  const stopper = data.detections.find((x) => x.layer === data.blocked_by);
+  if (stopper) {
+    view.say.append(el("p", { class: "small", text: `Stopped at ${STATIONS[blockKey(data)].label}: ${stopper.layer === "heuristic"
+      ? `attack-like wording found (score ${Number(stopper.score).toFixed(1)}, flag line 1.0).` : `the checker judged it suspicious (${Math.round(stopper.score * 100)}% sure).`}` }));
+  }
+  const where = data.reached_model ? `answer ${data.enforcement_decision === "allow" ? "delivered" : data.enforcement_decision === "warn" ? "delivered with a warning" : "withheld"}` : `stopped at ${STATIONS[blockKey(data)].label}`;
+  view.log.append(el("li", { class: tone }, el("b", { text: run.title }), document.createTextNode(` · ${where} · ${(data.latency_ms / 1000).toFixed(1)} s`)));
+  await sleep(REDUCED_MOTION ? 300 : 1900);
+  return data;
 }
 
 async function onSubmit(event) {
@@ -471,23 +612,22 @@ async function onSubmit(event) {
   showError("");
   const button = $("submit");
   button.disabled = true; button.textContent = "Testing…";
-  const scan = scanning();
-  $("results").replaceChildren(scan.node);
-  if (window.innerWidth < 960) $("results").scrollIntoView({ behavior: "smooth" });
+  const defenses = currentDefenses();
+  const runs = [{ title: `With protection · ${defenses.name}`, payload: defenses, defenses }];
+  if ($("compare").checked) runs.push({ title: "No protection · E0", payload: { name: "E0" }, defenses: {} });
+  const view = runView(runs.length);
+  $("results").replaceChildren(view.node);
+  if (window.innerWidth < 1050) $("results").scrollIntoView({ behavior: "smooth" });
   try {
-    const defended = await summarize(currentDefenses());
-    const results = [{ title: `With protection · ${defended.defenses.name}`, data: defended }];
-    if ($("compare").checked) {
-      const baseline = await summarize({ name: "E0" });
-      results.unshift({ title: "No protection · E0", data: baseline });
-    }
-    lastResults = results;
-    renderResults(results);
+    const results = [];
+    for (const [i, run] of runs.entries()) results.push({ title: run.title, data: await playRun(view, run, i) });
+    lastResults = results.reverse();  // show "No protection" first, as before
+    renderResults(lastResults);
   } catch (err) {
     $("results").replaceChildren();
     showError(err.message);
   } finally {
-    scan.stop();
+    view.stop();
     button.disabled = false; button.textContent = "Run test";
   }
 }
@@ -512,12 +652,16 @@ const VERDICT = {
   block: ["Blocked. No answer delivered.", "A defense stopped the document before the AI answered, so the attack could not work, but you got no summary either."],
 };
 
-function renderResult(title, d) {
+function verdictOf(d) {
   const unchecked = d.enforcement_decision === "allow" && !d.defenses.heuristic && !d.defenses.classifier;
   const [head, body] = unchecked
     ? ["Answer delivered. Nothing checked it.", d.defenses.structural ? "Only the safer instructions were used. Nothing scans the document, so judge the answer yourself." : "No protection at all: whatever the document says goes straight to the AI."]
     : VERDICT[d.enforcement_decision];
-  const tone = unchecked ? "unchecked" : d.enforcement_decision;
+  return { tone: unchecked ? "unchecked" : d.enforcement_decision, head, body };
+}
+
+function renderResult(title, d) {
+  const { tone, head, body } = verdictOf(d);
   const outer = el("article", { class: `result ${tone}` });
   const sym = { allow: "✓", warn: "!", block: "✕", unchecked: "–" }[tone];
   outer.append(el("div", { class: "result-head" }, el("span", { class: "v-icon", text: sym }),
@@ -817,6 +961,7 @@ async function runEvaluation() {
   finally { button.disabled = false; }
 }
 
+setupBrand();
 setupTheme();
 setupIntro();
 init().catch((err) => showError(`Could not load configuration: ${err.message}`));
