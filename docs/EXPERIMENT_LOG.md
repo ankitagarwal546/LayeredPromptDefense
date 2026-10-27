@@ -456,3 +456,7 @@ Docs only; no code, data, run or number changed. Rewrote section 5 into attacks 
 ## 2026-10-27 - Frontend redesign (no research change)
 
 UI only plus two small API additions; no defense, prompt, scoring, data or result changed. New tabs explain the problem and pipeline, show demo-only examples (not from any test set), explain each result step by step with meters, and display the committed audit numbers via a read-only `GET /findings`. Connection failures to the model server now return `model_unreachable` (502) with an actionable message. 246 tests pass; browser check used the mock model and Ollama off (0 model calls).
+
+## 2026-10-27 - UI check with the real 1B model (demo only, not evidence)
+
+8 local calls to `llama3.2:1b` (Ollama) through the new UI on the 4 demo-only examples (one example run twice by mistake). UI rendered correctly for all. Observed (single runs, not a measurement): clean article E0/E2 summarized; obvious attack obeyed at E0, blocked by word rules at E1; quiet instruction: the attacker link was appended at both E0 and E2 (not translated to French), and E2 also misstated the hours (9 pm -> 11 pm); security article blocked by word rules at E5 (a false alarm). Ollama stopped afterwards.

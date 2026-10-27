@@ -23,7 +23,7 @@ Last updated: 2026-10-27 (session 3, checkpoint 16: final results audit DONE, re
 | Pipeline + allow/warn/block, layers_run, reached_model | DONE | |
 | API `/health /config /extract /summarize /evaluate /results` | DONE | |
 | Document extraction (txt/md/pdf/docx) | DONE | hidden-text not detected (documented) |
-| Frontend | DONE (redesigned 2026-10-27) | 4 tabs: How it works / Try it (4 demo-only examples in `frontend/demo_examples.json`, verdict + meters + step timeline) / Research results (`GET /findings` serves `docs/results/independent_audit/` read-only) / Advanced. Ollama-off now gives `model_unreachable` 502 with "ollama serve" hint. Checked in the browser pane with the mock model and with Ollama off (no model calls); not yet re-checked with a running real model |
+| Frontend | DONE (redesigned 2026-10-27) | 4 tabs: How it works / Try it (4 demo-only examples in `frontend/demo_examples.json`, verdict + meters + step timeline) / Research results (`GET /findings` serves `docs/results/independent_audit/` read-only) / Advanced. Ollama-off now gives `model_unreachable` 502 with "ollama serve" hint. Checked in the browser pane with the mock model, with Ollama off, and (2026-10-27) with real `llama3.2:1b` on the 4 demo examples (8 local calls; all tabs render, no console errors) |
 | Dataset loader, splits, held-out freeze | DONE | |
 | Metrics (ASR, bounds, FPR, utility, gap, latency, failures, Wilson) | DONE | |
 | CLIs: run_experiments (dry-run/resume/cost guard), analyze_results, adjudicate, verify_environment | DONE | subprocess-tested |
