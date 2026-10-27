@@ -11,7 +11,7 @@ from injection_defense.defenses.classifier import PromptClassifier, UnavailableC
 from injection_defense.defenses.output_validator import OutputValidator
 from injection_defense.evaluation.dataset import EvalCase
 from injection_defense.evaluation.runner import evidence_status, run_matrix, save_run
-from injection_defense.llm.base import LLMError, ModelNotConfiguredError, PromptBundle
+from injection_defense.llm.base import LLMError, ModelNotConfiguredError, ModelUnreachableError, PromptBundle
 from injection_defense.llm.mock import MockLLM
 from injection_defense.llm.provider import AnthropicClient, OpenAICompatibleClient, create_llm_client
 from injection_defense.schemas import OutputCriteria
@@ -157,6 +157,14 @@ def test_http_error_does_not_leak_key_or_body():
     with pytest.raises(LLMError) as err:
         client.generate(PromptBundle("s", "u"))
     assert "sk-test" not in str(err.value) and "401" in str(err.value)
+
+
+def test_connection_failure_is_a_distinct_unreachable_error():
+    def refuse(request):
+        raise httpx.ConnectError("connection refused", request=request)
+
+    with pytest.raises(ModelUnreachableError):
+        _client("openai_compatible", refuse).generate(PromptBundle("s", "u"))
 
 
 def test_unexpected_payload_is_an_llm_error():

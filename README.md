@@ -171,7 +171,7 @@ Layer 4 (output validation) needs explicit criteria and acts as the evaluation s
 
 ## Current status
 
-See [HANDOFF.md](HANDOFF.md) for the authoritative, verified status. The application, API, UI, defenses, evaluation harness and CLIs are implemented and tested offline (242 tests passing, 2026-10-27).
+See [HANDOFF.md](HANDOFF.md) for the authoritative, verified status. The application, API, UI, defenses, evaluation harness and CLIs are implemented and tested offline (246 tests passing, 2026-10-27). The web UI has four tabs: "How it works" (clickable pipeline explainer), "Try it" (demo examples, step-by-step result explanation with meters), "Research results" (the verified independent-set numbers, served read-only by `GET /findings`) and an advanced evaluation tab.
 Two pre-registered final runs are complete and written up as a **preliminary** report: [docs/FINAL_REPORT.md](docs/FINAL_REPORT.md) (run 1: `llama3.2:1b`, run 2: `llama3.1:8b`; same code, data and configs),
 with [docs/EXPERIMENT_LOG.md](docs/EXPERIMENT_LOG.md) and archived artifacts in `docs/results/final_run_{1,2}/`. The headline: which defenses helped depended strongly on the model.
 On the **independent set**, the `llama3.2:1b` run is complete and human-reviewed (`docs/results/independent_run_1/`); the `llama3.1:8b` run is complete and human-reviewed (`docs/results/independent_run_2/`); the cross-model comparison is in `docs/EXPERIMENT_LOG.md` and both models are written up in FINAL_REPORT section 10.1.

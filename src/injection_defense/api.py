@@ -5,6 +5,7 @@ from __future__ import annotations
 import csv
 import dataclasses
 import io
+import json
 import logging
 import threading
 import uuid
@@ -31,7 +32,7 @@ from injection_defense.evaluation import store
 from injection_defense.evaluation.execute import execute_run, resolve_configs
 from injection_defense.evaluation.registry import CASE_SETS, build_case_set, estimate_model_calls
 from injection_defense.evaluation.report import summary_table
-from injection_defense.llm.base import LLMClient, LLMError, ModelNotConfiguredError
+from injection_defense.llm.base import LLMClient, LLMError, ModelNotConfiguredError, ModelUnreachableError
 from injection_defense.llm.mock import MockLLM
 from injection_defense.llm.provider import create_real_llm_client
 from injection_defense.logging_config import configure_logging
@@ -40,6 +41,7 @@ from injection_defense.schemas import SummarizeRequest, SummarizeResponse
 
 logger = logging.getLogger("injection_defense")
 FRONTEND_DIR = REPO_ROOT / "frontend"
+FINDINGS_DIR = REPO_ROOT / "docs" / "results" / "independent_audit"  # committed, human-reviewed audit outputs
 MAX_API_EVAL_CALLS = 3000  # larger experiments belong on the CLI
 
 
@@ -84,6 +86,13 @@ class _Jobs:
         return dict(job) if job else None
 
 
+def _number(value: str):
+    try:
+        return float(value) if "." in value else int(value)
+    except ValueError:
+        return value
+
+
 def create_app(
     settings: Settings | None = None,
     *,
@@ -101,6 +110,12 @@ def create_app(
     @app.exception_handler(ModelNotConfiguredError)
     async def _not_configured(_: Request, exc: ModelNotConfiguredError) -> JSONResponse:
         return JSONResponse(status_code=503, content={"error": "real_model_not_configured", "message": str(exc)})
+
+    @app.exception_handler(ModelUnreachableError)
+    async def _unreachable(_: Request, exc: ModelUnreachableError) -> JSONResponse:
+        return JSONResponse(status_code=502, content={
+            "error": "model_unreachable",
+            "message": "Could not reach the model server. If you use a local Ollama model, start it with `ollama serve` and try again."})
 
     @app.exception_handler(LLMError)
     async def _llm_error(_: Request, exc: LLMError) -> JSONResponse:
@@ -218,8 +233,6 @@ def create_app(
         if not store.valid_run_id(run_id) or not (settings.results_dir / run_id / "metadata.json").exists():
             raise HTTPException(404, detail={"error": "unknown_run"})
         folder = settings.results_dir / run_id
-        import json
-
         return json.loads((folder / "metadata.json").read_text(encoding="utf-8")), store.load_outcomes(folder)
 
     def table_for(meta: dict, outcomes):
@@ -253,6 +266,25 @@ def create_app(
             writer.writeheader()
             writer.writerows(rows)
         return PlainTextResponse(buffer.getvalue(), media_type="text/csv")
+
+    @app.get("/findings")
+    def findings() -> dict:
+        """The verified independent-set results (read-only; served exactly as committed)."""
+        files = {name: FINDINGS_DIR / name for name in ("comparison.csv", "category.csv", "paired_analysis.json")}
+        if not all(f.exists() for f in files.values()):
+            raise HTTPException(404, detail={"error": "findings_missing"})
+
+        def rows(path):
+            with path.open(encoding="utf-8") as fh:
+                return [{k: _number(v) for k, v in r.items()} for r in csv.DictReader(fh)]
+
+        paired = json.loads(files["paired_analysis.json"].read_text(encoding="utf-8"))
+        return {
+            "source": "docs/results/independent_audit (human-reviewed; evidence status PRELIMINARY)",
+            "comparison": rows(files["comparison.csv"]),
+            "category": rows(files["category.csv"]),
+            "transitions_vs_E0": paired.get("transitions_vs_E0", {}),
+        }
 
     if FRONTEND_DIR.exists():
         app.mount("/app", StaticFiles(directory=FRONTEND_DIR, html=True), name="frontend")

@@ -9,7 +9,8 @@ from injection_defense.api import create_app
 
 FRONTEND = Path(__file__).resolve().parents[1] / "frontend"
 REQUIRED_IDS = ["doc", "file", "instruction", "model", "preset", "d-heuristic", "d-classifier", "d-structural",
-                "d-output", "compare", "submit", "results", "ev-run", "runs", "run-detail"]
+                "d-output", "compare", "submit", "results", "ev-run", "runs", "run-detail",
+                "pipeline", "examples", "f-gauges", "f-configs", "f-transitions", "f-categories"]
 
 
 def test_frontend_is_served_and_root_redirects(settings):
@@ -34,5 +35,13 @@ def test_frontend_never_inserts_untrusted_text_as_html():
 def test_frontend_labels_mock_and_calls_only_known_endpoints():
     js = (FRONTEND / "app.js").read_text()
     assert "MOCK MODEL" in js and "blocked before model" in js
-    called = set(re.findall(r'["`](/(?:config|extract|summarize|evaluate|results)[^"`$]*)', js))
-    assert called >= {"/config", "/extract", "/summarize", "/evaluate", "/results"}
+    called = set(re.findall(r'["`](/(?:config|extract|summarize|evaluate|results|findings)[^"`$]*)', js))
+    assert called >= {"/config", "/extract", "/summarize", "/evaluate", "/results", "/findings"}
+
+
+def test_demo_examples_are_served_and_marked_demo_only(settings):
+    data = TestClient(create_app(settings)).get("/app/demo_examples.json").json()
+    assert "NOT part of any evaluation set" in data["_note"]
+    assert {e["kind"] for e in data["examples"]} == {"attack", "benign"}
+    for e in data["examples"]:
+        assert e["text"] and e["what_to_look_for"] and len(e["suggested_compare"]) == 2

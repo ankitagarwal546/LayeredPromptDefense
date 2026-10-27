@@ -10,6 +10,10 @@ class LLMError(Exception):
     """A model call failed. Messages must never contain secrets or document text."""
 
 
+class ModelUnreachableError(LLMError):
+    """The model server could not be reached at all (e.g. a local Ollama server is not running)."""
+
+
 class ModelNotConfiguredError(LLMError):
     """A real model was requested but its configuration is missing."""
 

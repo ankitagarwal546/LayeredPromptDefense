@@ -452,3 +452,7 @@ A read-only audit (`scripts/audit_independent.py`; write-up `docs/RESULTS_AUDIT.
 ## 2026-10-27 - Related work (FINAL_REPORT section 5)
 
 Docs only; no code, data, run or number changed. Rewrote section 5 into attacks / benchmarks / defenses / relation to this work, from the arXiv abstract pages of the seven cited sources (re-fetched today). Full papers were not read; no cross-paper numeric comparison is claimed. Later literature and adaptive-attack work were not surveyed.
+
+## 2026-10-27 - Frontend redesign (no research change)
+
+UI only plus two small API additions; no defense, prompt, scoring, data or result changed. New tabs explain the problem and pipeline, show demo-only examples (not from any test set), explain each result step by step with meters, and display the committed audit numbers via a read-only `GET /findings`. Connection failures to the model server now return `model_unreachable` (502) with an actionable message. 246 tests pass; browser check used the mock model and Ollama off (0 model calls).

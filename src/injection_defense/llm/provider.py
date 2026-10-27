@@ -15,6 +15,7 @@ from injection_defense.llm.base import (
     LLMError,
     LLMResponse,
     ModelNotConfiguredError,
+    ModelUnreachableError,
     PromptBundle,
 )
 from injection_defense.llm.mock import MockLLM
@@ -46,6 +47,8 @@ class _HTTPClient(LLMClient):
             response = self._http.post(**self._request(prompt))
             response.raise_for_status()
             text = self._parse(response.json())
+        except (httpx.ConnectError, httpx.ConnectTimeout):
+            raise ModelUnreachableError(f"{self.provider} server could not be reached") from None
         except httpx.HTTPStatusError as exc:
             raise LLMError(f"{self.provider} call failed with HTTP {exc.response.status_code}") from None
         except (httpx.HTTPError, ValueError, KeyError, IndexError, TypeError):
