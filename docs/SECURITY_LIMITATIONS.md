@@ -24,10 +24,13 @@ guarantee against prompt injection.
 - **L1 heuristic:** regexes catch known phrasings only. Paraphrase, other languages, encodings (e.g. base64), homoglyphs, and instructions split
   across a document evade it, and benign text that quotes or discusses attacks is flagged. Offsets are on the raw text only.
 - **L2 classifier:** the classifying model reads the same untrusted text and can itself be injected or simply be wrong; self-reported confidence is
-  uncalibrated; it costs another model call. With the 1B local model used so far it detected almost nothing (see `docs/EXPERIMENT_LOG.md`). The Transformers
-  adapter is untested against a real model.
+  uncalibrated; it costs another model call. With the 1B local model it detected almost nothing on the independent set and wrongly flagged 2 of 50 clean
+  documents; with the 8B model it flagged nothing (see `docs/EXPERIMENT_LOG.md`). In the web UI it also blocked a clean assignment PDF full of ordinary
+  questions and SQL (`docs/DEV_LOG.md`, 2026-10-28; one anecdote): documents with many instructions addressed to a reader are at risk of false alarms.
+  The UI explains such blocks and offers a re-run with the layer on warn only. The Transformers adapter is untested against a real model.
 - **L3 structural:** delimiters and instructions are advisory. The model sees one token stream. Wording changes behavior in model-specific ways: on the
   1B model the original wording caused refusals of benign documents and the revised wording gave no measurable protection (`docs/DEV_LOG.md`).
+  The web UI's general-task role line (`general_task=true`) was never evaluated: its protection on non-summary tasks is unknown.
 - **L4 output validation:** needs predefined criteria (canaries, deny-lists) and is lexical. In experiments it is the scorer, not a defense, to avoid oracle leakage.
 - **Policies:** blocking trades availability for security; sanitizing can leave an attack partly intact; the fail-open default means a failed detector lets input through
   (visible as a `warn` decision and counted in `detector_failures`).

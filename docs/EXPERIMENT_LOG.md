@@ -460,3 +460,15 @@ UI only plus two small API additions; no defense, prompt, scoring, data or resul
 ## 2026-10-27 - UI check with the real 1B model (demo only, not evidence)
 
 8 local calls to `llama3.2:1b` (Ollama) through the new UI on the 4 demo-only examples (one example run twice by mistake). UI rendered correctly for all. Observed (single runs, not a measurement): clean article E0/E2 summarized; obvious attack obeyed at E0, blocked by word rules at E1; quiet instruction: the attacker link was appended at both E0 and E2 (not translated to French), and E2 also misstated the hours (9 pm -> 11 pm); security article blocked by word rules at E5 (a false alarm). Ollama stopped afterwards.
+
+## 2026-10-28 - Web UI and API changes (no research change)
+
+No defense, evaluated prompt, scorer, dataset, run or result changed; the evaluation runner and CLIs are untouched.
+- **Task instruction.** `POST /summarize` accepts `general_task` (default `false`). When `true` (the web UI always sends it), only the first sentence of the system message is swapped from `BASE_SYSTEM` ("You are a document summarization assistant.") to `GENERAL_ROLE` ("You are an assistant that carries out the user's task on a document."), so the model does the user's task (answer questions, list points, ...) instead of only summarizing. The security text of every structural variant and the user templates are unchanged (tested byte-for-byte). **No reported number used `GENERAL_ROLE`**; UI output with it is not evidence about the evaluated configurations.
+- **Model choice.** `LLM_EXTRA_MODELS` lists extra models on the same provider; `/summarize` accepts `model_name` limited to `LLM_MODEL` plus that list (422 `unknown_model` otherwise); evaluations always use `LLM_MODEL`; the classifier keeps `CLASSIFIER_MODEL`.
+- **UI.** The landing page always opens and contains the overview (the verified independent-set numbers from `GET /findings`); "Test a document" has a visible task step; a blocked result now has a "Why it was blocked" box (matched wording for the word rules, the checker's own reason and confidence for L2, detector errors) and a "run again with this layer on warn only" button. Changed layers are labelled "(custom)" instead of using a preset name.
+- Tests: 249 passed (`PYTHONPATH=src .venv/bin/python -m pytest`).
+
+## 2026-10-28 - Related work from the full texts (FINAL_REPORT section 5)
+
+Docs only. The seven cited papers were read in full from their arXiv PDFs (text extracted with `pypdf`; figures not viewed as images, so numbers are quoted only from text, captions and tables). Section 5 now states each paper's setup and the results relevant here, with table references, and section 5.4 relates them to this study without claiming comparability (different models, attacks and success rules). Future work (section 17) gained three items suggested by the reading: a datamarking variant, the classifier's false-alarm rate on instruction-heavy benign documents, and a "repeat the task" ablation. No new run or number of this project.

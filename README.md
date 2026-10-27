@@ -20,8 +20,9 @@ Sub-questions RQ1-RQ6, hypotheses and related work: [docs/RESEARCH_PLAN.md](docs
 
 ## Features
 
-- Web UI: paste or upload (.txt/.md/.pdf/.docx), choose model (mock or real) and defense layers/policies, see summary,
-  detection explanations, allow/warn/block decision, timings, model calls; compare against the undefended baseline; run and browse evaluations; export JSON/CSV.
+- Web UI: paste or upload (.txt/.md/.pdf/.docx), say what the AI should do (summarize, answer the questions, ...), choose the model (mock or any allowed real model)
+  and defense layers/policies, see the answer, detection explanations (including why a document was blocked), allow/warn/block decision, timings, model calls;
+  compare against the undefended baseline; run and browse evaluations; export JSON/CSV.
 - FastAPI: `/health`, `/config`, `/extract`, `/summarize`, `/evaluate` (+ job status), `/results` (+ CSV exports). OpenAPI docs at `/docs`.
 - Defense layers (each switchable): L1 heuristic rules, L2 model classifier (prompt-based; Transformers adapter interface), L3 structural separation
   (versioned prompts), L4 output validation (scorer / optional guard). Detection and enforcement are separate.
@@ -87,6 +88,9 @@ curl -X POST localhost:8000/summarize -H 'content-type: application/json' -d '{
 
 `model` is `mock` or `real` (default from `DEFAULT_MODEL_MODE`); `real` without configuration returns HTTP 503, never a mock answer. Responses include
 `enforcement_decision` (allow/warn/block), `layers_run`, `reached_model`, `model.is_mock` and warnings.
+Optional request fields: `instruction` (the task, default "Summarize this document."), `model_name` (one of `LLM_MODEL` / `LLM_EXTRA_MODELS`),
+and `general_task` (default `false`; `true` tells the model it does the user's task rather than "You are a document summarization assistant"; the web UI sends `true`;
+experiments never do, so every reported number used the summarization wording).
 
 ## Run the tests
 
@@ -173,11 +177,11 @@ Layer 4 (output validation) needs explicit criteria and acts as the evaluation s
 
 ## Current status
 
-See [HANDOFF.md](HANDOFF.md) for the authoritative, verified status. The application, API, UI, defenses, evaluation harness and CLIs are implemented and tested offline (246 tests passing, 2026-10-27). Live demo walkthrough: [docs/DEMO_SCRIPT.md](docs/DEMO_SCRIPT.md). The web UI has four tabs: "How it works" (clickable pipeline explainer), "Try it" (demo examples, step-by-step result explanation with meters), "Research results" (the verified independent-set numbers, served read-only by `GET /findings`) and an advanced evaluation tab.
+See [HANDOFF.md](HANDOFF.md) for the authoritative, verified status. The application, API, UI, defenses, evaluation harness and CLIs are implemented and tested offline (249 tests passing, 2026-10-28). Live demo walkthrough: [docs/DEMO_SCRIPT.md](docs/DEMO_SCRIPT.md). The web UI opens on a scrolling landing page (animated intro, then the overview of the verified independent-set numbers from `GET /findings`), then a sidebar dashboard: "Test a document" (demo examples or your own file, a task for the AI, model and protection, an animated walk through each layer, results with meters and, when blocked, why), "Results", "How it works" and "Evaluations".
 Two pre-registered final runs are complete and written up as a **preliminary** report: [docs/FINAL_REPORT.md](docs/FINAL_REPORT.md) (run 1: `llama3.2:1b`, run 2: `llama3.1:8b`; same code, data and configs),
 with [docs/EXPERIMENT_LOG.md](docs/EXPERIMENT_LOG.md) and archived artifacts in `docs/results/final_run_{1,2}/`. The headline: which defenses helped depended strongly on the model.
 On the **independent set**, the `llama3.2:1b` run is complete and human-reviewed (`docs/results/independent_run_1/`); the `llama3.1:8b` run is complete and human-reviewed (`docs/results/independent_run_2/`); the cross-model comparison is in `docs/EXPERIMENT_LOG.md` and both models are written up in FINAL_REPORT section 10.1.
-Not done: a hosted frontier model, summary-quality ratings, a second (blinded) human reviewer, per-model prompt re-tuning, a trained classifier, a full literature review (section 5 of the report is abstract-level only).
+Not done: a hosted frontier model, summary-quality ratings, a second (blinded) human reviewer, per-model prompt re-tuning, a trained classifier. Related work (report section 5) was read from the full texts of its seven sources; it is not a systematic review.
 
 ## Known limitations
 

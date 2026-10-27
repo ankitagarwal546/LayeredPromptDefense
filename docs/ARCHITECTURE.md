@@ -31,7 +31,13 @@
 1. Pydantic validates the request (size limits, non-blank).
 2. The API picks the model: `mock` or `real` (explicit, or `DEFAULT_MODEL_MODE`). `real`
    without configuration raises `ModelNotConfiguredError` -> HTTP 503. It never falls back to
-   the mock.
+   the mock. With `model_name`, a real request may use one of `LLM_EXTRA_MODELS` (same provider
+   and base URL); any other name is rejected with 422 `unknown_model`. The classifier always uses
+   `CLASSIFIER_MODEL`.
+2b. `general_task=true` (sent by the web UI) gives the pipeline `role=GENERAL_ROLE`: the prompt
+   builders swap only the leading `BASE_SYSTEM` sentence, so the model does the user's task
+   instead of being told it is a summarizer. Default `false`; the evaluation runner never sets it,
+   so experiments use the evaluated prompts byte-for-byte.
 3. Pipeline, in order, for each enabled layer:
    - **L1 heuristic** -> `DetectionResult`; the *pipeline* applies the policy (`block`,
      `sanitize` = redact matched spans, `flag_only`).
@@ -116,7 +122,7 @@ New components since the first version:
 | dataset registry | `evaluation/registry.py` | named case sets (`dev`, `final`) and call estimates; clients never pass paths |
 | run store | `evaluation/store.py` | incremental `outcomes.jsonl`, resume, manual labels, safe run listing |
 | executor | `evaluation/execute.py` | the one place that runs and persists a matrix (CLI and API both call it) |
-| frontend | `frontend/` | static page served at `/app/` (text via `textContent` only) |
+| frontend | `frontend/` | static page served at `/app/` (text via `textContent` only): landing page with the overview (`GET /findings`), then a dashboard (Test a document with the live run view and "why it was blocked", Results, How it works, Evaluations) |
 | scripts | `scripts/` | `run_experiments.py`, `analyze_results.py`, `adjudicate.py`, `verify_environment.py`, `run_smoke_eval.py`, `tune_structural.py` |
 
 Flow of untrusted content (the thing to keep in mind when changing code):
