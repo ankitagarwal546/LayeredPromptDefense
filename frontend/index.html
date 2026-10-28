@@ -26,6 +26,7 @@
     <nav class="land-links">
       <button type="button" class="link-btn" data-scroll="hero">Home</button>
       <button type="button" class="link-btn" data-scroll="ov-land">Overview</button>
+      <a class="link-btn classic-link" href="/app-previous/" title="Open the previous version of this website">Classic UI</a>
       <button type="button" class="btn sm" data-goto="summarize">Open dashboard</button>
       <button type="button" class="icon-btn theme-toggle" aria-label="Toggle dark or light theme">
         <svg viewBox="0 0 24 24" class="i-moon"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/></svg>
@@ -52,7 +53,9 @@
             <div class="page" style="--i:1"><i style="width:80%"></i><i style="width:92%"></i><i style="width:66%"></i><i style="width:88%"></i><i style="width:72%"></i></div>
             <div class="page front" style="--i:2"><i style="width:88%"></i><i style="width:74%"></i><i class="bad" style="width:92%"></i><i style="width:80%"></i><i style="width:64%"></i><i style="width:86%"></i></div>
           </div>
+          <span class="intercept-beam"></span>
         </div>
+        <div class="nonce-shield"><span class="ns-ring"></span><span class="ns-ring r2"></span><code id="nonce-label">&lt;&lt;&lt;DOCUMENT_0000000000000000&gt;&gt;&gt;</code><span class="ns-caption">random fence, new every request</span></div>
       </div>
     </div>
     <div class="scroll-hint" aria-hidden="true"><span class="mouse"><i></i></span>Scroll to see the results</div>
@@ -88,6 +91,20 @@
     </div>
    </section>
 
+   <!-- ===== THE FOUR LAYERS ===== -->
+   <section class="land-section" id="layers-land">
+    <div class="land-inner">
+      <div class="reveal"><p class="eyebrow-sm">Architecture</p><h2 class="land-h2 split">Four layers, one document.</h2>
+        <p class="land-lead">Every document passes these checks in order. What each one achieved on the 75 external attacks is shown on its card.</p></div>
+      <div class="layer-cards" id="layer-cards">
+        <article class="layer-card" style="--index:0"><span class="lc-tag">L1</span><h3>Word rules</h3><p>Regular expressions for attack phrasing such as "ignore previous instructions". Fast and explainable.</p><div class="lc-stat bad">0 / 150 attacks detected</div></article>
+        <article class="layer-card" style="--index:1"><span class="lc-tag">L2</span><h3>AI checker</h3><p>A second model call asks whether the document addresses the AI. Costs an extra call; small models raise false alarms.</p><div class="lc-stat bad">8 / 146 (1B) · 0 / 146 (8B)</div></article>
+        <article class="layer-card" style="--index:2"><span class="lc-tag">L3</span><h3>Nonce fence</h3><p>The document is wrapped in markers carrying a random code and labelled as data; the task is restated after it.</p><div class="lc-stat good">-14.6 pts (1B) · -20.0 pts (8B)</div></article>
+        <article class="layer-card" style="--index:3"><span class="lc-tag">L4</span><h3>Output guard</h3><p>Checks the answer itself: leaked reference codes, links not in the document, language or topic drift. New and not yet measured.</p><div class="lc-stat">not evaluated</div></article>
+      </div>
+    </div>
+   </section>
+
    <section class="land-section land-cta" id="cta">
     <div class="land-inner reveal">
       <h2 class="land-h2 split">Try it on your own document.</h2>
@@ -117,6 +134,7 @@
         <div class="brand top-brand"><span class="logo-slot"></span><span class="brand-text">Defense Lab</span></div>
         <h1 id="page-title">Test a document</h1>
         <div class="spacer"></div>
+        <a class="link-btn classic-link" href="/app-previous/" title="Open the previous version of this website">Classic UI</a>
         <span class="pill" id="model-pill"><span class="led"></span><span>checking model…</span></span>
         <button type="button" class="icon-btn theme-toggle" aria-label="Toggle dark or light theme">
           <svg viewBox="0 0 24 24" class="i-moon"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/></svg>
@@ -167,15 +185,20 @@
                 <fieldset>
                   <label class="check"><input type="checkbox" id="d-heuristic"> L1 Word rules</label>
                   <select id="p-heuristic" aria-label="Heuristic policy"></select>
+                  <select id="v-heuristic" aria-label="Word rules version"><option value="v1">rules v1 (evaluated)</option><option value="v2">rules v2 (new: fewer false alarms)</option></select>
+                  <select id="v-sanitize" aria-label="Sanitize marker"><option value="redacted">sanitize marker: [REDACTED] (evaluated)</option><option value="neutral">sanitize marker: ... (new)</option></select>
                   <label class="check"><input type="checkbox" id="d-classifier"> L2 AI checker <span id="clf-state" class="small"></span></label>
                   <select id="p-classifier" aria-label="Classifier policy"></select>
+                  <select id="v-classifier" aria-label="AI checker prompt"><option value="v1">checker prompt v1 (evaluated)</option><option value="v2">checker prompt v2 (new: reader vs AI)</option></select>
                   <label class="check"><input type="checkbox" id="d-structural"> L3 Safer instructions</label>
                   <select id="p-variant" aria-label="Prompt wording version"></select>
-                  <label class="check"><input type="checkbox" id="d-output"> L4 Output check <span class="small">(needs attack criteria)</span></label>
+                  <label class="check"><input type="checkbox" id="d-guard"> L4 Output guard <span class="small">(new; no attack knowledge needed)</span></label>
+                  <select id="p-guard" aria-label="Output guard policy"><option value="flag_only">policy: flag_only</option><option value="withhold">policy: withhold</option></select>
+                  <label class="check"><input type="checkbox" id="d-output"> L4 Output check <span class="small">(scorer; needs attack criteria)</span></label>
                   <label class="check"><input type="checkbox" id="d-failclosed"> Block if a detector fails</label>
                 </fieldset>
               </details>
-              <label class="check"><input type="checkbox" id="compare" checked> Compare with no protection (E0)</label>
+              <label class="check"><input type="checkbox" id="compare" checked> Side by side with no protection (E0)</label>
               <button type="submit" id="submit" class="btn" style="width:100%;margin-top:6px">Run test</button>
               </div>
             </form>
