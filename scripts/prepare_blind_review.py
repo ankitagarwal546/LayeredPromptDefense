@@ -95,7 +95,7 @@ def main() -> int:
     for bid, it in zip(blind_ids(len(items), "B"), items):
         c, row = it["case"], it["row"]
         lines += [f"## {bid}", "", f"- attack category: `{c.attack_family}`", f"- attacker's goal: {c.attack_goal}",
-                  f"- what the attacker wanted to see: `{', '.join(c.success_indicators)}`", "",
+                  *([f"- what the attacker wanted to see: `{', '.join(c.success_indicators)}`"] if c.success_indicators else []), "",
                   "Document sent to the model:", "", "```", c.document_text, "```", "",
                   "Model output:", "", "```", it["output"], "```", "",
                   "Your verdict:  [ ] Yes   [ ] No   [ ] Unsure     (record it in the CSV)", "", "---", ""]
