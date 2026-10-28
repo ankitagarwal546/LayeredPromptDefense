@@ -180,11 +180,25 @@ Layer 4 (output validation) needs explicit criteria and acts as the evaluation s
 
 ## Current status
 
-See [HANDOFF.md](HANDOFF.md) for the authoritative, verified status. The application, API, UI, defenses, evaluation harness and CLIs are implemented and tested offline (250 tests passing, 2026-10-28). Live demo walkthrough: [docs/DEMO_SCRIPT.md](docs/DEMO_SCRIPT.md). The web UI opens on a scrolling landing page (animated intro, then the overview of the verified independent-set numbers from `GET /findings`), then a sidebar dashboard: "Test a document" (demo examples or your own file, a task for the AI, model and protection, an animated walk through each layer, results with meters and, when blocked, why), "Results", "How it works" and "Evaluations".
+See [HANDOFF.md](HANDOFF.md) for the authoritative, verified status. The application, API, UI, defenses, evaluation harness and CLIs are implemented and tested offline (253 tests passing, 2026-10-29). Live demo walkthrough: [docs/DEMO_SCRIPT.md](docs/DEMO_SCRIPT.md). The web UI opens on a scrolling landing page (animated intro, then the overview of the verified independent-set numbers from `GET /findings`), then a sidebar dashboard: "Test a document" (demo examples or your own file, a task for the AI, model and protection, an animated walk through each layer, results with meters and, when blocked, why), "Results", "How it works" and "Evaluations".
 Two pre-registered final runs are complete and written up as a **preliminary** report: [docs/FINAL_REPORT.md](docs/FINAL_REPORT.md) (run 1: `llama3.2:1b`, run 2: `llama3.1:8b`; same code, data and configs),
 with [docs/EXPERIMENT_LOG.md](docs/EXPERIMENT_LOG.md) and archived artifacts in `docs/results/final_run_{1,2}/`. The headline: which defenses helped depended strongly on the model.
 On the **independent set**, the `llama3.2:1b` run is complete and human-reviewed (`docs/results/independent_run_1/`); the `llama3.1:8b` run is complete and human-reviewed (`docs/results/independent_run_2/`); the cross-model comparison is in `docs/EXPERIMENT_LOG.md` and both models are written up in FINAL_REPORT section 10.1.
 Not done: a hosted frontier model, summary-quality ratings, a second (blinded) human reviewer, per-model prompt re-tuning, a trained classifier. Related work (report section 5) was read from the full texts of its seven sources; it is not a systematic review.
+
+## Human review kits (ready to hand over)
+
+Two blinded kits let another person do the remaining human tasks without seeing the run, model or configuration (built
+from local results; they contain model outputs and stay in the git-ignored `results/` folder):
+
+- **Second attack-label reviewer:** `python scripts/prepare_blind_review.py results/review_independent_run1/review_decisions.csv results/review_independent_run2/review_decisions.csv --out results/blind_review`
+  (280 items, shuffled with a recorded seed). Give the reviewer only `results/blind_review/`; the key goes to `results/blind_review_key/`.
+  Afterwards `python scripts/review_agreement.py results/blind_review` reports agreement and Cohen's kappa and lists disagreements. It applies nothing.
+- **Summary-quality ratings:** `python scripts/prepare_quality_rating.py 4da08316a2fb 8a4c672e6307 --configs E0,E2 --trials 0 --out results/quality_rating`
+  (100 clean-document summaries; faithfulness 1-5, coverage 1-5, usable yes/no). Afterwards `python scripts/summarize_quality.py results/quality_rating`.
+
+Model outputs cannot always be fully blinded (one output, for example, mentions "the markers" of the safer prompt).
+Draft plans for further experiments (nothing run): [docs/PREREGISTRATION_DRAFT.md](docs/PREREGISTRATION_DRAFT.md).
 
 ## Known limitations
 

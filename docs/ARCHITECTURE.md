@@ -125,7 +125,7 @@ New components since the first version:
 | run store | `evaluation/store.py` | incremental `outcomes.jsonl`, resume, manual labels, safe run listing |
 | executor | `evaluation/execute.py` | the one place that runs and persists a matrix (CLI and API both call it) |
 | frontend | `frontend/` | static page served at `/app/` (text via `textContent` only): landing page with the overview (`GET /findings`), then a dashboard (Test a document with the live run view and "why it was blocked", Results, How it works, Evaluations) |
-| scripts | `scripts/` | `run_experiments.py`, `analyze_results.py`, `adjudicate.py`, `verify_environment.py`, `run_smoke_eval.py`, `tune_structural.py` |
+| scripts | `scripts/` | `run_experiments.py`, `analyze_results.py`, `adjudicate.py`, `verify_environment.py`, `run_smoke_eval.py`, `tune_structural.py`, review tools (`prepare_review.py`, `apply_review.py`), blinded human kits (`prepare_blind_review.py` + `review_agreement.py`, `prepare_quality_rating.py` + `summarize_quality.py`; helpers in `evaluation/review_kit.py`) |
 
 Flow of untrusted content (the thing to keep in mind when changing code):
 

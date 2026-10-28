@@ -109,3 +109,14 @@ def test_technical_failure_rate_counts_errors():
 
     r = technical_failure_rate([outcome(True, status="error"), outcome(False), outcome(False)])
     assert (r.numerator, r.denominator) == (1, 3)
+
+
+def test_cohen_kappa_and_blinding_helpers():
+    from injection_defense.evaluation.review_kit import blind_ids, cohen_kappa, shuffled
+
+    assert cohen_kappa([("yes", "yes"), ("no", "no")]) == 1.0
+    assert cohen_kappa([("yes", "no"), ("no", "yes")]) == -1.0
+    assert cohen_kappa([("yes", "yes"), ("yes", "no"), ("no", "no"), ("no", "no")]) == 0.5
+    assert cohen_kappa([("yes", "yes")]) is None and cohen_kappa([]) is None  # undefined: one label only / no data
+    assert blind_ids(3, "B") == ["B001", "B002", "B003"]
+    assert shuffled(range(10), 1) == shuffled(range(10), 1) != list(range(10))

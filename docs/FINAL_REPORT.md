@@ -345,7 +345,7 @@ the heuristic generalized poorly to unseen attack families on both. On a partial
 at no benign cost; the 8B model resisted off-task questions better but obeyed insertion attacks more. These findings come from two local models, small hand-built or AI-generated data, and one non-blind human reviewer, and apply only to the tested models, data and configurations; none supports a claim that prompt injection is solved or that a defense generalizes.
 The software, pre-registered protocol and frozen sets are in place to repeat the experiment on other models, a hosted model and a larger, blinded review.
 
-## 17. Future work (INCOMPLETE)
+## 17. Future work
 
 Validate the task-disruption rule with a second human reviewer and an accuracy check (it uses keyword coverage); run the same protocol on a hosted frontier model as a further condition; add a human-written benign corpus and a second, blinded reviewer for the independent set (a first BIPIA-based independent set is done, section 10.1); a significance test planned in advance and more attacks per category; summary-quality ratings by humans; re-tune the structural and classifier prompts per model on dev data and re-freeze;
 evaluate a trained classifier (needs reviewed data and a decision to install torch/transformers); operator deny-list output validation (E6); hidden-text and adaptive-attack evaluation; more trials per family and a larger set.

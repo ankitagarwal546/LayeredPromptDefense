@@ -1,6 +1,6 @@
 # HANDOFF.md: canonical project state
 
-Last updated: 2026-10-28 (session 4, checkpoint 17: web UI follows the user's task (`general_task`), blocked results explain why, model menu with 1B/8B, landing page with the overview; R7 related work read from full texts; docs updated. Earlier: checkpoint 16 final results audit DONE, read-only; see E and RESULTS_AUDIT.md). Update at every checkpoint (see L).
+Last updated: 2026-10-29 (session 4, checkpoint 18: blinded kits for a second attack-label reviewer and for summary-quality ratings built and tested, real kits generated in results/; pre-registration draft for X1-X4; earlier checkpoint 17: web UI task following, block explanations, website-only limits, R7 related work from full texts). Update at every checkpoint (see L).
 
 ## A. Project identity
 - **Title:** Evaluating Layered Defenses Against Indirect Prompt Injection in LLM-Based Document Summarization
@@ -34,11 +34,11 @@ Last updated: 2026-10-28 (session 4, checkpoint 17: web UI follows the user's ta
 | Final run 2 (same, llama3.1:8b; pre-registered, tag `final-run-2-freeze`) | DONE | run `b507b975ae1f`, 826 outcomes, 0 failures; artifacts in `docs/results/final_run_2/` |
 | Final run 1 (E0,E1,E1b,E2,E3,E4,E5; final case set; 2 reps; llama3.2:1b) | DONE | run `aee56f02e584`, 826 outcomes, 0 failures; artifacts in `docs/results/final_run_1/` |
 | Independent set (BIPIA attacks, MIT, in 25 AI-generated benign documents) | DONE, frozen (tag `independent-freeze`) | partially independent: external attacks, AI-generated documents; see `docs/INDEPENDENT_SET.md` |
-| Human adjudication | DONE for final runs 1-2 (103 labels) and independent run 1 (119 groups / 358 outcomes); one non-blinded reviewer | second, blinded reviewer TODO |
-| Human summary-quality ratings | TODO | needs a human |
+| Human adjudication | DONE for final runs 1-2 (103 labels) and independent run 1 (119 groups / 358 outcomes); one non-blinded reviewer | second, blinded reviewer: kit READY (`scripts/prepare_blind_review.py`, 280 items in `results/blind_review/`; agreement via `scripts/review_agreement.py`), waiting for a person |
+| Human summary-quality ratings | KIT READY, waiting for a rater | `scripts/prepare_quality_rating.py` built `results/quality_rating/` (100 blinded clean-document summaries: 1B/8B x E0/E2, trial 0; rubric faithful/coverage 1-5, usable yes/no); aggregate with `scripts/summarize_quality.py` |
 
 ## C. Completed and verified
-- `pytest` -> **250 passed** (2026-10-28, offline, ~10-20 s). Includes API, evaluation, CLI subprocess (incl. review tools), frontend-static, extraction, adapter, attack-check, disruption and independent-set freeze tests.
+- `pytest` -> **253 passed** (2026-10-28, offline, ~10-20 s). Includes API, evaluation, CLI subprocess (incl. review tools), frontend-static, extraction, adapter, attack-check, disruption and independent-set freeze tests.
 - Live API smoke check 2026-10-25 (mock mode, port 8765): `/health` ok, `/` -> `/app/` 200, `/summarize` blocked an injected document at the heuristic without a model call, `/results` listed 20 runs. Real-model UI flow last verified by hand in an earlier session.
 - Live checks: Ollama real-model summarize via API/UI; `run_experiments.py --dry-run` plan and guards (needs `--yes`, `--final-ack`); mock run + analyze; adjudicate flow.
 - Dev real-model smoke runs and structural-prompt tuning: `docs/DEV_LOG.md`.
@@ -52,8 +52,8 @@ Last updated: 2026-10-28 (session 4, checkpoint 17: web UI follows the user's ta
 | R2 | Run the same protocol on a hosted frontier model as a further SEPARATE condition (the 8B condition is done) | TODO / BLOCKED: needs the user's API key and a cost decision | new run id and EXPERIMENT_LOG entry; never mixed with the 1B run; held-out set is already spent for tuning purposes, so use a new held-out set for any further tuning |
 | R3 | Independent set (BIPIA attacks in AI-generated benign documents; partially independent) | FROZEN; **run 1 (llama3.2:1b, `4da08316a2fb`) DONE and human-reviewed (2026-10-25)**; **run 2 (llama3.1:8b, `8a4c672e6307`) DONE and human-reviewed (2026-10-27)** | see section E |
 | R4 | Transformers classifier verification (user must approve torch + weights download) | BLOCKED: needs the user's OK to install torch/transformers and download model weights | one real run; update status |
-| R5 | Human summary-quality ratings on a benign subset | BLOCKED: needs a human rater | documented rubric + saved ratings |
-| R6 | Optional: operator deny-list output validation as E6 (criteria independent of scorer); hidden-text experiments | TODO (needs a pre-registered design and the user's OK for real-model runs) | new experiment entries |
+| R5 | Human summary-quality ratings on a benign subset | KIT READY (2026-10-29); needs a human rater | documented rubric + saved ratings |
+| R6 | Optional: operator deny-list output validation as E6 (criteria independent of scorer); hidden-text experiments | DRAFTED (`docs/PREREGISTRATION_DRAFT.md`, X4; plus X1 classifier FPR on instruction-heavy docs, X2 datamarking, X3 marker/restated-task ablation); needs the owner's approval before any code or run | new experiment entries |
 | R7 | Literature review beyond abstracts | DONE (2026-10-28) | FINAL_REPORT section 5 rewritten from the full texts of the 7 sources (arXiv PDFs, text extracted with pypdf; numbers quoted only from text/captions/tables); EXPERIMENT_LOG entry; not a systematic review; adaptive-attack and later literature not surveyed |
 
 ## E. Current task checkpoint
@@ -72,7 +72,7 @@ Post-review ASR: E0 39.9% (59/148) [32-48], E1/E1b/E3 40.0% (60/150), E2 20.0% (
 **Step 4 DONE (2026-10-27):** 1B-vs-8B comparison written in EXPERIMENT_LOG ("Cross-model comparison on the independent set"; exploratory, post hoc; docs only). Findings: undefended ASR similar (44.0% vs 39.9%); structural prompt lowered ASR on both (about -14 pts 1B, -20 pts 8B); detectors useless on both (8B classifier fired on nothing); 8B resisted off-task questions more but obeyed insertion attacks more; intervals on 150 observations overstate precision (effective n about 75).
 **Results audit DONE (2026-10-27, read-only):** `scripts/audit_independent.py` (43/43 checks pass; recomputes all metrics from raw files; writes `docs/results/independent_audit/`), write-up `docs/RESULTS_AUDIT.md`, FINAL_REPORT section 10.2 (direct 1B-vs-8B comparison, natural-resistance pairing, bootstrap, category analysis), EXPERIMENT_LOG entry. No defense, data, prompt, model, scoring or result changed. Findings: E2/E4/E5 tie for attack resistance (8B about 20%, 1B about 30%); combining defenses does not improve on safer instructions alone; E2 is on the utility frontier too; detectors add nothing on this set; 56-60% of attacks fail without any defense; nothing is called statistically significant. Minor discrepancy: FINAL_REPORT 8B E5 interval [15-28] vs exact 14.6-27.5 (rounding). Application verified by running it (see RESULTS_AUDIT 7): ready for a supervised local demo, not for public hosting; gaps: generic 502 message, no demo presets, no automated browser test, no comparison page.
 **Step 5 DONE (2026-10-27):** FINAL_REPORT updated for both models: header, abstract, section 10.1 (both result tables + comparison), 11, 12, 13, 14, 15, 16, 17 (docs only; table numbers machine-checked against the archived CSVs).
-**NEXT:** frontend refinement with the user (they asked for further changes). Optional research work, each needing the user: second blinded reviewer (a person), hosted-model run (key + cost), Transformers classifier (download approval), summary-quality ratings (a person), Reverse Text post-hoc review (human labels), E6 deny-list and a datamarking variant (pre-registration + real runs). Helper scripts used for the review were in the session scratchpad (not in the repo): re-create if a similar review is needed.
+**NEXT:** frontend refinement with the user. Waiting on people: hand `results/blind_review/` to a second reviewer and `results/quality_rating/` to a rater (instructions in each README.txt; keys are in the sibling `_key` folders, not for them), then run `review_agreement.py` / `summarize_quality.py` and log the results. Waiting on decisions: approve or edit `docs/PREREGISTRATION_DRAFT.md` (X1-X4, with call counts); hosted model (key + cost); Transformers classifier (download). Reverse Text post-hoc review still needs human labels.
 Do not change any defense, prompt, check or scorer before the first results are logged (done: pre-review results are logged); any tuning against this set means it is spent for generalization claims (docs/INDEPENDENT_SET.md). Tool fix this session: `load_all_cases` (task_disruption/prepare_review now find independent cases); `prepare_review.py --include-unlabeled --proposals`.
 
 ## F. Architecture and decisions (why)
@@ -97,14 +97,14 @@ Ollama (`/opt/homebrew/bin/ollama`) has `llama3.2:1b` (1.3 GB) and `llama3.1:8b`
 Local-only data on this machine: `results/` (git-ignored: run folders with model outputs, `results/review/`, `results/review_independent_run1/`). Archived copies without model text are in `docs/results/final_run_{1,2}/` and `docs/results/independent_run_1/`.
 
 ## H. Commands and outcomes
-- `pytest` -> 250 passed (2026-10-28). `python scripts/verify_environment.py` -> ok (mock mode + Ollama configured; classifier via Ollama).
+- `pytest` -> 253 passed (2026-10-29). `python scripts/verify_environment.py` -> ok (mock mode + Ollama configured; classifier via Ollama).
 - `python scripts/run_experiments.py ... --dry-run` -> plan printed, no calls. Mock `run_experiments` + `analyze_results` -> ok.
 - Real dev runs (smoke): see DEV_LOG. Final run 1: `python scripts/run_experiments.py --case-set final --final-ack --configs E0,E1,E1b,E2,E3,E4,E5 --repetitions 2 --real --yes` -> completed (826 outcomes); `analyze_results.py aee56f02e584` -> ok.
 - Not run: Anthropic live; Transformers classifier with a real model; any hosted model.
 
 ## H2. Exact commands (verified 2026-10-27)
 - Setup: `python3 -m venv .venv && source .venv/bin/activate && pip install -e ".[dev]" && cp .env.example .env && python scripts/verify_environment.py`
-- Tests: `PYTHONPATH=src .venv/bin/python -m pytest` (250 passed).
+- Tests: `PYTHONPATH=src .venv/bin/python -m pytest` (253 passed).
 - App: `PYTHONPATH=src .venv/bin/uvicorn injection_defense.api:create_app --factory --app-dir src` then open http://127.0.0.1:8000/ (mock mode default; real mode needs `ollama serve` and the `.env` model).
 - Independent set, one model: `python scripts/run_experiments.py --case-set independent --final-ack --configs E0,E1,E1b,E2,E3,E4,E5 --repetitions 2 --real --yes` (8B: prefix `LLM_MODEL=llama3.1:8b CLASSIFIER_MODEL=llama3.1:8b`; add `--dry-run` first; about 1,800-2,000 calls; 1B about 1.5 h, 8B about 5.5 h).
 - Review: `python scripts/prepare_review.py <run_id> --include-unlabeled --out <folder>`; fill decisions; `python scripts/apply_review.py <folder>/review_decisions.csv --dry-run` then without `--dry-run`; `python scripts/analyze_results.py <run_id>`; `python scripts/task_disruption.py <run_id> --review <folder>/review_decisions.csv`.
@@ -122,7 +122,7 @@ Independent run 1 (1B, post-review): ASR E0/E1/E1b 44.0%, E2 30.0%, E3 42.7%, E4
 - Python 3.13 on macOS may skip the hidden editable `.pth` (README troubleshooting).
 
 ## K. Immediate next steps
-1. Frontend refinements the user asks for next. 2. Optional, each needs the user: second blinded reviewer; hosted-model run; Transformers classifier; summary-quality ratings; Reverse Text post-hoc review; E6 deny-list / datamarking variant (pre-register first). 3. Keep FINAL_REPORT preliminary until a second reviewer exists.
+1. Frontend refinements the user asks for next. 2. Hand out the two blinded kits; log agreement and ratings when they come back. 3. Owner decisions: pre-registration draft X1-X4, hosted model, Transformers classifier. 4. Keep FINAL_REPORT preliminary until a second reviewer exists.
 
 ## L. Continuation instructions
 Read `AGENTS.md`, `CLAUDE.md`, `HANDOFF.md`, `README.md`, and `docs/EXPERIMENT_PROTOCOL.md`. Inspect `git status` and the actual files. Verify the recorded state (`pytest`) before continuing. Resume the highest-priority incomplete task without redoing verified work or discarding existing changes. Checkpoint checklist: stop starting big tasks; save work; `git status`; quick `pytest`; update this file (status, E, K); commit.

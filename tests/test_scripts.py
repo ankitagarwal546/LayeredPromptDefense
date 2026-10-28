@@ -161,3 +161,86 @@ def test_review_and_disruption_tools_find_cases_in_the_independent_folder(tmp_pa
     assert {"dev-a01", "ho-a01"} <= set(cases)
     if (DATA / "independent" / "attacks.jsonl").exists():
         assert "ind-a01" in cases and "ind-b01" in cases
+
+
+def _write_csv(path, rows):
+    with path.open("w", newline="") as f:
+        w = csv.DictWriter(f, fieldnames=list(rows[0])); w.writeheader(); w.writerows(rows)
+
+
+def test_blind_second_review_hides_the_condition_and_measures_agreement(tmp_path):
+    out = tmp_path / "res"
+    execute_run(case_set=build_case_set("dev", DATA), experiment_names=["E0", "E2"], llm=ScriptedLLM('The document says "DOCUMENT COMPROMISED" is requested.'),
+                classifier=None, repetitions=1, results_dir=out, run_id="abcdef012345")
+    sys.path.insert(0, str(ROOT / "scripts"))
+    from prepare_review import group_id
+    from injection_defense.evaluation.store import load_outcomes
+
+    groups = {}
+    for o in load_outcomes(out / "abcdef012345"):
+        if o.is_attack:
+            groups.setdefault(group_id("abcdef012345", o.case_id, o.output_text or ""), o)
+    first = [{"item": i, "group_id": g, "run_id": "abcdef012345", "model": "scripted-test-model", "case_id": o.case_id,
+              "outcomes": 2, "ai_label": "no", "human_label": ("yes" if i % 2 else "no") if i < len(groups) else "",
+              "reviewer": "ankit" if i < len(groups) else "", "note": ""} for i, (g, o) in enumerate(groups.items(), 1)]
+    assert len(first) >= 3  # first reviewer: alternating yes/no, the last one unsure
+    (tmp_path / "rev").mkdir()
+    _write_csv(tmp_path / "rev" / "review_decisions.csv", first)
+
+    kit = tmp_path / "blind"
+    prep = run_script("prepare_blind_review.py", str(tmp_path / "rev" / "review_decisions.csv"), "--results-dir", str(out), "--out", str(kit), cwd=tmp_path)
+    assert prep.returncode == 0, prep.stderr
+    md = (kit / "blind_checklist.md").read_text()
+    for leak in ("abcdef012345", "scripted-test-model", "E0/t0", "E2/t0", "AI label", "ankit"):
+        assert leak not in md, leak  # nothing that reveals run, model, configuration or the first verdict
+    assert "did the model carry out" in md and "DOCUMENT COMPROMISED" in md
+    assert sorted(p.name for p in kit.iterdir()) == ["README.txt", "blind_checklist.md", "blind_decisions.csv"]
+    key = list(csv.DictReader((tmp_path / "blind_key" / "blind_key.csv").open()))
+    assert len(key) == len(first) and {k["group_id"] for k in key} == {r["group_id"] for r in first}
+    again = tmp_path / "blind2"
+    run_script("prepare_blind_review.py", str(tmp_path / "rev" / "review_decisions.csv"), "--results-dir", str(out), "--out", str(again), cwd=tmp_path)
+    assert (again / "blind_checklist.md").read_text() == md  # same seed -> same kit
+
+    second = list(csv.DictReader((kit / "blind_decisions.csv").open()))
+    assert run_script("review_agreement.py", str(kit), cwd=tmp_path).returncode == 1  # nothing filled in yet
+    firsts = {k["blind_id"]: k["first_label"] for k in key}
+    for i, r in enumerate(second):  # agree everywhere except one decided item
+        r["human_label"] = firsts[r["blind_id"]] or "yes"
+        r["reviewer"] = "bea"
+    flip = next(r for r in second if firsts[r["blind_id"]])
+    flip["human_label"] = "no" if flip["human_label"] == "yes" else "yes"
+    _write_csv(kit / "blind_decisions.csv", second)
+    r = run_script("review_agreement.py", str(kit), cwd=tmp_path)
+    assert r.returncode == 0, r.stderr
+    result = json.loads((tmp_path / "blind_key" / "agreement.json").read_text())
+    decided = len(first) - 1
+    assert result["overall"]["both_decided"] == decided and result["overall"]["agree"] == decided - 1
+    assert result["overall"]["unsure_first"] == 1 and len(result["disagreements"]) == 1
+    assert result["second_reviewers"] == ["bea"] and "abcdef012345" not in (kit / "blind_decisions.csv").read_text()
+
+
+def test_quality_rating_kit_is_blind_and_aggregates_by_condition(tmp_path):
+    out = tmp_path / "res"
+    execute_run(case_set=build_case_set("dev", DATA), experiment_names=["E0", "E2"], llm=ScriptedLLM("Coral reefs host many species."),
+                classifier=None, repetitions=1, results_dir=out, run_id="0123456789ab")
+    kit = tmp_path / "q"
+    prep = run_script("prepare_quality_rating.py", "0123456789ab", "--results-dir", str(out), "--configs", "E0,E2", "--out", str(kit), cwd=tmp_path)
+    assert prep.returncode == 0, prep.stderr
+    sheet = (kit / "rating_sheet.md").read_text()
+    assert "0123456789ab" not in sheet and "scripted-test-model" not in sheet and "faithful (1-5)" in sheet
+    key = list(csv.DictReader((tmp_path / "q_key" / "rating_key.csv").open()))
+    assert {k["experiment"] for k in key} == {"E0", "E2"} and len(key) % 2 == 0
+    rows = list(csv.DictReader((kit / "ratings.csv").open()))
+    rows[0].update(faithful="7", coverage="3", usable="yes", rater="bea")
+    _write_csv(kit / "ratings.csv", rows)
+    bad = run_script("summarize_quality.py", str(kit), cwd=tmp_path)
+    assert bad.returncode == 2 and "1-5" in bad.stderr
+    for r in rows:
+        r.update(faithful="5", coverage="4", usable="yes", rater="bea")
+    rows[-1].update(faithful="", coverage="", usable="", rater="")  # one left unrated
+    _write_csv(kit / "ratings.csv", rows)
+    ok = run_script("summarize_quality.py", str(kit), cwd=tmp_path)
+    assert ok.returncode == 0, ok.stderr
+    summary = list(csv.DictReader((tmp_path / "q_key" / "quality_summary.csv").open()))
+    assert {s["config"] for s in summary} == {"E0", "E2"}
+    assert sum(int(s["rated"]) for s in summary) == len(rows) - 1 and all(s["faithful_mean"] == "5.0" for s in summary)
