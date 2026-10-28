@@ -36,6 +36,8 @@
    `CLASSIFIER_MODEL`.
    `/summarize` builds the real client with `UI_MAX_TOKENS` / `UI_TIMEOUT_S` (web UI only);
    `/evaluate` and the CLIs keep `LLM_MAX_TOKENS` / `LLM_TIMEOUT_S`. The classifier is unaffected.
+   For Ollama servers (port 11434) the web path uses `OllamaClient` (native `/api/chat`, `options.num_ctx = UI_NUM_CTX`), because the
+   OpenAI-compatible endpoint cannot set the context size; experiments leave `LLM_NUM_CTX` unset and keep the OpenAI-compatible client.
 2b. `general_task=true` (sent by the web UI) gives the pipeline `role=GENERAL_ROLE`: the prompt
    builders swap only the leading `BASE_SYSTEM` sentence, so the model does the user's task
    instead of being told it is a summarizer. Default `false`; the evaluation runner never sets it,
@@ -51,6 +53,11 @@
    - **Generate** via `LLMClient.generate(PromptBundle)`. System and user content stay separate
      (system message vs. user message).
    - **L4 output validation** if enabled and criteria were supplied; policy `withhold` or `flag_only`.
+   - **Runtime output guard** (`defenses/runtime_guard.py`, opt-in, oracle-free): a per-request canary is appended to the system message; the
+     answer is checked for the canary, links or Markdown images absent from the document, and (summary tasks) language / topic drift;
+     policy `flag_only` (warn) or `withhold` (`blocked_by="runtime_guard"`).
+   - Layer versions are chosen per `DefenseConfig` (`heuristic_rules`, `classifier_prompt`, `structural_variant` incl. v4/v4dm,
+     `sanitize_marker`); defaults reproduce the logged runs. `include_prompt=true` returns the exact prompt (UI inspector).
 4. Response: summary, defense config, per-layer detections (with `policy_action`), validation,
    model info (`is_mock`), model-call count, latency and per-stage timings, warnings.
 
@@ -124,6 +131,7 @@ New components since the first version:
 | dataset registry | `evaluation/registry.py` | named case sets (`dev`, `final`) and call estimates; clients never pass paths |
 | run store | `evaluation/store.py` | incremental `outcomes.jsonl`, resume, manual labels, safe run listing |
 | executor | `evaluation/execute.py` | the one place that runs and persists a matrix (CLI and API both call it) |
+| previous frontend | `frontend_backup_previous/` | byte-for-byte UI before 2026-10-29 (tag `frontend-classic-2026-10-29`), served read-only at `/app-previous/`; `scripts/switch_frontend.py` |
 | frontend | `frontend/` | static page served at `/app/` (text via `textContent` only): landing page with the overview (`GET /findings`), then a dashboard (Test a document with the live run view and "why it was blocked", Results, How it works, Evaluations) |
 | scripts | `scripts/` | `run_experiments.py`, `analyze_results.py`, `adjudicate.py`, `verify_environment.py`, `run_smoke_eval.py`, `tune_structural.py`, review tools (`prepare_review.py`, `apply_review.py`), blinded human kits (`prepare_blind_review.py` + `review_agreement.py`, `prepare_quality_rating.py` + `summarize_quality.py`; helpers in `evaluation/review_kit.py`) |
 

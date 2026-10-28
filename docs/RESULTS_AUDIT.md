@@ -26,7 +26,7 @@ Result of `python scripts/audit_independent.py`: **43 of 43 checks passed, 0 fai
 
 **Discrepancies found (reported, not silently corrected):**
 1. *Audit-tool bug, fixed in the tool only.* The first run of the audit flagged "708 / 715 mismatches" between the archived pre-review CSVs and the raw outputs. Cause: my comparison treated an empty CSV cell as different from `None`; the archived files were correct (0 mismatches after comparing `None` with an empty cell, across all eight compared columns). No data was changed.
-2. *Rounding in the report.* FINAL_REPORT 10.1 gives the 8B E5 interval as `[15-28]`; the exact Wilson interval is 14.6-27.5%, which rounds either way. The audit tables use `[15-27]`. The report text was left as written.
+2. *Rounding in the report (resolved 2026-10-29).* FINAL_REPORT 10.1 gave the 8B E5 interval as `[15-28]`. The exact Wilson interval is 14.58-27.46%; `[15-28]` came from rounding twice (27.46 -> 27.5 -> 28). One rule now applies to every table: round the exact percentage once to the nearest integer, which gives `[15-27]`. The report was corrected; the audit tables were already right.
 3. *Not a discrepancy but a difference to keep in mind:* the two reviews were conducted under slightly different conditions (section 5).
 
 ## 2. Metric definitions, numerators and denominators
@@ -111,6 +111,14 @@ Reading: with no defense the 1B model resisted 84 of 150 observations (56%) and 
 
 How far the numbers support "statistically significant": the bootstrap intervals for E2 - E0 exclude zero on both models (1B -14.6 [-26.4, -2.1]; 8B -20.0 [-32.0, -8.7]) and for the 8B E4 and E5. **I do not call these differences statistically significant**: no test was pre-registered; the review was not blind to the configuration; the reviewer accepted every AI proposal in the 8B review; the bootstrap ignores carrier-document clustering and multiple comparisons; and the attacks are a convenience sample of one benchmark. The supportable statement is that, under these assumptions, the observed reduction is unlikely to be explained by the sampling of the 75 attacks alone.
 The between-model differences (8B minus 1B) are small for E0/E1/E3 (about -3 to -4 points, interval includes zero) and about -9 to -10 points for E2/E4/E5 (intervals include zero): **suggestive only**.
+
+### 4b. Exact paired tests, trial-collapsed rates and host-document clustering (added 2026-10-29)
+
+Added to `scripts/audit_independent.py` (section 6; new files `paired_tests.json`, `attack_level.csv`; every earlier output re-written byte-identically, 43/43 checks pass). Exploratory, not pre-registered:
+- **Trial collapse.** The two temperature-0 trials are near-duplicates, so rates are also reported per attack (mean of each attack's resolved trials, Wilson interval over n = 75 attacks). The intervals widen accordingly (for example 1B E0 44.0% [33-55] instead of [36-52]).
+- **Exact tests vs E0.** Sign test on per-attack fractions and exact McNemar (attack successful if it succeeded in any resolved trial). 8B: E2 p = 0.0041 / 0.0066, E4 0.0066 / 0.011, E5 0.0015 / 0.0043. 1B: E2 0.043 / 0.13, E4 0.15 / 0.50, E5 0.093 / 0.13. With Holm's correction over the ten sign tests only 8B E5 (0.015) and 8B E2 (0.037) stay below 0.05.
+- **Host-document clustering.** Bootstraps resampling the 20 host documents, alone and then attacks within them: 8B E2 -20.0 points [-29.7, -10.1] (documents) and [-34.9, -5.4] (two-stage); 1B E2 -14.6 [-29.1, -0.7] and [-31.4, +2.2].
+- **Reading.** The 8B structural-prompt effect is robust to these checks; the 1B effect is fragile (it depends on the test and disappears under two-stage clustering or multiplicity correction). Full table: FINAL_REPORT section 10.2.
 
 ## 5. Attack-category analysis
 

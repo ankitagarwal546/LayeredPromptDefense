@@ -2,7 +2,7 @@
 
 *Project review brief: what was built, how it works, what was found, and every known weakness*
 
-Prepared 29 October 2026 for an independent reviewer (human or AI). Repository: `/Users/ankitagarwal546/Documents/Prompt Injection` (git branch `master`, 49 commits, no remote). Project owner and only human reviewer: Ankit Agarwal (B.Tech student). Evidence status of every result: **PRELIMINARY**.
+Prepared 29 October 2026 for an independent reviewer (human or AI). Repository: `/Users/ankitagarwal546/Documents/Prompt Injection` (git branch `master`, 56 commits, no remote). Project owner and only human reviewer: Ankit Agarwal (B.Tech student). Evidence status of every result: **PRELIMINARY**.
 
 ## 0. Read this first: how to review this project
 
@@ -17,6 +17,21 @@ What a useful review would do:
 - Say what is missing and what should be done next, in order of importance.
 
 Specific questions for the reviewer are in section 10.
+
+## 0b. Update, later on 29 October: what changed after this brief was first written
+
+An optimization pass followed the first version of this brief. **Everything new was designed after the held-out and independent results had been seen**, so any measurement of the new versions on those sets is in-sample; both sets are spent for the new versions (not for the logged ones). No logged run, label or registered number changed.
+
+- **Rollback first:** the previous UI is kept byte-for-byte (`frontend_backup_previous/`, tag `frontend-classic-2026-10-29`), served at `/app-previous/`, switchable with `scripts/switch_frontend.py`.
+- **Extraction:** invisible characters are removed and reported; hidden, tiny or near-white DOCX runs and tiny, near-white or invisible-mode PDF text are reported (partial detection).
+- **Web UI context window:** native Ollama API with `num_ctx = 8192` for the website only; verified live.
+- **New, unevaluated defense versions (opt-in; presets E2v4, E5v2):** word rules v2 (dampening + weak indirect rules), checker prompt v2 (reader vs AI target), structural v4 / v4dm (scope binding, datamarking), runtime output guard (canary, links, language/topic drift). v1-v3 are locked by sha256 fingerprints at `independent-freeze`.
+- **Word rules v2 offline (in-sample):** false alarms held-out 4/24 -> 1/24 and independent 1/25 -> 0/25, but **no additional attack detected** (still 0/75 on BIPIA).
+- **Statistics added (exploratory):** trial-collapsed rates; exact sign and McNemar tests; bootstraps clustered by the 20 host documents. On 8B the structural prompt's effect survives (p 0.0015-0.011; document-clustered interval -29.7 to -10.1 points). On 1B it is fragile (sign p = 0.043, McNemar p = 0.13; two-stage interval includes zero; with Holm's correction only 8B E5 and E2 stay below 0.05).
+- **Reverse Text, post hoc:** sentence-order reversal in 2/10 (1B) and 4/10 (8B) undefended outputs, none with E2/E4; registered numbers unchanged.
+- **Rounding fixed:** the 8B E5 interval is [15-27] everywhere (it was double-rounded to [15-28]).
+- **Web UI overhaul** (live pipeline, X-ray scan, verdict cascade, side-by-side arena, prompt inspector). Demo re-run with the real 1B model (6 calls, web settings): in the quiet attack E0 ignored the instruction while E2 obeyed it fully (French plus the link); one run, an anecdote.
+- Tests: 272 pass offline; audit 43/43.
 
 ## 1. The project in one page
 
@@ -230,11 +245,11 @@ Grouped by kind. Items marked **[serious]** are the ones most likely to change c
 
 ### 7.4 Statistics and analysis
 
-- No significance test was pre-registered or run; conclusions rely on intervals.
+- No significance test was pre-registered. Exact paired tests were added afterwards (section 0b): they support the 8B effect and leave the 1B effect fragile.
 - Wilson and Newcombe intervals assume independent observations, which the near-duplicate trials violate, so they **overstate precision**.
-- The paired bootstrap resamples the 75 attacks but not the 20 host documents (each carries 3-4 attacks), so clustering by document is not modelled.
+- Clustering by host document is now modelled by an added bootstrap (section 0b), but only post hoc; the trials are near-duplicates (trial-collapsed rates are now reported too).
 - Many analyses (cross-model comparison, category tables, transitions, task disruption) are post hoc and exploratory, labelled as such.
-- A rounding discrepancy is known: the 8B E5 interval is written [15-28] in the report and [15-27] in the audit (exact 14.6-27.5%).
+- A rounding discrepancy (8B E5 written [15-28] in the report, [15-27] in the audit) was resolved on 29 October: the exact interval is 14.58-27.46%, so [15-27].
 
 ### 7.5 Errors found and fixed during the project
 
@@ -257,17 +272,17 @@ Grouped by kind. Items marked **[serious]** are the ones most likely to change c
 - L4 is unusable as a real defense here because it needs the attack's goal (the answer key).
 - Fail-open default: a failed detector lets the document through with only a warning.
 - The sanitize policy's redaction marker itself triggered refusals on the 8B model.
-- Hidden-text attacks (white or tiny text in PDF/DOCX) pass straight through extraction and are not detected.
+- Hidden-text attacks: extraction now reports tiny, near-white or hidden DOCX/PDF text and invisible characters, but other hiding tricks pass undetected, and flagged text is still sent to the model.
 
 ### 7.7 Software and web application
 
 - The web app's task-neutral role line and its larger token and time limits were **never evaluated**; how well the defenses hold on non-summary tasks is unknown.
-- Ollama's own context window (default 4,096 tokens for prompt plus answer) can still cut long answers on long documents.
+- Ollama's context window: the website now asks for 8,192 tokens; experiments still use the server default (4,096).
 - The 8B model is slow on long tasks (95 s for a full answer to 14 questions).
 - The Anthropic adapter and the Transformers classifier adapter are tested only with fakes; never against a real service or model.
 - No authentication or rate limiting; the server must stay on localhost. Not suitable for public hosting.
-- No automated browser tests; the frontend is covered by static tests (253 tests pass overall, offline) and was verified by hand in a browser.
-- The demo script's expected outputs were recorded before the web app's role-line change, so live answers may differ.
+- No automated browser tests; the frontend is covered by static tests (272 tests pass overall, offline) and was verified by hand in a browser.
+- The demo script's expected outputs were re-recorded on 29 October under the web settings (one run each), so they are examples, not evidence.
 - Minor environment quirk: on macOS with Python 3.13 the editable install's `.pth` file can be hidden and skipped (`PYTHONPATH=src` is used).
 
 ### 7.8 Process and integrity risks
@@ -320,7 +335,7 @@ Seven sources, read in full (`docs/FINAL_REPORT.md` section 5): Perez and Ribeir
 | Archived results (no model text) | `docs/results/final_run_{1,2}/`, `docs/results/independent_run_{1,2}/` |
 | Defenses | `src/injection_defense/defenses/` |
 | Pipeline and API | `src/injection_defense/pipeline.py`, `api.py` |
-| Tests (253, offline) | `tests/`; run `PYTHONPATH=src .venv/bin/python -m pytest` |
+| Tests (272, offline) | `tests/`; run `.venv/bin/python -m pytest` |
 | Draft follow-up experiments | `docs/PREREGISTRATION_DRAFT.md` |
 
 Raw model outputs and review files are in the git-ignored `results/` folder on the owner's machine and are not in the repository.

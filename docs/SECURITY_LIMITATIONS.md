@@ -32,14 +32,16 @@ guarantee against prompt injection.
   1B model the original wording caused refusals of benign documents and the revised wording gave no measurable protection (`docs/DEV_LOG.md`).
   The web UI's general-task role line (`general_task=true`) was never evaluated: its protection on non-summary tasks is unknown.
 - **L4 output validation:** needs predefined criteria (canaries, deny-lists) and is lexical. In experiments it is the scorer, not a defense, to avoid oracle leakage.
+- **Runtime output guard (new, unevaluated):** heuristic checks only. The canary catches leaks of the system message, not paraphrased leaks; the link check misses links written out in words and flags legitimate links the document did not contain; language and topic drift run only for summary-like tasks and use small stop-word lists, so mixed-language documents and short answers are judged poorly. Its false-alarm rate has not been measured.
+- **Versions added 2026-10-29 (word rules v2, checker prompt v2, structural v4/v4dm):** designed after the test sets' results were seen, so no claim about them is supported yet. Word rules v2 *dampen* matches inside quotation marks or after phrases such as "for example"; an attacker can exploit this by framing an order as an example (accepted trade-off to stop blocking security articles). Datamarking (v4dm) may make small models copy the `^` marks into answers.
 - **Policies:** blocking trades availability for security; sanitizing can leave an attack partly intact; the fail-open default means a failed detector lets input through
   (visible as a `warn` decision and counted in `detector_failures`).
 
 ## Not covered / out of scope
 
-Hidden text (white-on-white, tiny fonts, hidden DOCX runs, annotations), metadata and comment injection, image/OCR content, multi-turn and delayed attacks, tool-using
+Hidden text beyond the partial detection in extraction (reported: zero-width, bidi-override and control characters; DOCX runs that are hidden, <= 2 pt or near-white; PDF text that is tiny, near-white or in invisible render mode. Not detected: text behind images, off-page, coloured like a coloured background, or hidden through styles), annotations, metadata and comment injection, image/OCR content, multi-turn and delayed attacks, tool-using
 agents, adaptive attackers who know the rules or delimiter scheme, denial of service beyond the size limits, authentication/authorization, TLS, rate limiting, multi-user
-isolation. Text extraction can include invisible text and omit visible-only-as-image text; this project does not detect hidden-text attacks. Do not expose the API publicly
+isolation. Text extraction can include invisible text and omit visible-only-as-image text; hidden-text detection is partial (above) and flagged passages are reported, not removed. Do not expose the API publicly
 without adding authentication and rate limits; the default server binds to localhost only when started with the documented commands.
 
 ## Experimental validity limits

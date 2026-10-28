@@ -26,6 +26,10 @@ Sub-questions RQ1-RQ6, hypotheses and related work: [docs/RESEARCH_PLAN.md](docs
 - FastAPI: `/health`, `/config`, `/extract`, `/summarize`, `/evaluate` (+ job status), `/results` (+ CSV exports). OpenAPI docs at `/docs`.
 - Defense layers (each switchable): L1 heuristic rules, L2 model classifier (prompt-based; Transformers adapter interface), L3 structural separation
   (versioned prompts), L4 output validation (scorer / optional guard). Detection and enforcement are separate.
+- New, **not evaluated** versions (2026-10-29; opt-in, presets `E2v4` and `E5v2`): word rules v2, checker prompt v2, structural v4 / v4dm
+  (datamarking), a runtime output guard (canary, links, language/topic drift), and partial hidden-text detection in file extraction. The logged
+  presets E0-E5 are unchanged. Offline, rules v2 removed most false alarms but caught no additional attack (`scripts/compare_heuristic_versions.py`).
+- Two web UIs: the new one at `/app/` and the previous one at `/app-previous/` (`python scripts/switch_frontend.py --use previous|new` swaps which one `/app/` serves).
 - Evaluation: JSONL cases, family-level held-out splits (checksum-frozen), ASR / FPR / utility / generalization gap / latency / failure metrics with
   denominators and intervals, checkpointed and resumable runs, manual adjudication, charts and reports.
 
@@ -182,7 +186,7 @@ Layer 4 (output validation) needs explicit criteria and acts as the evaluation s
 
 ## Current status
 
-See [HANDOFF.md](HANDOFF.md) for the authoritative, verified status. The application, API, UI, defenses, evaluation harness and CLIs are implemented and tested offline (253 tests passing, 2026-10-29). Live demo walkthrough: [docs/DEMO_SCRIPT.md](docs/DEMO_SCRIPT.md). The web UI opens on a scrolling landing page (animated intro, then the overview of the verified independent-set numbers from `GET /findings`), then a sidebar dashboard: "Test a document" (demo examples or your own file, a task for the AI, model and protection, an animated walk through each layer, results with meters and, when blocked, why), "Results", "How it works" and "Evaluations".
+See [HANDOFF.md](HANDOFF.md) for the authoritative, verified status. The application, API, UI, defenses, evaluation harness and CLIs are implemented and tested offline (272 tests passing, 2026-10-29). Live demo walkthrough: [docs/DEMO_SCRIPT.md](docs/DEMO_SCRIPT.md). The web UI opens on a scrolling landing page (animated intro, then the overview of the verified independent-set numbers from `GET /findings`), then a sidebar dashboard: "Test a document" (demo examples or your own file, a task for the AI, model and protection, an animated walk through each layer, results with meters and, when blocked, why), "Results", "How it works" and "Evaluations".
 Two pre-registered final runs are complete and written up as a **preliminary** report: [docs/FINAL_REPORT.md](docs/FINAL_REPORT.md) (run 1: `llama3.2:1b`, run 2: `llama3.1:8b`; same code, data and configs),
 with [docs/EXPERIMENT_LOG.md](docs/EXPERIMENT_LOG.md) and archived artifacts in `docs/results/final_run_{1,2}/`. The headline: which defenses helped depended strongly on the model.
 On the **independent set**, the `llama3.2:1b` run is complete and human-reviewed (`docs/results/independent_run_1/`); the `llama3.1:8b` run is complete and human-reviewed (`docs/results/independent_run_2/`); the cross-model comparison is in `docs/EXPERIMENT_LOG.md` and both models are written up in FINAL_REPORT section 10.1.
