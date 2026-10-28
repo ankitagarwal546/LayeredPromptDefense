@@ -73,14 +73,21 @@ class DefenseConfig(BaseModel):
     classifier: bool = False
     classifier_policy: Literal["block", "flag_only"] = "block"
     structural: bool = False
-    structural_variant: Literal["v1", "v2", "v3"] = "v3"  # prompt wording; v1 = original (see docs/DEV_LOG.md)
+    structural_variant: Literal["v1", "v2", "v3", "v4", "v4dm"] = "v3"  # prompt wording; v1 = original (docs/DEV_LOG.md)
     output_validation: bool = False
     output_validation_policy: Literal["withhold", "flag_only"] = "flag_only"
     # If a detector errors or is unavailable: False = continue (fail open), True = block.
     fail_closed_on_detector_error: bool = False
+    # Versions added 2026-10-29 after the logged runs (designed with their results in view; see docs/EXPERIMENT_LOG.md).
+    # The defaults reproduce every logged run exactly.
+    heuristic_rules: Literal["v1", "v2"] = "v1"  # v2: weak indirect-attack rules + quotation/example dampening
+    sanitize_marker: Literal["redacted", "neutral"] = "redacted"  # neutral: "..." instead of "[REDACTED: ...]"
+    classifier_prompt: Literal["v1", "v2"] = "v1"  # v2: separates reader exercises from AI-directed instructions
+    runtime_guard: bool = False  # oracle-free output checks (defenses/runtime_guard.py)
+    runtime_guard_policy: Literal["withhold", "flag_only"] = "flag_only"
 
     def enabled_layers(self) -> list[str]:
-        layers = ["heuristic", "classifier", "structural", "output_validation"]
+        layers = ["heuristic", "classifier", "structural", "output_validation", "runtime_guard"]
         return [layer for layer in layers if getattr(self, layer)]
 
 
@@ -94,7 +101,13 @@ PRESETS: dict[str, DefenseConfig] = {
     "E3": DefenseConfig(name="E3", classifier=True),
     "E4": DefenseConfig(name="E4", heuristic=True, structural=True),
     "E5": DefenseConfig(name="E5", heuristic=True, classifier=True, structural=True),
+    # Added 2026-10-29, not evaluated (no run, no number). Not comparable with E0-E5 as a generalization test: their
+    # rules and prompts were written after the held-out and independent results were seen.
+    "E2v4": DefenseConfig(name="E2v4", structural=True, structural_variant="v4"),
+    "E5v2": DefenseConfig(name="E5v2", heuristic=True, heuristic_rules="v2", classifier=True, classifier_prompt="v2",
+                          structural=True, structural_variant="v4", runtime_guard=True),
 }
+LOGGED_PRESETS = ("E0", "E1", "E1b", "E2", "E3", "E4", "E5")  # the presets every reported run used
 
 
 def get_preset(name: str) -> DefenseConfig:

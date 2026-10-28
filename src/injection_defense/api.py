@@ -20,7 +20,7 @@ from pydantic import BaseModel, Field
 
 from injection_defense import __version__
 from injection_defense.config import (
-    MAX_DOCUMENT_CHARS, MAX_INSTRUCTION_CHARS, PRESETS, REPO_ROOT, Settings, get_preset,
+    LOGGED_PRESETS, MAX_DOCUMENT_CHARS, MAX_INSTRUCTION_CHARS, PRESETS, REPO_ROOT, Settings, get_preset,
 )
 from injection_defense.defenses.base import Detector
 from injection_defense.defenses.classifier import UnavailableClassifier, create_classifier
@@ -173,11 +173,14 @@ def create_app(
             # Name only, for API models (a transformers model may be a local path, which is not shown).
             "classifier_model": (settings.classifier_model or None) if settings.classifier_provider in ("openai_compatible", "anthropic") else None,
             "presets": {name: cfg.model_dump() for name, cfg in PRESETS.items()},
+            "logged_presets": list(LOGGED_PRESETS),
             "policies": {
                 "heuristic": ["block", "sanitize", "flag_only"],
                 "classifier": ["block", "flag_only"],
                 "output_validation": ["withhold", "flag_only"],
+                "runtime_guard": ["flag_only", "withhold"],
             },
+            "versions": {"heuristic_rules": ["v1", "v2"], "classifier_prompt": ["v1", "v2"], "sanitize_marker": ["redacted", "neutral"]},
             "enforcement_decisions": {"allow": "nothing flagged", "warn": "processed, but flagged or a layer could not run", "block": "no summary delivered"},
             "structural_variants": sorted(VARIANTS),
             "limits": {
@@ -207,7 +210,8 @@ def create_app(
         config = request.defenses or get_preset(settings.default_defense_preset)
         classifier = make_classifier(settings) if config.classifier else None
         role = GENERAL_ROLE if request.general_task else None
-        return DefensePipeline(llm, config, classifier=classifier, role=role).run(request.document_text, request.instruction)
+        return DefensePipeline(llm, config, classifier=classifier, role=role).run(
+            request.document_text, request.instruction, include_prompt=request.include_prompt)
 
     @app.post("/evaluate", status_code=202)
     def evaluate(request: EvaluateRequest) -> dict:

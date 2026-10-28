@@ -21,6 +21,8 @@ class SummarizeRequest(BaseModel):
     # True: the instruction may be any task on the document (the web UI sends this), so the model is
     # not told it is a summarizer. Experiments always summarize and never set it.
     general_task: bool = False
+    # Return the exact prompt sent to the model (for the UI's prompt inspector). Never set by experiments.
+    include_prompt: bool = False
     # None -> server default preset (DEFAULT_DEFENSE_PRESET).
     defenses: DefenseConfig | None = None
 
@@ -75,6 +77,24 @@ class ValidationResult(BaseModel):
     explanation: str = ""
 
 
+class GuardFindingModel(BaseModel):
+    check: str
+    detail: str
+
+
+class RuntimeGuardResult(BaseModel):
+    """Oracle-free output checks (defenses/runtime_guard.py)."""
+
+    flagged: bool
+    findings: list[GuardFindingModel] = Field(default_factory=list)
+    policy_action: Literal["none", "withheld", "flagged_only"] = "none"
+
+
+class PromptPreview(BaseModel):
+    system: str
+    user: str
+
+
 class ModelInfo(BaseModel):
     provider: str
     name: str
@@ -94,6 +114,8 @@ class SummarizeResponse(BaseModel):
     defenses: DefenseConfig
     detections: list[DetectionResult] = Field(default_factory=list)
     output_validation: ValidationResult | None = None
+    runtime_guard: RuntimeGuardResult | None = None
+    prompt: PromptPreview | None = None  # only when the request asked for it
     model: ModelInfo
     model_calls: int = 0
     latency_ms: float

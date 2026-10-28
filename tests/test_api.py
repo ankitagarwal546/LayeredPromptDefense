@@ -176,7 +176,12 @@ def test_config_lists_options_without_secrets(settings):
     body = c.get("/config").json()
     assert set(body["presets"]) >= {"E0", "E1", "E2", "E3", "E4", "E5"}
     assert body["real_model"] is None and body["limits"]["max_document_chars"] == 50_000
-    assert body["structural_variants"] == ["v1", "v2", "v3"] and "final" in body["case_sets"]
+    assert body["structural_variants"] == ["v1", "v2", "v3", "v4", "v4dm"] and "final" in body["case_sets"]
+    assert body["logged_presets"] == ["E0", "E1", "E1b", "E2", "E3", "E4", "E5"]
+    for name in body["logged_presets"]:  # logged presets keep the logged versions of every layer
+        cfg = body["presets"][name]
+        assert (cfg["heuristic_rules"], cfg["classifier_prompt"], cfg["sanitize_marker"], cfg["runtime_guard"]) == ("v1", "v1", "redacted", False)
+        assert cfg["structural_variant"] == "v3"
 
 
 def test_config_reports_real_model_locality_but_never_the_key_or_url():

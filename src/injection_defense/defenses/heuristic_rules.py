@@ -99,6 +99,72 @@ DEFAULT_RULES: tuple[Rule, ...] = (
 )
 
 
+# --- Rules v2 (added 2026-10-29; NOT used by any logged run) -------------------------------------------------
+# Designed AFTER seeing the held-out and independent-set results (the BIPIA attacks, the hard-negative false alarms),
+# so any measurement of v2 on those sets is in-sample, not a generalization test (see docs/EXPERIMENT_LOG.md).
+# v2 = every v1 rule plus low-weight patterns for polite / indirect payloads. Each is weak on its own (< 1.0) and
+# only flags in combination; bare off-task questions ("What are the benefits of X?") remain undetectable by wording.
+V2_EXTRA_RULES: tuple[Rule, ...] = (
+    _rule(
+        "polite_aside",
+        r"\b(by\s+the\s+way|oh,?\s+and|p\.\s?s\.?|while\s+you'?re\s+at\s+it|also|additionally)\b[^.\n]{0,40}"
+        r"\b(could|can|would|will)\s+you\b|\bplease\s+(also|additionally)\b",
+        "Polite side request that may switch the task",
+        weight=0.4,
+    ),
+    _rule(
+        "append_to_output",
+        r"\b(append|add|include|insert|attach)\b[^.\n]{0,40}\b(to|in|at\s+the\s+end\s+of|after)\s+(your|the)\s+"
+        r"(summary|answer|response|reply|output)\b"
+        r"|\b(end|finish|conclude|close)\s+(your|the)\s+(summary|answer|response|reply)\s+(with|by)\b",
+        "Asks to add text to the model's answer",
+        weight=0.6,
+    ),
+    _rule(
+        "unrelated_question",
+        r"\b(answer|respond\s+to|address|handle)\b[^.\n]{0,25}\b(unrelated|separate|different|other|additional|following)\s+"
+        r"(question|task|request|query)\b",
+        "Asks the model to take on a different question or task",
+        weight=0.6,
+    ),
+    _rule(
+        "language_switch",
+        r"\b(translate|respond|reply|answer|write|summari[sz]e)\b[^.\n]{0,30}\b(in|into)\s+"
+        r"(french|spanish|german|italian|portuguese|chinese|japanese|korean|russian|arabic|hindi|dutch|turkish)\b",
+        "Asks for the answer in another language",
+        weight=0.5,
+    ),
+    _rule(
+        "markdown_exfiltration",
+        r"!\[[^\]\n]*\]\(\s*https?://|\[[^\]\n]+\]\(\s*https?://[^)\s]*\?[^)\s]*=",
+        "Markdown image or tracking link (can leak data when rendered)",
+        weight=0.5,
+    ),
+    _rule(
+        "imperative_shift",
+        r"\b(from\s+now\s+on|now|next|before\s+you\s+(summari[sz]e|answer|respond))\b,?\s+"
+        r"(write|tell|list|translate|give|explain|describe|answer|compose|generate|create|recommend)\b",
+        "Abrupt imperative that starts a new task",
+        weight=0.4,
+    ),
+)
+V2_RULES: tuple[Rule, ...] = DEFAULT_RULES + V2_EXTRA_RULES
+
+# Dampening (v2): a match inside quotation marks, or right after teaching/reporting framing, is far more often a
+# security text discussing an attack (the hard negatives) than an attack. Its weight is multiplied by DAMPEN_FACTOR.
+# LIMITATION: an attacker can exploit this by framing an instruction as an example; that trade-off is deliberate.
+DAMPEN_FACTOR = 0.3
+TEACHING_FRAME = re.compile(
+    r"(for\s+example|for\s+instance|e\.g\.|such\s+as|like\s+the\s+(phrase|line|sentence)|the\s+(phrase|line|sentence)"
+    r"|an?\s+example\s+(of|is)|known\s+as|attackers?\s+(often\s+|may\s+|might\s+|can\s+)?(write|use|insert|hide|plant|add)"
+    r"|(hidden|injected|malicious|embedded)\s+(line|text|instruction|sentence)s?\s+(such\s+as|like|saying|reading)"
+    r"|a\s+(line|sentence|message)\s+(such\s+as|like|saying|reading))[^.\n]{0,40}$",
+    _F,
+)
+# Straight single quotes are left out: they are mostly apostrophes ("don't").
+QUOTE_PAIRS = (('"', '"'), ("\u201c", "\u201d"), ("\u2018", "\u2019"), ("\u00ab", "\u00bb"))
+
+
 def load_rules(path: str | Path) -> tuple[Rule, ...]:
     """Load rules from JSON, validating that each pattern compiles."""
     records = json.loads(Path(path).read_text(encoding="utf-8"))
