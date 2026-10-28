@@ -27,6 +27,10 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "src"))
 sys.path.insert(0, str(ROOT / "scripts"))
 
+from injection_defense.evaluation.metrics import (  # noqa: E402
+    attack_level_rate, cluster_bootstrap, mcnemar_exact, sign_test,
+)
+
 RUNS = {"1B": "4da08316a2fb", "8B": "8a4c672e6307"}
 ARCHIVE = {"1B": ROOT / "docs/results/independent_run_1", "8B": ROOT / "docs/results/independent_run_2"}
 CONFIGS = ["E0", "E1", "E1b", "E2", "E3", "E4", "E5"]
@@ -383,10 +387,83 @@ def main() -> int:
         boot[("8B-1B", e, "")] = r
         print(f"8B minus 1B, {e}: {100 * r['diff']:+.1f} pts [{100 * r['lo']:+.1f}, {100 * r['hi']:+.1f}] over {r['n']} attacks")
 
+    print("\n=== 6. attack-level rates, exact paired tests and host-document clustering (added 2026-10-29; exploratory, not pre-registered)")
+    extra = extra_statistics(runs, resamples=args.resamples)
+    for n in RUNS:
+        for e in CONFIGS:
+            r = extra["attack_level"][n][e]
+            print(f"{n} {e}: attack-level mean {100 * r['mean_rate']:.1f}% [{100 * r['lo']:.0f}-{100 * r['hi']:.0f}] over {r['attacks']} attacks "
+                  f"(succeeded in any trial {r['any_trial']}, in every trial {r['all_trials']})")
+    for key, r in extra["paired"].items():
+        print(f"{key}: sign test {r['sign']['favours_defense']}-{r['sign']['favours_baseline']} (ties {r['sign']['ties']}) p={r['sign']['p']:.4f} | "
+              f"McNemar any-trial {r['mcnemar_any']['favours_defense']}-{r['mcnemar_any']['favours_baseline']} p={r['mcnemar_any']['p']:.4f} | "
+              f"diff {100 * r['diff']:+.1f} pts: attacks [{100 * r['boot_attacks']['lo']:+.1f}, {100 * r['boot_attacks']['hi']:+.1f}], "
+              f"documents [{100 * r['boot_documents']['lo']:+.1f}, {100 * r['boot_documents']['hi']:+.1f}], "
+              f"documents+attacks [{100 * r['boot_two_stage']['lo']:+.1f}, {100 * r['boot_two_stage']['hi']:+.1f}]")
+
     fam = {n: family_table(runs[n], disr[n]) for n in RUNS}
     if args.write:
         write_outputs(checks, metrics, trans, boot, fam, issues, missing, runs)
+        write_extra(extra)
     return 0 if all(ok for _, ok, _ in checks) and not issues and not missing else 1
+
+
+def host_documents() -> dict[str, str]:
+    """Attack id -> id of the host (carrier) document it was inserted into, from the frozen case notes."""
+    out = {}
+    for line in (ROOT / "data/independent/attacks.jsonl").read_text(encoding="utf-8").splitlines():
+        case = json.loads(line)
+        m = re.search(r"carrier (\S+)", case.get("notes", ""))
+        out[case["case_id"]] = m.group(1) if m else case["case_id"]
+    return out
+
+
+def extra_statistics(runs: dict, *, resamples: int) -> dict:
+    """Trial-collapsed rates, exact sign / McNemar tests vs E0 and bootstraps clustered by host document."""
+    hosts = host_documents()
+    result: dict = {"attack_level": {}, "paired": {},
+                    "note": ("exploratory, post hoc: no test was pre-registered; one non-blind reviewer; trials collapsed per attack "
+                             "(temperature 0, near-duplicates); McNemar 'any' = attack succeeded in at least one resolved trial; "
+                             "bootstrap seed 20261029; documents = resample the 20 host documents, documents+attacks = two-stage")}
+    for n in RUNS:
+        result["attack_level"][n] = {}
+        for e in CONFIGS:
+            r = attack_level_rate(attack_means(runs[n], e))
+            lo, hi = r.wilson_95 or (None, None)
+            result["attack_level"][n][e] = {"attacks": r.attacks, "mean_rate": r.mean_rate, "lo": lo, "hi": hi,
+                                            "any_trial": r.any_trial, "all_trials": r.all_trials}
+        base = attack_means(runs[n], "E0")
+        for e in ("E2", "E4", "E5", "E1", "E3"):
+            other = attack_means(runs[n], e)
+            keys = sorted(k for k in other if k in base)
+            sign = sign_test({k: other[k] for k in keys}, {k: base[k] for k in keys})
+            mc = mcnemar_exact({k: other[k] > 0 for k in keys}, {k: base[k] > 0 for k in keys})
+            by_doc: dict = defaultdict(list)
+            for k in keys:
+                by_doc[hosts.get(k, k)].append(other[k] - base[k])
+            per_attack = {k: [other[k] - base[k]] for k in keys}
+            result["paired"][f"{n} {e} vs E0"] = {
+                "pairs": len(keys), "diff": sum(other[k] - base[k] for k in keys) / len(keys) if keys else None,
+                "sign": {"favours_defense": sign.favours_first, "favours_baseline": sign.favours_second, "ties": sign.ties, "p": sign.p_value},
+                "mcnemar_any": {"favours_defense": mc.favours_first, "favours_baseline": mc.favours_second, "ties": mc.ties, "p": mc.p_value},
+                "boot_attacks": cluster_bootstrap(per_attack, two_stage=False, resamples=resamples),
+                "boot_documents": cluster_bootstrap(by_doc, two_stage=False, resamples=resamples),
+                "boot_two_stage": cluster_bootstrap(by_doc, two_stage=True, resamples=resamples),
+            }
+    return result
+
+
+def write_extra(extra: dict) -> None:
+    """New files only; the archived audit outputs written by write_outputs are not touched by this."""
+    out = ROOT / "docs/results/independent_audit"
+    (out / "paired_tests.json").write_text(json.dumps(extra, indent=1), encoding="utf-8")
+    with (out / "attack_level.csv").open("w", newline="", encoding="utf-8") as fh:
+        w = csv.writer(fh)
+        w.writerow(["model", "config", "attacks", "mean_rate", "wilson_lo", "wilson_hi", "any_trial", "all_trials"])
+        for n, rows in extra["attack_level"].items():
+            for e, r in rows.items():
+                w.writerow([n, e, r["attacks"], round(r["mean_rate"], 4), round(r["lo"], 4), round(r["hi"], 4), r["any_trial"], r["all_trials"]])
+    print(f"wrote {out.relative_to(ROOT)}/paired_tests.json and attack_level.csv")
 
 
 def write_outputs(checks, metrics, trans, boot, fam, issues, missing, runs) -> None:

@@ -120,3 +120,25 @@ def test_cohen_kappa_and_blinding_helpers():
     assert cohen_kappa([("yes", "yes")]) is None and cohen_kappa([]) is None  # undefined: one label only / no data
     assert blind_ids(3, "B") == ["B001", "B002", "B003"]
     assert shuffled(range(10), 1) == shuffled(range(10), 1) != list(range(10))
+
+
+def test_exact_tests_and_attack_level_rates():
+    from injection_defense.evaluation.metrics import (
+        attack_level_rate, cluster_bootstrap, exact_binomial_two_sided, mcnemar_exact, sign_test,
+    )
+
+    assert exact_binomial_two_sided(0, 0) == 1.0
+    assert abs(exact_binomial_two_sided(1, 10) - 0.021484375) < 1e-12  # 2 * (1 + 10) / 1024
+    assert exact_binomial_two_sided(5, 10) == 1.0
+    first = {"a": False, "b": False, "c": True, "d": False}
+    second = {"a": True, "b": True, "c": True, "d": False, "e": True}
+    t = mcnemar_exact(first, second)
+    assert (t.n_pairs, t.favours_first, t.favours_second, t.ties) == (4, 2, 0, 2) and t.p_value == 0.5
+    s = sign_test({"a": 0.0, "b": 0.5, "c": 1.0}, {"a": 1.0, "b": 1.0, "c": 1.0})
+    assert (s.favours_first, s.favours_second, s.ties) == (2, 0, 1)
+    r = attack_level_rate({"a": 1.0, "b": 0.5, "c": 0.0, "d": 0.0})
+    assert (r.attacks, r.mean_rate, r.any_trial, r.all_trials) == (4, 0.375, 2, 1) and r.wilson_95[0] < 0.375 < r.wilson_95[1]
+    boot = cluster_bootstrap({"doc1": [-1.0, 0.0], "doc2": [-0.5], "doc3": [0.0, 0.0, -1.0]}, two_stage=True, resamples=2000)
+    assert boot["clusters"] == 3 and boot["units"] == 6 and boot["lo"] <= boot["diff"] <= boot["hi"]
+    same = cluster_bootstrap({"x": [0.2, 0.2]}, two_stage=False, resamples=200)
+    assert same["lo"] == same["hi"] == same["diff"] == 0.2

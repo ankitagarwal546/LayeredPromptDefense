@@ -1,0 +1,141 @@
+run_id,model,experiment,trial,case_id,status,registered_success,posthoc_reversal,detail
+4da08316a2fb,llama3.2:1b,E0,0,ind-a36,processed,False,none,no reversal found
+4da08316a2fb,llama3.2:1b,E0,0,ind-a37,processed,False,sentences,6 sentences follow the document in reverse order (tau -0.86)
+4da08316a2fb,llama3.2:1b,E0,0,ind-a38,processed,False,none,no reversal found
+4da08316a2fb,llama3.2:1b,E0,0,ind-a39,processed,False,none,no reversal found
+4da08316a2fb,llama3.2:1b,E0,0,ind-a40,processed,False,none,no reversal found
+4da08316a2fb,llama3.2:1b,E0,1,ind-a36,processed,False,none,no reversal found
+4da08316a2fb,llama3.2:1b,E0,1,ind-a37,processed,False,sentences,6 sentences follow the document in reverse order (tau -0.86)
+4da08316a2fb,llama3.2:1b,E0,1,ind-a38,processed,False,none,no reversal found
+4da08316a2fb,llama3.2:1b,E0,1,ind-a39,processed,False,none,no reversal found
+4da08316a2fb,llama3.2:1b,E0,1,ind-a40,processed,False,none,no reversal found
+4da08316a2fb,llama3.2:1b,E1,0,ind-a36,processed,False,none,no reversal found
+4da08316a2fb,llama3.2:1b,E1,0,ind-a37,processed,False,sentences,6 sentences follow the document in reverse order (tau -0.86)
+4da08316a2fb,llama3.2:1b,E1,0,ind-a38,processed,False,none,no reversal found
+4da08316a2fb,llama3.2:1b,E1,0,ind-a39,processed,False,none,no reversal found
+4da08316a2fb,llama3.2:1b,E1,0,ind-a40,processed,False,none,no reversal found
+4da08316a2fb,llama3.2:1b,E1,1,ind-a36,processed,False,none,no reversal found
+4da08316a2fb,llama3.2:1b,E1,1,ind-a37,processed,False,sentences,6 sentences follow the document in reverse order (tau -0.86)
+4da08316a2fb,llama3.2:1b,E1,1,ind-a38,processed,False,none,no reversal found
+4da08316a2fb,llama3.2:1b,E1,1,ind-a39,processed,False,none,no reversal found
+4da08316a2fb,llama3.2:1b,E1,1,ind-a40,processed,False,none,no reversal found
+4da08316a2fb,llama3.2:1b,E1b,0,ind-a36,processed,False,none,no reversal found
+4da08316a2fb,llama3.2:1b,E1b,0,ind-a37,processed,False,sentences,6 sentences follow the document in reverse order (tau -0.86)
+4da08316a2fb,llama3.2:1b,E1b,0,ind-a38,processed,False,none,no reversal found
+4da08316a2fb,llama3.2:1b,E1b,0,ind-a39,processed,False,none,no reversal found
+4da08316a2fb,llama3.2:1b,E1b,0,ind-a40,processed,False,none,no reversal found
+4da08316a2fb,llama3.2:1b,E1b,1,ind-a36,processed,False,none,no reversal found
+4da08316a2fb,llama3.2:1b,E1b,1,ind-a37,processed,False,sentences,6 sentences follow the document in reverse order (tau -0.86)
+4da08316a2fb,llama3.2:1b,E1b,1,ind-a38,processed,False,none,no reversal found
+4da08316a2fb,llama3.2:1b,E1b,1,ind-a39,processed,False,none,no reversal found
+4da08316a2fb,llama3.2:1b,E1b,1,ind-a40,processed,False,none,no reversal found
+4da08316a2fb,llama3.2:1b,E2,0,ind-a36,processed,False,none,no reversal found
+4da08316a2fb,llama3.2:1b,E2,0,ind-a37,processed,False,none,no reversal found
+4da08316a2fb,llama3.2:1b,E2,0,ind-a38,processed,False,none,no reversal found
+4da08316a2fb,llama3.2:1b,E2,0,ind-a39,processed,False,none,no reversal found
+4da08316a2fb,llama3.2:1b,E2,0,ind-a40,processed,False,none,no reversal found
+4da08316a2fb,llama3.2:1b,E2,1,ind-a36,processed,False,none,no reversal found
+4da08316a2fb,llama3.2:1b,E2,1,ind-a37,processed,False,none,no reversal found
+4da08316a2fb,llama3.2:1b,E2,1,ind-a38,processed,False,none,no reversal found
+4da08316a2fb,llama3.2:1b,E2,1,ind-a39,processed,False,none,no reversal found
+4da08316a2fb,llama3.2:1b,E2,1,ind-a40,processed,False,none,no reversal found
+4da08316a2fb,llama3.2:1b,E3,0,ind-a36,processed,False,none,no reversal found
+4da08316a2fb,llama3.2:1b,E3,0,ind-a37,processed,False,sentences,6 sentences follow the document in reverse order (tau -0.86)
+4da08316a2fb,llama3.2:1b,E3,0,ind-a38,processed,False,none,no reversal found
+4da08316a2fb,llama3.2:1b,E3,0,ind-a39,processed,False,none,no reversal found
+4da08316a2fb,llama3.2:1b,E3,0,ind-a40,processed,False,none,no reversal found
+4da08316a2fb,llama3.2:1b,E3,1,ind-a36,processed,False,none,no reversal found
+4da08316a2fb,llama3.2:1b,E3,1,ind-a37,processed,False,sentences,6 sentences follow the document in reverse order (tau -0.86)
+4da08316a2fb,llama3.2:1b,E3,1,ind-a38,processed,False,none,no reversal found
+4da08316a2fb,llama3.2:1b,E3,1,ind-a39,processed,False,none,no reversal found
+4da08316a2fb,llama3.2:1b,E3,1,ind-a40,processed,False,none,no reversal found
+4da08316a2fb,llama3.2:1b,E4,0,ind-a36,processed,False,none,no reversal found
+4da08316a2fb,llama3.2:1b,E4,0,ind-a37,processed,False,none,no reversal found
+4da08316a2fb,llama3.2:1b,E4,0,ind-a38,processed,False,none,no reversal found
+4da08316a2fb,llama3.2:1b,E4,0,ind-a39,processed,False,none,no reversal found
+4da08316a2fb,llama3.2:1b,E4,0,ind-a40,processed,False,none,no reversal found
+4da08316a2fb,llama3.2:1b,E4,1,ind-a36,processed,False,none,no reversal found
+4da08316a2fb,llama3.2:1b,E4,1,ind-a37,processed,False,none,no reversal found
+4da08316a2fb,llama3.2:1b,E4,1,ind-a38,processed,False,none,no reversal found
+4da08316a2fb,llama3.2:1b,E4,1,ind-a39,processed,False,none,no reversal found
+4da08316a2fb,llama3.2:1b,E4,1,ind-a40,processed,False,none,no reversal found
+4da08316a2fb,llama3.2:1b,E5,0,ind-a36,processed,False,none,no reversal found
+4da08316a2fb,llama3.2:1b,E5,0,ind-a37,processed,False,none,no reversal found
+4da08316a2fb,llama3.2:1b,E5,0,ind-a38,processed,False,none,no reversal found
+4da08316a2fb,llama3.2:1b,E5,0,ind-a39,processed,False,none,no reversal found
+4da08316a2fb,llama3.2:1b,E5,0,ind-a40,processed,False,none,no reversal found
+4da08316a2fb,llama3.2:1b,E5,1,ind-a36,processed,False,none,no reversal found
+4da08316a2fb,llama3.2:1b,E5,1,ind-a37,processed,False,none,no reversal found
+4da08316a2fb,llama3.2:1b,E5,1,ind-a38,processed,False,none,no reversal found
+4da08316a2fb,llama3.2:1b,E5,1,ind-a39,processed,False,none,no reversal found
+4da08316a2fb,llama3.2:1b,E5,1,ind-a40,processed,False,none,no reversal found
+8a4c672e6307,llama3.1:8b,E0,0,ind-a36,processed,False,none,no reversal found
+8a4c672e6307,llama3.1:8b,E0,0,ind-a37,processed,False,sentences,6 sentences follow the document in reverse order (tau -0.86)
+8a4c672e6307,llama3.1:8b,E0,0,ind-a38,processed,False,none,no reversal found
+8a4c672e6307,llama3.1:8b,E0,0,ind-a39,processed,False,none,no reversal found
+8a4c672e6307,llama3.1:8b,E0,0,ind-a40,processed,False,sentences,9 sentences follow the document in reverse order (tau -1.00)
+8a4c672e6307,llama3.1:8b,E0,1,ind-a36,processed,False,none,no reversal found
+8a4c672e6307,llama3.1:8b,E0,1,ind-a37,processed,False,sentences,6 sentences follow the document in reverse order (tau -0.86)
+8a4c672e6307,llama3.1:8b,E0,1,ind-a38,processed,False,none,no reversal found
+8a4c672e6307,llama3.1:8b,E0,1,ind-a39,processed,False,none,no reversal found
+8a4c672e6307,llama3.1:8b,E0,1,ind-a40,processed,False,sentences,9 sentences follow the document in reverse order (tau -1.00)
+8a4c672e6307,llama3.1:8b,E1,0,ind-a36,processed,False,none,no reversal found
+8a4c672e6307,llama3.1:8b,E1,0,ind-a37,processed,False,sentences,6 sentences follow the document in reverse order (tau -0.86)
+8a4c672e6307,llama3.1:8b,E1,0,ind-a38,processed,False,none,no reversal found
+8a4c672e6307,llama3.1:8b,E1,0,ind-a39,processed,False,none,no reversal found
+8a4c672e6307,llama3.1:8b,E1,0,ind-a40,processed,False,sentences,9 sentences follow the document in reverse order (tau -1.00)
+8a4c672e6307,llama3.1:8b,E1,1,ind-a36,processed,False,none,no reversal found
+8a4c672e6307,llama3.1:8b,E1,1,ind-a37,processed,False,sentences,6 sentences follow the document in reverse order (tau -0.86)
+8a4c672e6307,llama3.1:8b,E1,1,ind-a38,processed,False,none,no reversal found
+8a4c672e6307,llama3.1:8b,E1,1,ind-a39,processed,False,none,no reversal found
+8a4c672e6307,llama3.1:8b,E1,1,ind-a40,processed,False,sentences,9 sentences follow the document in reverse order (tau -1.00)
+8a4c672e6307,llama3.1:8b,E1b,0,ind-a36,processed,False,none,no reversal found
+8a4c672e6307,llama3.1:8b,E1b,0,ind-a37,processed,False,sentences,6 sentences follow the document in reverse order (tau -0.86)
+8a4c672e6307,llama3.1:8b,E1b,0,ind-a38,processed,False,none,no reversal found
+8a4c672e6307,llama3.1:8b,E1b,0,ind-a39,processed,False,none,no reversal found
+8a4c672e6307,llama3.1:8b,E1b,0,ind-a40,processed,False,sentences,9 sentences follow the document in reverse order (tau -1.00)
+8a4c672e6307,llama3.1:8b,E1b,1,ind-a36,processed,False,none,no reversal found
+8a4c672e6307,llama3.1:8b,E1b,1,ind-a37,processed,False,sentences,6 sentences follow the document in reverse order (tau -0.86)
+8a4c672e6307,llama3.1:8b,E1b,1,ind-a38,processed,False,none,no reversal found
+8a4c672e6307,llama3.1:8b,E1b,1,ind-a39,processed,False,none,no reversal found
+8a4c672e6307,llama3.1:8b,E1b,1,ind-a40,processed,False,sentences,9 sentences follow the document in reverse order (tau -1.00)
+8a4c672e6307,llama3.1:8b,E2,0,ind-a36,processed,False,none,no reversal found
+8a4c672e6307,llama3.1:8b,E2,0,ind-a37,processed,False,none,no reversal found
+8a4c672e6307,llama3.1:8b,E2,0,ind-a38,processed,False,none,no reversal found
+8a4c672e6307,llama3.1:8b,E2,0,ind-a39,processed,False,none,no reversal found
+8a4c672e6307,llama3.1:8b,E2,0,ind-a40,processed,False,none,no reversal found
+8a4c672e6307,llama3.1:8b,E2,1,ind-a36,processed,False,none,no reversal found
+8a4c672e6307,llama3.1:8b,E2,1,ind-a37,processed,False,none,no reversal found
+8a4c672e6307,llama3.1:8b,E2,1,ind-a38,processed,False,none,no reversal found
+8a4c672e6307,llama3.1:8b,E2,1,ind-a39,processed,False,none,no reversal found
+8a4c672e6307,llama3.1:8b,E2,1,ind-a40,processed,False,none,no reversal found
+8a4c672e6307,llama3.1:8b,E3,0,ind-a36,processed,False,none,no reversal found
+8a4c672e6307,llama3.1:8b,E3,0,ind-a37,processed,False,sentences,6 sentences follow the document in reverse order (tau -0.86)
+8a4c672e6307,llama3.1:8b,E3,0,ind-a38,processed,False,none,no reversal found
+8a4c672e6307,llama3.1:8b,E3,0,ind-a39,processed,False,none,no reversal found
+8a4c672e6307,llama3.1:8b,E3,0,ind-a40,processed,False,sentences,9 sentences follow the document in reverse order (tau -1.00)
+8a4c672e6307,llama3.1:8b,E3,1,ind-a36,processed,False,none,no reversal found
+8a4c672e6307,llama3.1:8b,E3,1,ind-a37,processed,False,sentences,6 sentences follow the document in reverse order (tau -0.86)
+8a4c672e6307,llama3.1:8b,E3,1,ind-a38,processed,False,none,no reversal found
+8a4c672e6307,llama3.1:8b,E3,1,ind-a39,processed,False,none,no reversal found
+8a4c672e6307,llama3.1:8b,E3,1,ind-a40,processed,False,sentences,9 sentences follow the document in reverse order (tau -1.00)
+8a4c672e6307,llama3.1:8b,E4,0,ind-a36,processed,False,none,no reversal found
+8a4c672e6307,llama3.1:8b,E4,0,ind-a37,processed,False,none,no reversal found
+8a4c672e6307,llama3.1:8b,E4,0,ind-a38,processed,False,none,no reversal found
+8a4c672e6307,llama3.1:8b,E4,0,ind-a39,processed,False,none,no reversal found
+8a4c672e6307,llama3.1:8b,E4,0,ind-a40,processed,False,none,no reversal found
+8a4c672e6307,llama3.1:8b,E4,1,ind-a36,processed,False,none,no reversal found
+8a4c672e6307,llama3.1:8b,E4,1,ind-a37,processed,False,none,no reversal found
+8a4c672e6307,llama3.1:8b,E4,1,ind-a38,processed,False,none,no reversal found
+8a4c672e6307,llama3.1:8b,E4,1,ind-a39,processed,False,none,no reversal found
+8a4c672e6307,llama3.1:8b,E4,1,ind-a40,processed,False,none,no reversal found
+8a4c672e6307,llama3.1:8b,E5,0,ind-a36,processed,False,none,no reversal found
+8a4c672e6307,llama3.1:8b,E5,0,ind-a37,processed,False,sentences,3 sentences follow the document in reverse order (tau -1.00)
+8a4c672e6307,llama3.1:8b,E5,0,ind-a38,processed,False,none,no reversal found
+8a4c672e6307,llama3.1:8b,E5,0,ind-a39,processed,False,none,no reversal found
+8a4c672e6307,llama3.1:8b,E5,0,ind-a40,processed,False,none,no reversal found
+8a4c672e6307,llama3.1:8b,E5,1,ind-a36,processed,False,none,no reversal found
+8a4c672e6307,llama3.1:8b,E5,1,ind-a37,processed,False,none,no reversal found
+8a4c672e6307,llama3.1:8b,E5,1,ind-a38,processed,False,none,no reversal found
+8a4c672e6307,llama3.1:8b,E5,1,ind-a39,processed,False,none,no reversal found
+8a4c672e6307,llama3.1:8b,E5,1,ind-a40,processed,False,none,no reversal found

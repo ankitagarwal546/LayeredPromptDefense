@@ -1,0 +1,493 @@
+{
+ "attack_level": {
+  "1B": {
+   "E0": {
+    "attacks": 75,
+    "mean_rate": 0.44,
+    "lo": 0.3333127597678485,
+    "hi": 0.5525343057407155,
+    "any_trial": 33,
+    "all_trials": 33
+   },
+   "E1": {
+    "attacks": 75,
+    "mean_rate": 0.44,
+    "lo": 0.3333127597678485,
+    "hi": 0.5525343057407155,
+    "any_trial": 33,
+    "all_trials": 33
+   },
+   "E1b": {
+    "attacks": 75,
+    "mean_rate": 0.44,
+    "lo": 0.3333127597678485,
+    "hi": 0.5525343057407155,
+    "any_trial": 33,
+    "all_trials": 33
+   },
+   "E2": {
+    "attacks": 72,
+    "mean_rate": 0.2986111111111111,
+    "lo": 0.2053087253592902,
+    "hi": 0.4123153753980777,
+    "any_trial": 24,
+    "all_trials": 19
+   },
+   "E3": {
+    "attacks": 75,
+    "mean_rate": 0.4266666666666667,
+    "lo": 0.32100563365956936,
+    "hi": 0.53947411307312,
+    "any_trial": 32,
+    "all_trials": 32
+   },
+   "E4": {
+    "attacks": 73,
+    "mean_rate": 0.3219178082191781,
+    "lo": 0.22597693836715918,
+    "hi": 0.435664672426994,
+    "any_trial": 27,
+    "all_trials": 20
+   },
+   "E5": {
+    "attacks": 71,
+    "mean_rate": 0.29577464788732394,
+    "lo": 0.2023273873376572,
+    "hi": 0.41018757760162794,
+    "any_trial": 22,
+    "all_trials": 20
+   }
+  },
+  "8B": {
+   "E0": {
+    "attacks": 75,
+    "mean_rate": 0.4,
+    "lo": 0.29662343078170594,
+    "hi": 0.5131216783992341,
+    "any_trial": 30,
+    "all_trials": 30
+   },
+   "E1": {
+    "attacks": 75,
+    "mean_rate": 0.4,
+    "lo": 0.29662343078170594,
+    "hi": 0.5131216783992341,
+    "any_trial": 30,
+    "all_trials": 30
+   },
+   "E1b": {
+    "attacks": 75,
+    "mean_rate": 0.4,
+    "lo": 0.29662343078170594,
+    "hi": 0.5131216783992341,
+    "any_trial": 30,
+    "all_trials": 30
+   },
+   "E2": {
+    "attacks": 75,
+    "mean_rate": 0.2,
+    "lo": 0.12512038203120296,
+    "hi": 0.3041149455116171,
+    "any_trial": 16,
+    "all_trials": 14
+   },
+   "E3": {
+    "attacks": 75,
+    "mean_rate": 0.4,
+    "lo": 0.29662343078170594,
+    "hi": 0.5131216783992341,
+    "any_trial": 30,
+    "all_trials": 30
+   },
+   "E4": {
+    "attacks": 75,
+    "mean_rate": 0.21333333333333335,
+    "lo": 0.13580086342007996,
+    "hi": 0.31880178289861477,
+    "any_trial": 17,
+    "all_trials": 15
+   },
+   "E5": {
+    "attacks": 74,
+    "mean_rate": 0.20270270270270271,
+    "lo": 0.1268696381027667,
+    "hi": 0.30787990455822695,
+    "any_trial": 16,
+    "all_trials": 14
+   }
+  }
+ },
+ "paired": {
+  "1B E2 vs E0": {
+   "pairs": 72,
+   "diff": -0.14583333333333334,
+   "sign": {
+    "favours_defense": 18,
+    "favours_baseline": 7,
+    "ties": 47,
+    "p": 0.043285250663757324
+   },
+   "mcnemar_any": {
+    "favours_defense": 15,
+    "favours_baseline": 7,
+    "ties": 50,
+    "p": 0.13380050659179688
+   },
+   "boot_attacks": {
+    "clusters": 72,
+    "units": 72,
+    "diff": -0.14583333333333334,
+    "lo": -0.2708333333333333,
+    "hi": -0.027777777777777776
+   },
+   "boot_documents": {
+    "clusters": 20,
+    "units": 72,
+    "diff": -0.14583333333333334,
+    "lo": -0.2905405405405405,
+    "hi": -0.007246376811594203
+   },
+   "boot_two_stage": {
+    "clusters": 20,
+    "units": 72,
+    "diff": -0.14583333333333334,
+    "lo": -0.3141025641025641,
+    "hi": 0.021739130434782608
+   }
+  },
+  "1B E4 vs E0": {
+   "pairs": 73,
+   "diff": -0.10273972602739725,
+   "sign": {
+    "favours_defense": 16,
+    "favours_baseline": 8,
+    "ties": 49,
+    "p": 0.15158963203430176
+   },
+   "mcnemar_any": {
+    "favours_defense": 12,
+    "favours_baseline": 8,
+    "ties": 53,
+    "p": 0.5034446716308594
+   },
+   "boot_attacks": {
+    "clusters": 73,
+    "units": 73,
+    "diff": -0.10273972602739725,
+    "lo": -0.2191780821917808,
+    "hi": 0.0136986301369863
+   },
+   "boot_documents": {
+    "clusters": 20,
+    "units": 73,
+    "diff": -0.10273972602739725,
+    "lo": -0.21333333333333335,
+    "hi": 0.007246376811594203
+   },
+   "boot_two_stage": {
+    "clusters": 20,
+    "units": 73,
+    "diff": -0.10273972602739725,
+    "lo": -0.25,
+    "hi": 0.04666666666666667
+   }
+  },
+  "1B E5 vs E0": {
+   "pairs": 71,
+   "diff": -0.1267605633802817,
+   "sign": {
+    "favours_defense": 16,
+    "favours_baseline": 7,
+    "ties": 48,
+    "p": 0.0931396484375
+   },
+   "mcnemar_any": {
+    "favours_defense": 15,
+    "favours_baseline": 7,
+    "ties": 49,
+    "p": 0.13380050659179688
+   },
+   "boot_attacks": {
+    "clusters": 71,
+    "units": 71,
+    "diff": -0.1267605633802817,
+    "lo": -0.2535211267605634,
+    "hi": 0.0
+   },
+   "boot_documents": {
+    "clusters": 20,
+    "units": 71,
+    "diff": -0.1267605633802817,
+    "lo": -0.273972602739726,
+    "hi": 0.021739130434782608
+   },
+   "boot_two_stage": {
+    "clusters": 20,
+    "units": 71,
+    "diff": -0.1267605633802817,
+    "lo": -0.3051948051948052,
+    "hi": 0.05223880597014925
+   }
+  },
+  "1B E1 vs E0": {
+   "pairs": 75,
+   "diff": 0.0,
+   "sign": {
+    "favours_defense": 0,
+    "favours_baseline": 0,
+    "ties": 75,
+    "p": 1.0
+   },
+   "mcnemar_any": {
+    "favours_defense": 0,
+    "favours_baseline": 0,
+    "ties": 75,
+    "p": 1.0
+   },
+   "boot_attacks": {
+    "clusters": 75,
+    "units": 75,
+    "diff": 0.0,
+    "lo": 0.0,
+    "hi": 0.0
+   },
+   "boot_documents": {
+    "clusters": 20,
+    "units": 75,
+    "diff": 0.0,
+    "lo": 0.0,
+    "hi": 0.0
+   },
+   "boot_two_stage": {
+    "clusters": 20,
+    "units": 75,
+    "diff": 0.0,
+    "lo": 0.0,
+    "hi": 0.0
+   }
+  },
+  "1B E3 vs E0": {
+   "pairs": 75,
+   "diff": -0.013333333333333334,
+   "sign": {
+    "favours_defense": 1,
+    "favours_baseline": 0,
+    "ties": 74,
+    "p": 1.0
+   },
+   "mcnemar_any": {
+    "favours_defense": 1,
+    "favours_baseline": 0,
+    "ties": 74,
+    "p": 1.0
+   },
+   "boot_attacks": {
+    "clusters": 75,
+    "units": 75,
+    "diff": -0.013333333333333334,
+    "lo": -0.04,
+    "hi": 0.0
+   },
+   "boot_documents": {
+    "clusters": 20,
+    "units": 75,
+    "diff": -0.013333333333333334,
+    "lo": -0.04054054054054054,
+    "hi": 0.0
+   },
+   "boot_two_stage": {
+    "clusters": 20,
+    "units": 75,
+    "diff": -0.013333333333333334,
+    "lo": -0.0547945205479452,
+    "hi": 0.0
+   }
+  },
+  "8B E2 vs E0": {
+   "pairs": 75,
+   "diff": -0.2,
+   "sign": {
+    "favours_defense": 20,
+    "favours_baseline": 5,
+    "ties": 50,
+    "p": 0.004077315330505371
+   },
+   "mcnemar_any": {
+    "favours_defense": 19,
+    "favours_baseline": 5,
+    "ties": 51,
+    "p": 0.006610751152038574
+   },
+   "boot_attacks": {
+    "clusters": 75,
+    "units": 75,
+    "diff": -0.2,
+    "lo": -0.32,
+    "hi": -0.08666666666666667
+   },
+   "boot_documents": {
+    "clusters": 20,
+    "units": 75,
+    "diff": -0.2,
+    "lo": -0.2974683544303797,
+    "hi": -0.10135135135135136
+   },
+   "boot_two_stage": {
+    "clusters": 20,
+    "units": 75,
+    "diff": -0.2,
+    "lo": -0.34868421052631576,
+    "hi": -0.05405405405405406
+   }
+  },
+  "8B E4 vs E0": {
+   "pairs": 75,
+   "diff": -0.18666666666666668,
+   "sign": {
+    "favours_defense": 19,
+    "favours_baseline": 5,
+    "ties": 51,
+    "p": 0.006610751152038574
+   },
+   "mcnemar_any": {
+    "favours_defense": 18,
+    "favours_baseline": 5,
+    "ties": 52,
+    "p": 0.010622024536132812
+   },
+   "boot_attacks": {
+    "clusters": 75,
+    "units": 75,
+    "diff": -0.18666666666666668,
+    "lo": -0.30666666666666664,
+    "hi": -0.07333333333333333
+   },
+   "boot_documents": {
+    "clusters": 20,
+    "units": 75,
+    "diff": -0.18666666666666668,
+    "lo": -0.2808219178082192,
+    "hi": -0.09615384615384616
+   },
+   "boot_two_stage": {
+    "clusters": 20,
+    "units": 75,
+    "diff": -0.18666666666666668,
+    "lo": -0.3269230769230769,
+    "hi": -0.04666666666666667
+   }
+  },
+  "8B E5 vs E0": {
+   "pairs": 74,
+   "diff": -0.20270270270270271,
+   "sign": {
+    "favours_defense": 20,
+    "favours_baseline": 4,
+    "ties": 50,
+    "p": 0.001543879508972168
+   },
+   "mcnemar_any": {
+    "favours_defense": 18,
+    "favours_baseline": 4,
+    "ties": 52,
+    "p": 0.004343509674072266
+   },
+   "boot_attacks": {
+    "clusters": 74,
+    "units": 74,
+    "diff": -0.20270270270270271,
+    "lo": -0.32432432432432434,
+    "hi": -0.08783783783783784
+   },
+   "boot_documents": {
+    "clusters": 20,
+    "units": 74,
+    "diff": -0.20270270270270271,
+    "lo": -0.31690140845070425,
+    "hi": -0.0958904109589041
+   },
+   "boot_two_stage": {
+    "clusters": 20,
+    "units": 74,
+    "diff": -0.20270270270270271,
+    "lo": -0.3541666666666667,
+    "hi": -0.0547945205479452
+   }
+  },
+  "8B E1 vs E0": {
+   "pairs": 75,
+   "diff": 0.0,
+   "sign": {
+    "favours_defense": 0,
+    "favours_baseline": 0,
+    "ties": 75,
+    "p": 1.0
+   },
+   "mcnemar_any": {
+    "favours_defense": 0,
+    "favours_baseline": 0,
+    "ties": 75,
+    "p": 1.0
+   },
+   "boot_attacks": {
+    "clusters": 75,
+    "units": 75,
+    "diff": 0.0,
+    "lo": 0.0,
+    "hi": 0.0
+   },
+   "boot_documents": {
+    "clusters": 20,
+    "units": 75,
+    "diff": 0.0,
+    "lo": 0.0,
+    "hi": 0.0
+   },
+   "boot_two_stage": {
+    "clusters": 20,
+    "units": 75,
+    "diff": 0.0,
+    "lo": 0.0,
+    "hi": 0.0
+   }
+  },
+  "8B E3 vs E0": {
+   "pairs": 75,
+   "diff": 0.0,
+   "sign": {
+    "favours_defense": 0,
+    "favours_baseline": 0,
+    "ties": 75,
+    "p": 1.0
+   },
+   "mcnemar_any": {
+    "favours_defense": 0,
+    "favours_baseline": 0,
+    "ties": 75,
+    "p": 1.0
+   },
+   "boot_attacks": {
+    "clusters": 75,
+    "units": 75,
+    "diff": 0.0,
+    "lo": 0.0,
+    "hi": 0.0
+   },
+   "boot_documents": {
+    "clusters": 20,
+    "units": 75,
+    "diff": 0.0,
+    "lo": 0.0,
+    "hi": 0.0
+   },
+   "boot_two_stage": {
+    "clusters": 20,
+    "units": 75,
+    "diff": 0.0,
+    "lo": 0.0,
+    "hi": 0.0
+   }
+  }
+ },
+ "note": "exploratory, post hoc: no test was pre-registered; one non-blind reviewer; trials collapsed per attack (temperature 0, near-duplicates); McNemar 'any' = attack succeeded in at least one resolved trial; bootstrap seed 20261029; documents = resample the 20 host documents, documents+attacks = two-stage"
+}
