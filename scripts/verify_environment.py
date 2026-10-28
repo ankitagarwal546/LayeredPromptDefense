@@ -40,6 +40,16 @@ def main() -> int:
         except ImportError:
             print(f"  [absent]  {name} (optional)")
 
+    # macOS + Python 3.13: a hidden editable-install .pth breaks `import injection_defense` outside pytest; clear the flag.
+    sys.path.insert(0, str(ROOT / "scripts"))
+    from fix_editable_install import hidden_pth_files
+    import os
+    import stat
+    import sysconfig
+    for pth in hidden_pth_files(Path(sysconfig.get_paths()["purelib"])):
+        os.chflags(pth, os.stat(pth).st_flags & ~stat.UF_HIDDEN)
+        print(f"  [fixed]   cleared the macOS hidden flag on {pth.name} (Python 3.13 skips hidden .pth files)")
+
     try:
         from injection_defense.config import Settings
         from injection_defense.defenses.classifier import UnavailableClassifier, create_classifier

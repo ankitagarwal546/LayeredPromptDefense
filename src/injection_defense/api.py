@@ -41,6 +41,7 @@ from injection_defense.schemas import SummarizeRequest, SummarizeResponse
 
 logger = logging.getLogger("injection_defense")
 FRONTEND_DIR = REPO_ROOT / "frontend"
+FRONTEND_PREVIOUS_DIR = REPO_ROOT / "frontend_backup_previous"  # byte-for-byte copy of the UI before the 2026-10-29 overhaul
 FINDINGS_DIR = REPO_ROOT / "docs" / "results" / "independent_audit"  # committed, human-reviewed audit outputs
 MAX_API_EVAL_CALLS = 3000  # larger experiments belong on the CLI
 
@@ -303,6 +304,8 @@ def create_app(
             "transitions_vs_E0": paired.get("transitions_vs_E0", {}),
         }
 
+    if FRONTEND_PREVIOUS_DIR.exists():  # the classic UI, read-only, for comparison or rollback (scripts/switch_frontend.py)
+        app.mount("/app-previous", StaticFiles(directory=FRONTEND_PREVIOUS_DIR, html=True), name="frontend-previous")
     if FRONTEND_DIR.exists():
         app.mount("/app", StaticFiles(directory=FRONTEND_DIR, html=True), name="frontend")
 
