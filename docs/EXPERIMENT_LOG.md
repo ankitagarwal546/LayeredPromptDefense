@@ -480,3 +480,7 @@ No model call, no defense, prompt, scorer, data or result changed.
 - **Summary-quality ratings (R5, kit only):** `scripts/prepare_quality_rating.py` built `results/quality_rating/` with 100 blinded clean-document summaries (25 benign documents x {E0, E2} x {1B, 8B}, trial 0; no outcome lacked a summary). Rubric: faithful 1-5, coverage 1-5, usable yes/no. `scripts/summarize_quality.py` will aggregate by model x configuration with Wilson intervals for "usable"; unrated items are counted, never scored.
 - **Pre-registration draft:** `docs/PREREGISTRATION_DRAFT.md` (X1 classifier false alarms on instruction-heavy clean documents, X2 datamarking variant, X3 marker vs restated-task ablation, X4 operator deny-list E6), with hypotheses, outcomes and call counts. Not registered; nothing implemented.
 - Tests: 253 passed (new: kit blinding, deterministic rebuild, agreement and aggregation round trips, kappa helper).
+
+## 2026-10-29 - Second blinded review skipped (owner decision)
+
+The project owner decided not to run the second, blinded attack-label review. All attack-success labels therefore remain from one non-blinded reviewer (the author), as already stated in FINAL_REPORT section 14; no inter-rater agreement is available. The kit (`results/blind_review/`, git-ignored) and its tools stay in the repository in case the review is done later.
