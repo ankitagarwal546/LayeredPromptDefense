@@ -1,4 +1,4 @@
-"""Real-LLM adapters (OpenAI-compatible chat completions, Anthropic Messages) and a factory.
+"""Real-LLM adapters (OpenAI-compatible chat completions, Ollama native chat, Anthropic Messages) and a factory.
 
 Nothing here runs unless the caller asks for a real model and the environment is configured.
 Adapters are written against the public API shapes; they have not been exercised against a
@@ -6,6 +6,8 @@ live endpoint in this repository's automated tests (which use a stubbed HTTP tra
 """
 
 from __future__ import annotations
+
+from urllib.parse import urlparse
 
 import httpx
 
@@ -89,6 +91,45 @@ class OpenAICompatibleClient(_HTTPClient):
         return payload["choices"][0]["message"]["content"]
 
 
+class OllamaClient(_HTTPClient):
+    """Ollama's native /api/chat, used when a context size must be set per request.
+
+    Ollama's OpenAI-compatible endpoint cannot set `num_ctx`, so long documents plus a long answer can overflow its
+    default 4,096-token context and be cut off silently. This client sends `options.num_ctx` explicitly.
+    """
+
+    provider = "ollama"
+
+    def __init__(self, *, base_url: str, num_ctx: int, **kwargs):
+        super().__init__(**kwargs)
+        base = base_url.rstrip("/")
+        self._url = (base[:-3] if base.endswith("/v1") else base) + "/api/chat"
+        self._num_ctx = num_ctx
+        self.generation_params = {**self.generation_params, "num_ctx": num_ctx}
+
+    def _request(self, prompt: PromptBundle) -> dict:
+        return {
+            "url": self._url,
+            "json": {
+                "model": self.model_name,
+                "stream": False,
+                "options": {"temperature": self._temperature, "num_predict": self._max_tokens, "num_ctx": self._num_ctx},
+                "messages": [
+                    {"role": "system", "content": prompt.system},
+                    {"role": "user", "content": prompt.user},
+                ],
+            },
+        }
+
+    def _parse(self, payload: dict) -> str:
+        return payload["message"]["content"]
+
+
+def looks_like_ollama(base_url: str) -> bool:
+    """Ollama's default port; the web UI only switches to the native API for such servers."""
+    return urlparse(base_url).port == 11434
+
+
 class AnthropicClient(_HTTPClient):
     provider = "anthropic"
 
@@ -136,12 +177,14 @@ def create_llm_client(
             return MockLLM()
         model, key, base_url = settings.llm_model, settings.llm_api_key, settings.llm_base_url
         max_tokens = settings.llm_max_tokens
+        num_ctx = settings.llm_num_ctx
     else:
         provider = settings.classifier_provider
         model = settings.classifier_model or settings.llm_model
         key = settings.classifier_api_key or settings.llm_api_key
         base_url = settings.classifier_base_url or settings.llm_base_url
         max_tokens = 200
+        num_ctx = None
 
     missing = []
     if provider == "none":
@@ -163,4 +206,8 @@ def create_llm_client(
     )
     if provider == "anthropic":
         return AnthropicClient(**common)
+    # Native Ollama API only when a context size is requested (LLM_NUM_CTX; the web UI sets it from UI_NUM_CTX) or
+    # LLM_PROVIDER=ollama. Experiments leave LLM_NUM_CTX unset, so their requests are unchanged.
+    if provider == "ollama" or (num_ctx and looks_like_ollama(base_url)):
+        return OllamaClient(base_url=base_url, num_ctx=num_ctx or 8192, **common)
     return OpenAICompatibleClient(base_url=base_url, **common)

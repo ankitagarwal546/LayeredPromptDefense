@@ -195,7 +195,7 @@ def test_web_ui_limits_apply_to_summarize_but_never_to_experiments(tmp_path):
                  llm_max_tokens=512, llm_timeout_s=60, ui_max_tokens=2048, ui_timeout_s=180)
     seen = []
     c = TestClient(create_app(s, llm_factory=lambda x: seen.append((x.llm_max_tokens, x.llm_timeout_s)) or ScriptedLLM("ok")))
-    assert c.get("/config").json()["ui_limits"] == {"max_tokens": 2048, "timeout_s": 180}
+    assert c.get("/config").json()["ui_limits"] == {"max_tokens": 2048, "timeout_s": 180, "num_ctx": 8192}
     c.post("/summarize", json={"document_text": DOC, "model": "real"})
     job = c.post("/evaluate", json={"case_set": "dev", "experiments": ["E0"], "model": "real", "confirm_external_calls": True}).json()
     wait_for(c, job["job_id"])

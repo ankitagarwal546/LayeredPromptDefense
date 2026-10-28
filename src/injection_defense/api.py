@@ -133,14 +133,15 @@ def create_app(
         except ModelNotConfiguredError:
             return None
         host = urlparse(settings.llm_base_url).hostname or ""
-        local = llm.provider == "openai_compatible" and host in ("localhost", "127.0.0.1", "::1")
+        local = llm.provider in ("openai_compatible", "ollama") and host in ("localhost", "127.0.0.1", "::1")
         return {"provider": llm.provider, "name": llm.model_name, "is_local": local}
 
     def real_llm_for(name: str | None) -> LLMClient:
         """The model for an interactive /summarize request: the default real model or one of the extra
         models the server allows (never an arbitrary name), with the web UI's answer length and timeout.
         /evaluate does not use this, so experiments keep LLM_MAX_TOKENS / LLM_TIMEOUT_S."""
-        ui = settings.model_copy(update={"llm_max_tokens": settings.ui_max_tokens, "llm_timeout_s": settings.ui_timeout_s})
+        ui = settings.model_copy(update={"llm_max_tokens": settings.ui_max_tokens, "llm_timeout_s": settings.ui_timeout_s,
+                                         "llm_num_ctx": settings.ui_num_ctx or None})
         if not name or name == settings.llm_model:
             return make_real_llm(ui)
         if name not in settings.real_model_names():
@@ -167,7 +168,7 @@ def create_app(
             "default_defense_preset": settings.default_defense_preset,
             "real_model": real_model_info(),
             "real_models": [info for info in (real_model_info(n) for n in settings.real_model_names()) if info],
-            "ui_limits": {"max_tokens": settings.ui_max_tokens, "timeout_s": settings.ui_timeout_s},
+            "ui_limits": {"max_tokens": settings.ui_max_tokens, "timeout_s": settings.ui_timeout_s, "num_ctx": settings.ui_num_ctx or None},
             "classifier_available": not isinstance(make_classifier(settings), UnavailableClassifier),
             # Name only, for API models (a transformers model may be a local path, which is not shown).
             "classifier_model": (settings.classifier_model or None) if settings.classifier_provider in ("openai_compatible", "anthropic") else None,
@@ -195,7 +196,8 @@ def create_app(
             result = extract_text(file.filename or "", data)
         except ExtractionError as exc:
             raise HTTPException(422, detail={"error": "extraction_failed", "message": str(exc)}) from None
-        return {"format": result.format, "chars": result.chars, "text": result.text, "warnings": result.warnings}
+        return {"format": result.format, "chars": result.chars, "text": result.text, "warnings": result.warnings,
+                "hidden_text": result.hidden_text, "removed_invisible_chars": result.removed_invisible_chars}
 
     @app.post("/summarize", response_model=SummarizeResponse)
     def summarize(request: SummarizeRequest) -> SummarizeResponse:

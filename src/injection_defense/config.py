@@ -12,7 +12,7 @@ REPO_ROOT = Path(__file__).resolve().parents[2]
 MAX_DOCUMENT_CHARS = 50_000
 MAX_INSTRUCTION_CHARS = 1_000
 
-LLMProvider = Literal["mock", "openai_compatible", "anthropic"]
+LLMProvider = Literal["mock", "openai_compatible", "ollama", "anthropic"]
 ClassifierProvider = Literal["none", "openai_compatible", "anthropic", "transformers"]
 
 
@@ -28,6 +28,8 @@ class Settings(BaseSettings):
     llm_temperature: float = 0.0
     llm_max_tokens: int = 512
     llm_timeout_s: float = 60.0
+    # Ollama context window per request (prompt + answer). Unset = server default (4,096 tokens), as in all logged runs.
+    llm_num_ctx: int | None = Field(default=None, gt=0)
     # Comma-separated extra model names on the same provider and base URL (e.g. a second local
     # Ollama model) that the web UI may choose per request. LLM_MODEL stays the default.
     llm_extra_models: str = ""
@@ -35,6 +37,7 @@ class Settings(BaseSettings):
     # Experiments (/evaluate and scripts/) keep LLM_MAX_TOKENS / LLM_TIMEOUT_S, so logged runs stay comparable.
     ui_max_tokens: int = Field(default=2048, gt=0)
     ui_timeout_s: float = Field(default=180.0, gt=0)
+    ui_num_ctx: int = Field(default=8192, ge=0)  # 0 = do not set (then Ollama's default 4,096 applies)
 
     classifier_provider: ClassifierProvider = "none"
     classifier_model: str = ""

@@ -299,3 +299,36 @@ def test_classifier_parser_accepts_the_first_json_object_and_ignores_trailing_ju
     skip = ScriptedLLM('Analysis {not json} then {"suspicious": false, "confidence": 0.1} bye')
     assert PromptClassifier(skip).detect("t").flagged is False
     assert PromptClassifier(ScriptedLLM("{}")).detect("t").status == "error"   # missing fields
+
+
+def test_ollama_native_client_sends_num_ctx_only_when_asked():
+    import json as _json
+
+    import httpx
+
+    from injection_defense.config import Settings
+    from injection_defense.llm.base import PromptBundle
+    from injection_defense.llm.provider import OllamaClient, OpenAICompatibleClient, create_llm_client
+
+    seen = []
+
+    def handler(request):
+        seen.append((str(request.url), _json.loads(request.content)))
+        if request.url.path == "/api/chat":
+            return httpx.Response(200, json={"message": {"role": "assistant", "content": "native reply"}})
+        return httpx.Response(200, json={"choices": [{"message": {"content": "compat reply"}}]})
+
+    base = Settings(_env_file=None, llm_provider="openai_compatible", llm_model="llama3.2:1b", llm_api_key="ollama",
+                    llm_base_url="http://localhost:11434/v1", llm_max_tokens=512)
+    transport = httpx.MockTransport(handler)
+    experiment = create_llm_client(base, transport=transport)  # no LLM_NUM_CTX: unchanged OpenAI-compatible request
+    assert isinstance(experiment, OpenAICompatibleClient)
+    assert experiment.generate(PromptBundle(system="s", user="u")).text == "compat reply"
+    web = create_llm_client(base.model_copy(update={"llm_num_ctx": 8192, "llm_max_tokens": 2048}), transport=transport)
+    assert isinstance(web, OllamaClient) and web.generate(PromptBundle(system="s", user="u")).text == "native reply"
+    (url1, body1), (url2, body2) = seen
+    assert url1.endswith("/v1/chat/completions") and "options" not in body1 and body1["max_tokens"] == 512
+    assert url2 == "http://localhost:11434/api/chat" and body2["stream"] is False
+    assert body2["options"] == {"temperature": 0.0, "num_predict": 2048, "num_ctx": 8192}
+    other = create_llm_client(base.model_copy(update={"llm_num_ctx": 8192, "llm_base_url": "https://api.example.com/v1"}), transport=transport)
+    assert isinstance(other, OpenAICompatibleClient)  # not an Ollama server: never switch protocols silently

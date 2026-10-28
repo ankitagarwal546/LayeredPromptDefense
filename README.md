@@ -57,8 +57,9 @@ python scripts/verify_environment.py
 ```
 
 **Troubleshooting (macOS):** if `ModuleNotFoundError: No module named 'injection_defense'` appears even though the install succeeded, Python 3.13 is
-skipping an editable-install `.pth` file that macOS flagged as hidden. Fix: `.venv/bin/python scripts/fix_editable_install.py` (also run automatically by
-`scripts/verify_environment.py`; same as `chflags nohidden .venv/lib/python3.13/site-packages/*.pth`). `pytest` works either way (`pythonpath = ["src"]`). The tests and the
+skipping an editable-install `.pth` file that macOS flagged as hidden (on this machine macOS re-hides `.pth` files within minutes). Fix, once per
+virtual environment: `.venv/bin/python scripts/fix_editable_install.py`, which links `src/injection_defense` into site-packages so no `.pth` is
+needed (also run by `scripts/verify_environment.py`). `pytest` works either way (`pythonpath = ["src"]`). The tests and the
 scripts work around this on their own; for the server use `--app-dir src` (below); for ad-hoc `python -c` prefix `PYTHONPATH=src`.
 
 ## Environment configuration
