@@ -10,7 +10,6 @@ let lastResults = null;
 let examples = [];
 let currentExample = null;
 let lastRun = null;  // the document text and instruction of the test being run (fixed at "Run test")
-let lastExtractHidden = [];  // passages the last file upload flagged as hidden (tiny, white or hidden text)
 let findings = null;
 let findingsModel = "1B";
 
@@ -75,14 +74,11 @@ const PRESET_TEXT = {
   E3: "AI checker: an extra AI call first judges whether the document contains an attack.",
   E4: "Word rules plus safer instructions.",
   E5: "Everything: word rules, AI checker and safer instructions.",
-  E2v4: "NEW, not evaluated: safer instructions v4 (nonce fence explained to the model plus strict scope binding).",
-  E5v2: "NEW, not evaluated: word rules v2, checker prompt v2, safer instructions v4 and the output guard. Designed after the study's results were seen.",
 };
 
 function shortPreset(name) {
   return { E0: "no protection", E1: "word rules (block)", E1b: "word rules (clean)", E2: "safer instructions",
-    E3: "AI checker", E4: "word rules + safer instr.", E5: "all layers", E2v4: "safer instructions v4 (new)",
-    E5v2: "all improved layers (new)" }[name] || "";
+    E3: "AI checker", E4: "word rules + safer instr.", E5: "all layers" }[name] || "";
 }
 
 const PIPELINE = [
@@ -200,8 +196,7 @@ function countUp(node, target, suffix = "%") {
 // ---------- setup ----------
 async function init() {
   config = await api("/config");
-  const logged = new Set(config.logged_presets || Object.keys(config.presets));
-  for (const name of Object.keys(config.presets)) $("preset").append(el("option", { value: name, text: `${name} · ${shortPreset(name)}${logged.has(name) ? "" : " · not evaluated"}` }));
+  for (const name of Object.keys(config.presets)) $("preset").append(el("option", { value: name, text: `${name} · ${shortPreset(name)}` }));
   fillSelect($("p-heuristic"), config.policies.heuristic, (v) => `policy: ${v}`);
   fillSelect($("p-classifier"), config.policies.classifier, (v) => `policy: ${v}`);
   fillSelect($("p-variant"), config.structural_variants, (v) => `prompt wording ${v}`);
@@ -230,7 +225,7 @@ async function init() {
   document.querySelectorAll(".nav-item").forEach((item) => item.addEventListener("click", () => switchTab(item.dataset.tab)));
   $("menu-btn").addEventListener("click", () => setNav(!$("app").classList.contains("nav-open")));
   document.querySelectorAll(".seg").forEach((b) => b.addEventListener("click", () => { findingsModel = b.dataset.model; renderFindings(); }));
-  $("doc").addEventListener("input", () => { updateCount(); clearExample(); lastExtractHidden = []; });
+  $("doc").addEventListener("input", () => { updateCount(); clearExample(); });
   $("file").addEventListener("change", onFile);
   $("model").addEventListener("change", updateModelNote);
   $("preset").addEventListener("change", () => applyPreset($("preset").value));
@@ -301,29 +296,11 @@ function setupIntro() {
     p.style.setProperty("--a", `${i * 40}deg`); p.style.animationDelay = `${-i * 0.66}s`;
     stack.append(p);
   }
-  // Mouse parallax: the pointer sets a target tilt; a requestAnimationFrame loop eases toward it (--tilt-x / --tilt-y).
-  const tilt = { x: 0, y: 0, tx: 0, ty: 0 };
+  // Tilt the stack with the pointer.
   $("intro").addEventListener("pointermove", (e) => {
-    tilt.tx = (e.clientX / innerWidth - 0.5) * 30;
-    tilt.ty = -(e.clientY / innerHeight - 0.5) * 20;
+    const x = e.clientX / innerWidth - 0.5, y = e.clientY / innerHeight - 0.5;
+    stack.style.setProperty("--rx", `${x * 30}deg`); stack.style.setProperty("--ry", `${-y * 20}deg`);
   });
-  const ease = () => {
-    tilt.x += (tilt.tx - tilt.x) * 0.08;
-    tilt.y += (tilt.ty - tilt.y) * 0.08;
-    stack.style.setProperty("--tilt-x", `${tilt.x.toFixed(2)}deg`);
-    stack.style.setProperty("--tilt-y", `${tilt.y.toFixed(2)}deg`);
-    if (!$("intro").classList.contains("hidden")) requestAnimationFrame(ease);
-    else setTimeout(() => requestAnimationFrame(ease), 500);
-  };
-  if (!REDUCED_MOTION) requestAnimationFrame(ease);
-  // The nonce shield: a fresh random fence code every few seconds, intercepting the red (hidden) line.
-  const shield = document.querySelector(".nonce-shield");
-  const relabel = () => {
-    $("nonce-label").textContent = `<<<DOCUMENT_${randomHex(8)}>>>`;
-    shield.classList.remove("flash"); void shield.offsetWidth; shield.classList.add("flash");
-  };
-  relabel();
-  if (!REDUCED_MOTION) setInterval(() => { if (!$("intro").classList.contains("hidden")) relabel(); }, 2600);
 
   // Typed line under the button.
   const lines = ["scanning document for hidden orders…", "L1 word rules · L2 AI checker · L3 safer instructions", "75 real attacks · 2 local models · human-reviewed"];
@@ -369,7 +346,7 @@ function setupIntro() {
       if (e.isIntersecting && (e.target.id === "ov-kpis" || e.target.id === "ov-chart")) drawOverview(e.target.id === "ov-kpis" ? "kpis" : "chart");
     }
   }, { root: intro, threshold: 0.25 });
-  intro.querySelectorAll(".reveal, .split, .takeaways, #ov-kpis, #ov-chart, #layer-cards").forEach((n) => io.observe(n));
+  intro.querySelectorAll(".reveal, .split, .takeaways, #ov-kpis, #ov-chart").forEach((n) => io.observe(n));
 
   intro.querySelectorAll("[data-scroll]").forEach((b) => b.addEventListener("click", () => scrollLanding(b.dataset.scroll)));
   intro.querySelectorAll("[data-goto]").forEach((b) => b.addEventListener("click", () => switchTab(b.dataset.goto)));
@@ -423,14 +400,7 @@ function switchTab(name) {
   if (name === "overview") { openLanding("ov-land"); return; }
   enterDashboard();
   document.querySelectorAll(".nav-item").forEach((t) => t.classList.toggle("active", t.dataset.tab === name));
-  // Morph between pages: the old one fades and lifts away, the new one slides in (see .pane-leave / .tabpane).
-  const target = $(`tab-${name}`);
-  const current = document.querySelector(".tabpane:not(.hidden)");
-  const show = () => { for (const pane of Object.keys(PAGE_TITLES)) $(`tab-${pane}`).classList.toggle("hidden", name !== pane); };
-  if (current && current !== target && !REDUCED_MOTION) {
-    current.classList.add("pane-leave");
-    setTimeout(() => { current.classList.remove("pane-leave"); show(); }, 170);
-  } else show();
+  for (const pane of Object.keys(PAGE_TITLES)) $(`tab-${pane}`).classList.toggle("hidden", name !== pane);
   $("page-title").textContent = PAGE_TITLES[name];
   document.title = `${PAGE_TITLES[name]} · Defense Lab`;
   if (name === "results") loadRuns();
@@ -445,9 +415,6 @@ function applyPreset(name) {
   $("d-classifier").checked = p.classifier && config.classifier_available; $("p-classifier").value = p.classifier_policy;
   $("d-structural").checked = p.structural; $("p-variant").value = p.structural_variant;
   $("d-output").checked = p.output_validation; $("d-failclosed").checked = p.fail_closed_on_detector_error;
-  $("v-heuristic").value = p.heuristic_rules || "v1"; $("v-sanitize").value = p.sanitize_marker || "redacted";
-  $("v-classifier").value = p.classifier_prompt || "v1";
-  $("d-guard").checked = Boolean(p.runtime_guard); $("p-guard").value = p.runtime_guard_policy || "flag_only";
   $("preset-desc").textContent = PRESET_TEXT[name] || "";
 }
 
@@ -459,15 +426,10 @@ function currentDefenses() {
     structural: $("d-structural").checked, structural_variant: $("p-variant").value,
     output_validation: $("d-output").checked,
     fail_closed_on_detector_error: $("d-failclosed").checked,
-    heuristic_rules: $("v-heuristic").value, sanitize_marker: $("v-sanitize").value,
-    classifier_prompt: $("v-classifier").value,
-    runtime_guard: $("d-guard").checked, runtime_guard_policy: $("p-guard").value,
   };
   // Say so when the layers no longer match the chosen preset, so results are never shown under a preset's name.
   const preset = config.presets[d.name];
-  const needs = { heuristic_policy: "heuristic", heuristic_rules: "heuristic", sanitize_marker: "heuristic", classifier_policy: "classifier",
-    classifier_prompt: "classifier", structural_variant: "structural", runtime_guard_policy: "runtime_guard" };
-  const relevant = (k) => (needs[k] ? d[needs[k]] : true);
+  const relevant = (k) => (k.endsWith("_policy") || k === "structural_variant") ? d[k.replace(/_policy$|_variant$/, "")] : true;
   if (preset && Object.keys(d).some((k) => k !== "name" && relevant(k) && preset[k] !== d[k])) d.name = `${d.name} (custom)`;
   return d;
 }
@@ -519,7 +481,6 @@ async function loadExamples() {
 
 function pickExample(ex) {
   currentExample = ex;
-  lastExtractHidden = [];
   $("doc").value = ex.text;
   updateCount();
   document.querySelectorAll(".example").forEach((b) => b.classList.toggle("selected", b.dataset.example === ex.id));
@@ -550,12 +511,7 @@ async function onFile() {
     const result = await api("/extract", { method: "POST", body: form });
     $("doc").value = result.text;
     updateCount(); clearExample();
-    lastExtractHidden = result.hidden_text || [];
-    note.replaceChildren(document.createTextNode(`Extracted ${result.chars.toLocaleString()} characters from the ${result.format.toUpperCase()} file. The text above is exactly what will be sent. ${(result.warnings || []).join(" ")}`));
-    if (lastExtractHidden.length) {
-      note.append(el("ul", { class: "hidden-list" }, ...lastExtractHidden.map((h) => el("li", {}, el("q", { text: h })))));
-    }
-    note.classList.toggle("alert", lastExtractHidden.length > 0 || (result.removed_invisible_chars || 0) > 0);
+    note.textContent = `Extracted ${result.chars.toLocaleString()} characters from the ${result.format.toUpperCase()} file. The text above is exactly what will be sent. ${(result.warnings || []).join(" ")}`;
     note.classList.remove("hidden");
   } catch (err) {
     note.classList.add("hidden");
@@ -575,7 +531,6 @@ async function summarize(defenses) {
       model: chosenModel().mode,
       model_name: chosenModel().name,
       general_task: true,
-      include_prompt: true,
       defenses,
     }),
   });
@@ -586,83 +541,61 @@ function syncChips() {
 }
 
 // ---------- live run view ----------
-// Walks the document through the layers while the request runs. Steps before the model are paced so they can be
-// read; the LLM step waits for the server's real reply, and then every station is coloured from that reply, one by
-// one (so where the document stopped, and why, is real, not animation). Stage labels follow the pipeline order; the
-// server reports only once it has finished.
-const STEP_MS = REDUCED_MOTION ? 120 : 850;
-const REVEAL_MS = REDUCED_MOTION ? 30 : 150;
+// Walks the document through the layers while the request runs. Steps before the model are paced so they
+// can be read; the model step waits for the server's real reply, and then every station is coloured from
+// that reply (so where the document stopped, and why, is real, not animation).
+const STEP_MS = REDUCED_MOTION ? 150 : 1150;
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
-const LOCK_ICON = "M7 11V8a5 5 0 0 1 10 0v3M6 11h12v9H6z";
 
 const STATIONS = {
-  doc: { label: "Extract", icon: "M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8zM14 3v5h5",
-    head: "Extract · reading the document", text: "The text is loaded and treated as untrusted: any sentence in it could be a hidden order." },
-  heuristic: { label: "L1 Regex", icon: "M17 11a6 6 0 1 1-12 0 6 6 0 0 1 12 0zM20 20l-4.5-4.5",
-    head: "L1 · scanning for attack wording", text: "Word rules look for phrases such as “ignore previous instructions” or “you are now”." },
-  classifier: { label: "L2 Classifier", icon: "M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12zM15 12a3 3 0 1 1-6 0 3 3 0 0 1 6 0z",
-    head: "L2 · asking the AI checker", text: "A second model reads the document and answers one question: is any of it aimed at the AI?" },
-  structural: { label: "L3 Nonce fence", icon: "M8 4H5v16h3M16 4h3v16h-3",
-    head: "L3 · fencing the payload with a 16-hex nonce", text: "The document is wrapped in markers with a fresh random code and labelled as data; the task is restated after it." },
-  model: { label: "LLM", icon: "M7 7h10v10H7zM10 3v4M14 3v4M10 17v4M14 17v4M3 10h4M3 14h4M17 10h4M17 14h4", head: "", text: "" },
-  output: { label: "L4 Validator", icon: "M4 6h10M4 12h10M4 18h6M15 16l2.5 2.5L22 14",
-    head: "L4 · checking against the attack's goal", text: "Experiment scorer: compares the answer with what the attack wanted (only possible when that is known)." },
-  guard: { label: "L4 Guard", icon: "M12 3l8 3v6c0 5-3.5 8-8 9-4.5-1-8-4-8-9V6z",
-    head: "L4 · checking the answer", text: "Looks for a leaked reference code, links that are not in the document, and language or topic drift." },
+  doc: { label: "Document", icon: "M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8zM14 3v5h5",
+    head: "Reading the document", text: "The text is loaded and treated as untrusted: any sentence in it could be a hidden order." },
+  heuristic: { label: "L1 Words", icon: "M17 11a6 6 0 1 1-12 0 6 6 0 0 1 12 0zM20 20l-4.5-4.5",
+    head: "L1 · scanning for attack wording", text: "Fast word rules look for phrases such as “ignore previous instructions” or “you are now”." },
+  classifier: { label: "L2 Checker", icon: "M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12zM15 12a3 3 0 1 1-6 0 3 3 0 0 1 6 0z",
+    head: "L2 · asking the AI checker", text: "A second AI reads the document and answers one question: does this look like an attack?" },
+  structural: { label: "L3 Wrap", icon: "M8 4H5v16h3M16 4h3v16h-3",
+    head: "L3 · fencing the document as data", text: "The text is wrapped in markers with a random code, and the AI is told that nothing inside them is an order." },
+  model: { label: "AI model", icon: "M7 7h10v10H7zM10 3v4M14 3v4M10 17v4M14 17v4M3 10h4M3 14h4M17 10h4M17 14h4",
+    head: "Asking the AI", text: "" },  // head and text are set per run from the task
+  output: { label: "L4 Output", icon: "M4 6h10M4 12h10M4 18h6M15 16l2.5 2.5L22 14",
+    head: "L4 · checking the answer", text: "The answer is compared with what the attack wanted, to see whether it slipped through." },
   answer: { label: "Answer", icon: "M4 5h16v11H9l-5 4z", head: "", text: "" },
 };
 
-function runView(title) {
-  const status = el("span", { class: "run-status running", text: "RUNNING" });
-  const clock = el("span", { class: "run-clock", text: "0.0 s" });
-  const conduit = el("div", { class: "conduit" });
-  const xray = el("div", { class: "doc-xray scanning", "aria-hidden": "true" }, el("pre", { class: "doc-text", text: lastRun.doc.slice(0, 4000) }), el("span", { class: "xray-line" }));
+function runView(total) {
+  const title = el("h3"), clock = el("span", { class: "run-clock", text: "0.0 s" });
+  const track = el("div", { class: "run-track" });
   const scene = el("div", { class: "scene-box", "aria-hidden": "true" });
   const say = el("div", { class: "say" });
-  const micro = el("div", { class: "micro" });
   const log = el("ul", { class: "run-log" });
   const node = el("div", { class: "card run", role: "status", "aria-live": "polite" },
-    el("div", { class: "run-head" }, el("h3", { text: title }), el("div", { class: "run-meta" }, status, clock)), conduit,
-    el("div", { class: "stage" }, xray, el("div", { class: "stage-right" }, scene, say, micro)), log);
+    el("div", { class: "run-head" }, title, clock), track, el("div", { class: "stage" }, scene, say), log);
   const started = performance.now();
   const timer = setInterval(() => { clock.textContent = `${((performance.now() - started) / 1000).toFixed(1)} s`; }, 100);
-  return { node, status, conduit, xray, scene, say, micro, log, stations: [], segments: [], stop: () => clearInterval(timer) };
+  return { node, title, track, scene, say, log, total, stations: [], stop: () => clearInterval(timer) };
 }
 
 function setTrack(view, keys) {
-  const n = keys.length;
-  const lines = svg("svg", { class: "conduit-lines", viewBox: "0 0 100 10", preserveAspectRatio: "none", "aria-hidden": "true" });
-  view.segments = [];
-  for (let i = 0; i < n - 1; i++) {
-    const x1 = ((i + 0.5) / n) * 100, x2 = ((i + 1.5) / n) * 100;
-    const base = svg("line", { x1, y1: 5, x2, y2: 5, class: "seg-base", "vector-effect": "non-scaling-stroke" });
-    const flow = svg("line", { x1, y1: 5, x2, y2: 5, class: "seg-flow", "vector-effect": "non-scaling-stroke" });
-    lines.append(base, flow);
-    view.segments.push(flow);
-  }
+  const fill = el("div", { class: "track-fill" });
   const packet = el("div", { class: "packet" }, el("i"), el("i"), el("i"));
-  const nodes = el("div", { class: "conduit-nodes" });
-  nodes.style.setProperty("--n", n);
+  view.track.replaceChildren(el("div", { class: "track-line" }, fill), packet);
+  view.track.style.setProperty("--n", keys.length);
   view.stations = keys.map((k) => {
-    const s = el("div", { class: `station st-${k}` },
-      el("span", { class: "st-dot" }, el("span", { class: "orbit" }), svg("svg", { viewBox: "0 0 24 24" }, svg("path", { d: STATIONS[k].icon }))),
+    const s = el("div", { class: "station" },
+      el("span", { class: "st-dot" }, svg("svg", { viewBox: "0 0 24 24" }, svg("path", { d: STATIONS[k].icon }))),
       el("span", { class: "st-label", text: STATIONS[k].label }));
-    nodes.append(s);
+    view.track.append(s);
     return s;
   });
-  view.conduit.replaceChildren(lines, nodes, packet);
-  view.conduit.style.setProperty("--n", n);
-  view.packet = packet;
+  Object.assign(view, { fill, packet });
 }
 
-function moveTo(view, i, { flowing = true } = {}) {
+function moveTo(view, i) {
   const n = view.stations.length;
   view.packet.style.left = `${((i + 0.5) / n) * 100}%`;
+  view.fill.style.width = `${(i / (n - 1)) * 100}%`;
   view.stations.forEach((s, j) => { s.classList.toggle("now", j === i); s.classList.toggle("passed", j < i); });
-  view.segments.forEach((seg, j) => {
-    seg.classList.toggle("done", j < i - 1 || (!flowing && j < i));
-    seg.classList.toggle("active", flowing && j === i - 1);
-  });
 }
 
 // Small decorative scene for each step (aria-hidden; the text beside it says the same thing).
@@ -675,18 +608,12 @@ function miniPage() {
 function sceneFor(key, tone) {
   switch (key) {
     case "doc": case "heuristic": return [miniPage(), ...(key === "heuristic" ? [el("div", { class: "lens" })] : [])];
-    case "classifier": return [miniPage(), el("div", { class: "bot" }, el("i")), el("div", { class: "bubble", text: "aimed at the AI?" })];
-    case "structural": return [el("div", { class: "fence" }, miniPage()), el("div", { class: "fence-tag", text: `<<<DOCUMENT_${randomHex(4)}…>>>` })];
-    case "model": return [el("div", { class: "chip" }, el("i")), el("div", { class: "wave" }, ...Array.from({ length: 9 }, (_, i) => { const b = el("i"); b.style.setProperty("--k", i); return b; }))];
-    case "output": case "guard": return [el("div", { class: "ans" }, ...[0, 1, 2].map(() => el("div", {}, el("i"), el("b", { text: "✓" }))))];
+    case "classifier": return [miniPage(), el("div", { class: "bot" }, el("i")), el("div", { class: "bubble", text: "attack?" })];
+    case "structural": return [el("div", { class: "fence" }, miniPage()), el("div", { class: "fence-tag", text: "DATA ONLY" })];
+    case "model": return [el("div", { class: "chip" }, el("i")), el("div", { class: "stream" }, el("i"), el("i"), el("i"))];
+    case "output": return [el("div", { class: "ans" }, ...[0, 1, 2].map(() => el("div", {}, el("i"), el("b", { text: "✓" }))))];
     default: return [el("div", { class: `ball ${tone}`, text: { allow: "✓", warn: "!", block: "✕", unchecked: "–" }[tone] })];
   }
-}
-
-function randomHex(bytes) {
-  const a = new Uint8Array(bytes);
-  (window.crypto || {}).getRandomValues ? crypto.getRandomValues(a) : a.forEach((_, i) => { a[i] = Math.floor(Math.random() * 256); });
-  return Array.from(a, (b) => b.toString(16).padStart(2, "0")).join("");
 }
 
 function narrate(view, key, head, text, tone = "") {
@@ -696,7 +623,7 @@ function narrate(view, key, head, text, tone = "") {
 }
 
 function blockKey(d) {
-  return { heuristic: "heuristic", classifier: "classifier", output_validation: "output", runtime_guard: "guard" }[d.blocked_by] || "answer";
+  return { heuristic: "heuristic", classifier: "classifier", output_validation: "output" }[d.blocked_by] || "answer";
 }
 
 function stationState(key, d) {
@@ -709,93 +636,60 @@ function stationState(key, d) {
   if (key === "structural") return d.reached_model ? "applied" : "skip";  // a prompt change, not a check
   if (key === "model") return d.reached_model ? "ok" : "skip";
   if (key === "output") return !d.output_validation ? "skip" : d.output_validation.outcome === "indicator_matched" ? "block" : "ok";
-  if (key === "guard") return !d.runtime_guard ? "skip" : !d.runtime_guard.flagged ? "ok" : d.runtime_guard.policy_action === "withheld" ? "block" : "warn";
   if (key === "answer") return { block: "block", warn: "warn" }[d.enforcement_decision] || "ok";
   return "ok";
 }
 
-// Rotating status lines while the server works (in pipeline order; not live telemetry).
-function microSteps(d) {
-  const steps = [];
-  if (d.classifier) steps.push("L2 · local checker model is reading the document…");
-  if (d.structural) steps.push(`Fencing payload with 16-hex nonce <<<DOCUMENT_${randomHex(8)}>>>…`);
-  steps.push(`Awaiting local ${chosenModel().name || "model"} inference…`, "The model is writing its answer (long tasks on 8B can take a minute)…");
-  return steps;
-}
-
-async function playRun(view, run) {
+async function playRun(view, run, index) {
   const d = run.defenses;
-  const keys = ["doc", ...["heuristic", "classifier", "structural"].filter((k) => d[k]), "model",
-    ...(d.output_validation ? ["output"] : []), ...(d.runtime_guard ? ["guard"] : []), "answer"];
+  const keys = ["doc", ...["heuristic", "classifier", "structural"].filter((k) => d[k]), "model", ...(d.output_validation ? ["output"] : []), "answer"];
+  view.title.textContent = `${view.total > 1 ? `Run ${index + 1} of ${view.total} · ` : ""}${run.title}`;
   setTrack(view, keys);
-  const texts = {
-    model: [`LLM · “${lastRun.instruction}”`, d.structural ? "The model gets your task plus the fenced document and works on it."
-      : "The document goes straight into the model's instructions, so a hidden order looks just like yours."],
-  };
-  const say = (k) => texts[k] || [STATIONS[k].head, STATIONS[k].text];
+  STATIONS.model.head = `Asking the AI: “${lastRun.instruction}”`;
+  STATIONS.model.text = d.structural
+    ? "The AI gets your task plus the fenced document and works on it."
+    : "The document goes straight into the AI's instructions, so a hidden order looks just like yours.";
 
   let data = null, failure = null, settled = false;
   const request = summarize(run.payload).then((r) => { data = r; }, (e) => { failure = e; }).finally(() => { settled = true; });
   const modelAt = keys.indexOf("model");
   for (let i = 0; i <= modelAt; i++) {
     moveTo(view, i);
-    narrate(view, keys[i], ...say(keys[i]));
+    narrate(view, keys[i], STATIONS[keys[i]].head, STATIONS[keys[i]].text);
     await sleep(STEP_MS);
     if (failure) throw failure;
-    if (data && !data.reached_model && keys.indexOf(blockKey(data)) <= i) break;  // stopped before the model
+    if (data && !data.reached_model && keys.indexOf(blockKey(data)) <= i) break;  // stopped before the AI
   }
   if (!settled) {
-    view.stations[modelAt].classList.add("busy");
-    const steps = microSteps(d);
-    let k = 0;
-    const tick = () => { view.micro.replaceChildren(el("span", { class: "micro-step", text: steps[k % steps.length] })); k++; };
-    tick();
-    const rotate = setInterval(tick, 1800);
+    view.scene.classList.add("waiting");
+    view.say.append(el("p", { class: "small", text: "Waiting for the server: the checks and the AI's answer run there. The stations are coloured from its real reply." }));
     await request;
-    clearInterval(rotate);
-    view.stations[modelAt].classList.remove("busy");
   }
-  view.micro.replaceChildren();
   if (failure) throw failure;
-  for (const k of ["output", "guard"]) {
-    if (data.reached_model && keys.includes(k)) {
-      moveTo(view, keys.indexOf(k));
-      narrate(view, k, ...say(k));
-      await sleep(STEP_MS * 0.7);
-    }
+  if (data.reached_model && keys.includes("output")) {
+    moveTo(view, keys.indexOf("output"));
+    narrate(view, "output", STATIONS.output.head, STATIONS.output.text);
+    await sleep(STEP_MS * 0.8);
   }
 
-  // Verdict cascade: reveal each station's real state in order, then where the document ended up.
+  // Reveal what really happened.
   const { tone, head, body } = verdictOf(data);
   const stopAt = keys.indexOf(blockKey(data));
-  const last = stopAt < 0 ? keys.length - 1 : stopAt;
-  view.xray.classList.remove("scanning");
-  for (const [j, k] of keys.entries()) {
-    if (j > last && stationState(k, data) !== "skip") continue;
-    const state = stationState(k, data);
-    view.stations[j].classList.remove("now", "busy");
-    view.stations[j].classList.add("final", state);
-    if (state === "block") view.stations[j].querySelector(".st-dot").append(svg("svg", { class: "lock", viewBox: "0 0 24 24" }, svg("path", { d: LOCK_ICON })));
-    if (j <= last) moveTo(view, j, { flowing: false });
-    await sleep(REVEAL_MS);
-  }
-  keys.forEach((k, j) => { if (!view.stations[j].classList.contains("final")) view.stations[j].classList.add("final", "skip"); });
+  moveTo(view, stopAt < 0 ? keys.length - 1 : stopAt);
   view.packet.classList.add(tone);
-  view.status.className = `run-status ${data.enforcement_decision}`;
-  view.status.textContent = data.blocked_by ? `BLOCK · ${STATIONS[blockKey(data)].label}` : data.enforcement_decision.toUpperCase();
-  if (data.blocked_by) view.node.classList.add("tripped");
+  keys.forEach((k, j) => setTimeout(() => view.stations[j].classList.add("final", stationState(k, data)), j * 110));
   narrate(view, "result", head, body, tone);
   if (data.blocked_by) view.say.append(el("p", { class: "small", text: `Stopped at ${STATIONS[blockKey(data)].label}: ${blockReason(data)}` }));
   const where = data.reached_model ? `answer ${data.enforcement_decision === "allow" ? "delivered" : data.enforcement_decision === "warn" ? "delivered with a warning" : "withheld"}` : `stopped at ${STATIONS[blockKey(data)].label}`;
   view.log.append(el("li", { class: tone }, el("b", { text: run.title }), document.createTextNode(` · ${where} · ${(data.latency_ms / 1000).toFixed(1)} s`)));
+  await sleep(REDUCED_MOTION ? 300 : 1900);
   return data;
 }
 
 // One-line, plain-language reason for a blocked result, from what the blocking layer reported.
 function blockReason(d) {
-  if (d.blocked_by === "output_validation") return "the answer matched what the attack wanted, so it was withheld.";
-  if (d.blocked_by === "runtime_guard") return `the output guard found: ${(d.runtime_guard?.findings || []).map((f) => f.detail).join("; ") || "a problem"}.`;
   const det = d.detections.find((x) => x.layer === d.blocked_by);
+  if (d.blocked_by === "output_validation") return "the answer matched what the attack wanted, so it was withheld.";
   if (!det) return "a layer stopped it.";
   const name = det.layer === "heuristic" ? "L1 word rules" : "L2, the AI checker,";
   if (det.status !== "evaluated") return `${name} could not run, and “Block if a detector fails” is on.`;
@@ -806,7 +700,7 @@ function blockReason(d) {
 
 // The "Why it was blocked" box: the reason, the evidence the layer gave, and a way to run the test again.
 function whyBlocked(d) {
-  const box = el("div", { class: "why" }, el("h5", {}, svg("svg", { class: "why-lock", viewBox: "0 0 24 24" }, svg("path", { d: LOCK_ICON })), document.createTextNode("Why it was blocked")));
+  const box = el("div", { class: "why" }, el("h5", { text: "Why it was blocked" }));
   const det = d.detections.find((x) => x.layer === d.blocked_by);
   box.append(el("p", { text: `Stopped at ${STATIONS[blockKey(d)].label}: ${blockReason(d)}` }));
   if (det && det.status === "evaluated" && det.layer === "heuristic") {
@@ -816,17 +710,15 @@ function whyBlocked(d) {
         .map((s) => el("q", { text: s.length > 120 ? `${s.slice(0, 120)}…` : s }));
       list.append(el("li", {}, el("b", { text: m.description }), document.createTextNode(` (weight ${m.weight}) `), ...quotes));
     }
-    box.append(el("p", { text: "Wording it matched in your document (also highlighted in the document card above):" }), list,
+    box.append(el("p", { text: "Wording it matched in your document:" }), list,
       el("p", { text: "Word rules only look at wording, so a document that talks about attacks can match without being one." }));
   } else if (det && det.status === "evaluated") {
-    box.append(el("p", { text: `The checker (${det.model_name || "a model"}) is itself a small AI and makes mistakes. Documents full of ordinary instructions, such as exam questions, code or how-to steps, can look like orders to it. In the study the 1B checker wrongly flagged 2 of 50 clean documents. Checker prompt v2 (Customize layers) separates reader exercises from AI-directed text.` }));
+    box.append(el("p", { text: `The checker (${det.model_name || "a model"}) is itself a small AI and makes mistakes. Documents full of ordinary instructions, such as exam questions, code or how-to steps, can look like orders to it. In the study the 1B checker wrongly flagged 2 of 50 clean documents.` }));
   }
-  if (!det && d.blocked_by !== "runtime_guard") return box;
-  const fix = d.blocked_by === "runtime_guard"
-    ? { label: "Run again with the guard on warn only", apply: () => { $("p-guard").value = "flag_only"; } }
-    : det.status !== "evaluated"
-      ? { label: "Run again, don't block on errors", apply: () => { $("d-failclosed").checked = false; } }
-      : { label: "Run again with this layer on warn only", apply: () => { $(det.layer === "heuristic" ? "p-heuristic" : "p-classifier").value = "flag_only"; } };
+  if (!det) return box;
+  const fix = det.status !== "evaluated"
+    ? { label: "Run again, don't block on errors", apply: () => { $("d-failclosed").checked = false; } }
+    : { label: "Run again with this layer on warn only", apply: () => { $(det.layer === "heuristic" ? "p-heuristic" : "p-classifier").value = "flag_only"; } };
   const again = el("button", { type: "button", class: "btn sm", text: fix.label });
   again.addEventListener("click", () => {
     fix.apply();
@@ -841,107 +733,35 @@ function whyBlocked(d) {
 async function onSubmit(event) {
   event.preventDefault();
   showError("");
-  lastRun = { doc: $("doc").value, instruction: $("instruction").value.trim() || "Summarize this document.", hidden: lastExtractHidden };
+  lastRun = { doc: $("doc").value, instruction: $("instruction").value.trim() || "Summarize this document." };
   const button = $("submit");
   button.disabled = true; button.textContent = "Testing…";
-  $("form").classList.add("busy");
   const defenses = currentDefenses();
-  const runs = [{ title: `Defended · ${defenses.name}`, payload: defenses, defenses }];
-  if ($("compare").checked) runs.unshift({ title: "Undefended · E0", payload: { name: "E0" }, defenses: {} });
-  const views = runs.map((r) => runView(r.title));
-  const arena = el("div", { class: runs.length > 1 ? "arena" : "arena single" }, ...views.map((v) => v.node));
-  $("results").replaceChildren(arena);
+  const runs = [{ title: `With protection · ${defenses.name}`, payload: defenses, defenses }];
+  if ($("compare").checked) runs.push({ title: "No protection · E0", payload: { name: "E0" }, defenses: {} });
+  const view = runView(runs.length);
+  $("results").replaceChildren(view.node);
   $("results").scrollIntoView({ behavior: "smooth", block: "start" });
   try {
-    // Both runs start together so their animations are synchronized; the server may still process them in turn.
-    const data = await Promise.all(runs.map((run, i) => playRun(views[i], run)));
-    await sleep(REDUCED_MOTION ? 200 : 1400);
-    lastResults = runs.map((run, i) => ({ title: run.title, data: data[i] }));
+    const results = [];
+    for (const [i, run] of runs.entries()) results.push({ title: run.title, data: await playRun(view, run, i) });
+    lastResults = results.reverse();  // show "No protection" first, as before
     renderResults(lastResults);
     $("results").scrollIntoView({ behavior: "smooth", block: "start" });
   } catch (err) {
     $("results").replaceChildren();
     showError(err.message);
   } finally {
-    views.forEach((v) => v.stop());
-    $("form").classList.remove("busy");
+    view.stop();
     button.disabled = false; button.textContent = "Run test";
   }
-}
-
-// ---------- document card with highlights, prompt inspector ----------
-function highlighted(text, ranges) {
-  const merged = [];
-  for (const r of [...ranges].sort((a, b) => a.start - b.start)) {
-    const prev = merged[merged.length - 1];
-    if (prev && r.start <= prev.end) { prev.end = Math.max(prev.end, r.end); prev.kinds.add(r.kind); prev.titles.add(r.title); }
-    else merged.push({ start: r.start, end: r.end, kinds: new Set([r.kind]), titles: new Set([r.title]) });
-  }
-  const nodes = [];
-  let cursor = 0;
-  for (const m of merged) {
-    if (m.start > cursor) nodes.push(document.createTextNode(text.slice(cursor, m.start)));
-    const mark = document.createElement("mark");
-    mark.className = [...m.kinds].join(" ");
-    mark.title = [...m.titles].join("; ");
-    mark.textContent = text.slice(m.start, m.end);
-    nodes.push(mark);
-    cursor = m.end;
-  }
-  if (cursor < text.length) nodes.push(document.createTextNode(text.slice(cursor)));
-  return nodes;
-}
-
-function documentCard(results) {
-  const ranges = [];
-  for (const r of results) {
-    const det = r.data.detections.find((x) => x.layer === "heuristic");
-    for (const m of det ? det.matched_rules : []) for (const [start, end] of m.spans) ranges.push({ start, end, kind: "rule", title: `L1: ${m.description}` });
-  }
-  const lower = lastRun.doc.toLowerCase();
-  for (const h of lastRun.hidden || []) {
-    const probe = h.replace(/…$/, "").slice(0, 80).toLowerCase();
-    const at = probe ? lower.indexOf(probe) : -1;
-    if (at >= 0) ranges.push({ start: at, end: at + probe.length, kind: "hidden", title: "Looks hidden from a human reader (tiny, white or hidden text)" });
-  }
-  const legend = el("div", { class: "legend" }, el("span", {}, el("i", { class: "sw rule" }), document.createTextNode("L1 word-rule match")),
-    el("span", {}, el("i", { class: "sw hidden-sw" }), document.createTextNode("hidden text in the file")));
-  const pre = el("pre", { class: "doc-text full" }, ...highlighted(lastRun.doc, ranges));
-  const details = el("details", { class: "section doc-card" }, el("summary", { text: `Your document${ranges.length ? ` · ${ranges.length} highlighted passage(s)` : " · nothing highlighted"}` }), legend, pre);
-  details.open = ranges.length > 0;
-  return details;
-}
-
-// Colour-coded view of the exact prompt the server sent (system message, nonce markers, untrusted payload, task).
-function promptInspector(d) {
-  if (!d.prompt) return null;
-  const seg = (cls, text) => el("span", { class: `pp ${cls}`, text });
-  const system = el("pre", { class: "prompt-pre" });
-  const canaryAt = d.prompt.system.indexOf("\n\nConfidential reference code");
-  if (canaryAt >= 0) system.append(seg("sys", d.prompt.system.slice(0, canaryAt)), seg("canary", d.prompt.system.slice(canaryAt)));
-  else system.append(seg("sys", d.prompt.system));
-  const user = el("pre", { class: "prompt-pre" });
-  const markers = [...d.prompt.user.matchAll(/<<<(?:END_)?[A-Z_]+_[0-9a-f]{16}>>>/g)];
-  if (markers.length >= 2) {
-    const [open, close] = [markers[0], markers[markers.length - 1]];
-    const u = d.prompt.user;
-    user.append(seg("task", u.slice(0, open.index)), seg("nonce", open[0]), seg("payload", u.slice(open.index + open[0].length, close.index)),
-      seg("nonce", close[0]), seg("task restate", u.slice(close.index + close[0].length)));
-  } else {
-    const split = d.prompt.user.indexOf("\n\n");
-    user.append(seg("task", split >= 0 ? d.prompt.user.slice(0, split + 2) : ""), seg("payload", split >= 0 ? d.prompt.user.slice(split + 2) : d.prompt.user));
-  }
-  const key = el("div", { class: "legend" }, ...[["sys", "system message"], ["nonce", "nonce markers"], ["payload", "untrusted document"], ["task", "your task / restatement"], ["canary", "guard reference code"]]
-    .map(([c, label]) => el("span", {}, el("i", { class: `sw pp-${c}` }), document.createTextNode(label))));
-  return el("details", { class: "tech prompt-drawer" }, el("summary", { text: "Inspect constructed prompt" }),
-    el("div", { class: "drawer-body" }, key, el("h6", { text: "System message" }), system, el("h6", { text: "User message" }), user));
 }
 
 function badge(text, cls) { return el("span", { class: `badge ${cls}`, text }); }
 
 function renderResults(results) {
   const root = $("results");
-  root.replaceChildren(documentCard(results));
+  root.replaceChildren();
   const cols = el("div", { class: "cols" });
   for (const r of results) cols.append(renderResult(r.title, r.data));
   root.append(cols);
@@ -998,10 +818,6 @@ function renderResult(title, d) {
     sub: `${d.model_calls} model call${d.model_calls === 1 ? "" : "s"}`, kind: "warn" }));
   card.append(meters);
 
-  if (d.runtime_guard && d.runtime_guard.flagged && d.blocked_by !== "runtime_guard") {
-    card.append(el("div", { class: "note guard-note" }, el("b", { text: "Output guard warning: " }),
-      document.createTextNode(d.runtime_guard.findings.map((f) => f.detail).join("; "))));
-  }
   card.append(el("h4", { text: "Step by step" }), timeline(d));
   card.append(el("h4", { text: "The AI's answer" }), el("p", { class: "task-line" }, document.createTextNode("Task: "), el("b", { text: lastRun.instruction })));
   card.append(el("pre", { class: `summary${d.summary === null ? " blocked" : ""}`,
@@ -1032,8 +848,6 @@ function renderResult(title, d) {
   add("defenses", d.defenses.name + ": " + (d.defenses.structural ? `structural ${d.defenses.structural_variant}, ` : "") + (["heuristic", "classifier", "output_validation"].filter((x) => d.defenses[x]).join(", ") || "no detectors"));
   details.append(kv);
   card.append(details);
-  const inspector = promptInspector(d);
-  if (inspector) card.append(inspector);
   return outer;
 }
 
@@ -1066,13 +880,7 @@ function timeline(d) {
   if (d.reached_model) step("info", "AI", "Model answered:", `${d.model.is_mock ? "mock stand-in (not a real AI)" : d.model.name}, in ${((d.timings_ms.generation || 0) / 1000).toFixed(1)} s.`);
   else step("block", "✕", "Model:", "never reached; no answer was generated.");
   if (d.output_validation) step(d.output_validation.outcome === "indicator_matched" ? "block" : "ok", "✓", "L4 Output check:", d.output_validation.explanation);
-  else if (!d.runtime_guard) step("off", "–", "L4 Output check:", "off (needs the attack's goal, known only in experiments).");
-  if (d.runtime_guard) {
-    const g = d.runtime_guard;
-    step(!g.flagged ? "ok" : g.policy_action === "withheld" ? "block" : "warn", g.flagged ? "!" : "✓", "L4 Output guard:",
-      g.flagged ? `${g.findings.map((f) => f.detail).join("; ")}. ${g.policy_action === "withheld" ? "The answer was withheld." : "Only flagged."}`
-        : "no leaked code, no unexpected links, no language or topic drift found.");
-  }
+  else step("off", "–", "L4 Output check:", "off (needs the attack's goal, known only in experiments).");
   return list;
 }
 

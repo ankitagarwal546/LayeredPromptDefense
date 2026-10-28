@@ -29,7 +29,8 @@ Sub-questions RQ1-RQ6, hypotheses and related work: [docs/RESEARCH_PLAN.md](docs
 - New, **not evaluated** versions (2026-10-29; opt-in, presets `E2v4` and `E5v2`): word rules v2, checker prompt v2, structural v4 / v4dm
   (datamarking), a runtime output guard (canary, links, language/topic drift), and partial hidden-text detection in file extraction. The logged
   presets E0-E5 are unchanged. Offline, rules v2 removed most false alarms but caught no additional attack (`scripts/compare_heuristic_versions.py`).
-- Two web UIs: the new one at `/app/` and the previous one at `/app-previous/` (`python scripts/switch_frontend.py --use previous|new` swaps which one `/app/` serves).
+- Two web UIs: `/app/` currently serves the classic UI (the owner switched back on 2026-10-29); the overhauled UI is saved in `frontend_backup_new/`
+  and comes back with `python scripts/switch_frontend.py --use new`. `/app-previous/` always serves the classic UI.
 - Evaluation: JSONL cases, family-level held-out splits (checksum-frozen), ASR / FPR / utility / generalization gap / latency / failure metrics with
   denominators and intervals, checkpointed and resumable runs, manual adjudication, charts and reports.
 
