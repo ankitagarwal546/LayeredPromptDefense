@@ -1,11 +1,11 @@
 # HANDOFF.md: canonical project state
 
-Last updated: 2026-11-09 (session 5, checkpoint 20: repository audit, .gitignore refinement, GitHub Actions CI workflow, issue templates, and GitHub publication readiness assessment). Update at every checkpoint (see L).
+Last updated: 2026-11-09 (session 5, checkpoint 21: published to GitHub under ankitagarwal546/LayeredPromptDefense; default branch main; macOS CI runner passing 4/4 matrix jobs; research tags pushed). Update at every checkpoint (see L).
 
 ## A. Project identity
 - **Title:** Evaluating Layered Defenses Against Indirect Prompt Injection in LLM-Based Document Summarization
 - **Objective:** working summarizer with a configurable defense pipeline + reproducible evaluation (RQ1-RQ6: `docs/RESEARCH_PLAN.md`)
-- **Repo:** `/Users/ankitagarwal546/Documents/Prompt Injection` (git, branch `master`, no remote). Tags `final-run-1-freeze` / `final-run-2-freeze` mark the frozen code for each final run; `independent-freeze` marks the frozen independent set. Check `git status` / `git log -1` for the current commit (do not trust a hash written here).
+- **Repo:** `/Users/ankitagarwal546/Documents/Prompt Injection` (git, default branch `main`, remote `origin` -> `https://github.com/ankitagarwal546/LayeredPromptDefense.git`). Tags `final-run-1-freeze` / `final-run-2-freeze` mark the frozen code for each final run; `independent-freeze` marks the frozen independent set; `frontend-classic-2026-10-29` marks the classic UI snapshot. Check `git status` / `git log -1` for the current commit.
 - **Phase:** software complete; final runs 1 (1B) and 2 (8B) done, analyzed, logged, reported (preliminary). Independent run 1 (1B) done and human-reviewed. Independent run 2 (8B) done and human-reviewed (`8a4c672e6307`); comparison done (EXPERIMENT_LOG) and report updated; next: literature review, frontend, demo.
 
 ## B. Current status
@@ -49,7 +49,7 @@ Last updated: 2026-11-09 (session 5, checkpoint 20: repository audit, .gitignore
 ## D. Remaining tasks (priority order)
 | ID | Task | Status | Acceptance |
 |---|---|---|---|
-| R0 | GitHub Publication Preparation | IN_PROGRESS (2026-11-09) | Repository audit complete; .gitignore refined; CI workflows + issue templates added; awaiting owner decision on top-level LICENSE and backup folder archival |
+| R0 | GitHub Publication | DONE (2026-11-09) | Published to https://github.com/ankitagarwal546/LayeredPromptDefense; main branch; 4 tags preserved; CI passing across Python 3.10-3.13; .gitignore enhanced; secrets excluded |
 | R1 | Human verification of the 103 AI-adjudicated labels | DONE (2026-10-24) | reviewer Ankit; 33 items, agreed 32, changed 1 (run 1 dev-a09 E2 t0 yes->no: run 1 E2 ASR 41.4% -> 40.0%); decisions in `docs/results/human_review_decisions.csv`; see EXPERIMENT_LOG |
 | R8 | Task-disruption measure (separate outcome; ASR unchanged) | DONE (2026-10-24) | `evaluation/disruption.py`, `scripts/task_disruption.py`, criteria `data/task_disruption_carriers.json`; rule committed (`1ab56a4`) before computing; agrees with human labels 62/64; results in EXPERIMENT_LOG / FINAL_REPORT and `docs/results/final_run_{1,2}/task_disruption*.csv` |
 | R2 | Run the same protocol on a hosted frontier model as a further SEPARATE condition (the 8B condition is done) | TODO / BLOCKED: needs the user's API key and a cost decision | new run id and EXPERIMENT_LOG entry; never mixed with the 1B run; held-out set is already spent for tuning purposes, so use a new held-out set for any further tuning |
