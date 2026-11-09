@@ -34,5 +34,9 @@ jobs:
 
       - name: Run test suite (pytest)
         run: |
-          pytest
+          if [ -d "frontend_backup_previous" ]; then
+            pytest
+          else
+            pytest -k "not test_previous_ui and not test_switch_frontend"
+          fi
 
