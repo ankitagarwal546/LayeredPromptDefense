@@ -57,3 +57,12 @@ Thumbs.db
 .vscode/
 .claude/
 
+# AI development instructions and local workflow documentation
+AGENTS.md
+CLAUDE.md
+HANDOFF.md
+
+# Local frontend backups (kept locally; not part of the public release)
+frontend_backup_new/
+frontend_backup_previous/
+
