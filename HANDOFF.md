@@ -1,6 +1,6 @@
 # HANDOFF.md: canonical project state
 
-Last updated: 2026-10-29 (session 4, checkpoint 19: optimization pass. Frontend backup + rollback (`/app-previous/`, `scripts/switch_frontend.py`); hidden-text detection in extraction; Ollama num_ctx for the web UI; new unevaluated defense versions (rules v2, checker prompt v2, structural v4/v4dm, runtime output guard; presets E2v4, E5v2); exact paired tests + document-cluster bootstrap in the audit; post-hoc Reverse Text re-scoring; report rounding fix; UI overhaul; demo re-recorded (6 local calls). Update at every checkpoint (see L).
+Last updated: 2026-11-09 (session 5, checkpoint 20: repository audit, .gitignore refinement, GitHub Actions CI workflow, issue templates, and GitHub publication readiness assessment). Update at every checkpoint (see L).
 
 ## A. Project identity
 - **Title:** Evaluating Layered Defenses Against Indirect Prompt Injection in LLM-Based Document Summarization
@@ -38,7 +38,9 @@ Last updated: 2026-10-29 (session 4, checkpoint 19: optimization pass. Frontend 
 | Human summary-quality ratings | KIT READY, waiting for a rater | `scripts/prepare_quality_rating.py` built `results/quality_rating/` (100 blinded clean-document summaries: 1B/8B x E0/E2, trial 0; rubric faithful/coverage 1-5, usable yes/no); aggregate with `scripts/summarize_quality.py` |
 
 ## C. Completed and verified
-- `pytest` -> **272 passed** (2026-10-28, offline, ~10-20 s). Includes API, evaluation, CLI subprocess (incl. review tools), frontend-static, extraction, adapter, attack-check, disruption and independent-set freeze tests.
+- `pytest` -> **272 passed** (verified 2026-11-09, offline, 8.89 s). Includes API, evaluation, CLI subprocess (incl. review tools), frontend-static, extraction, adapter, attack-check, disruption and independent-set freeze tests.
+- Independent audit -> **43/43 passed** (verified 2026-11-09, read-only).
+- Repository audit & GitHub readiness pass (2026-11-09): enhanced `.gitignore`, added `.github/workflows/ci.yml` (multi-Python matrix 3.10-3.13), added `.github/ISSUE_TEMPLATE/` (bug report, research inquiry).
 - Live API smoke check 2026-10-25 (mock mode, port 8765): `/health` ok, `/` -> `/app/` 200, `/summarize` blocked an injected document at the heuristic without a model call, `/results` listed 20 runs. Real-model UI flow last verified by hand in an earlier session.
 - Live checks: Ollama real-model summarize via API/UI; `run_experiments.py --dry-run` plan and guards (needs `--yes`, `--final-ack`); mock run + analyze; adjudicate flow.
 - Dev real-model smoke runs and structural-prompt tuning: `docs/DEV_LOG.md`.
@@ -47,6 +49,7 @@ Last updated: 2026-10-29 (session 4, checkpoint 19: optimization pass. Frontend 
 ## D. Remaining tasks (priority order)
 | ID | Task | Status | Acceptance |
 |---|---|---|---|
+| R0 | GitHub Publication Preparation | IN_PROGRESS (2026-11-09) | Repository audit complete; .gitignore refined; CI workflows + issue templates added; awaiting owner decision on top-level LICENSE and backup folder archival |
 | R1 | Human verification of the 103 AI-adjudicated labels | DONE (2026-10-24) | reviewer Ankit; 33 items, agreed 32, changed 1 (run 1 dev-a09 E2 t0 yes->no: run 1 E2 ASR 41.4% -> 40.0%); decisions in `docs/results/human_review_decisions.csv`; see EXPERIMENT_LOG |
 | R8 | Task-disruption measure (separate outcome; ASR unchanged) | DONE (2026-10-24) | `evaluation/disruption.py`, `scripts/task_disruption.py`, criteria `data/task_disruption_carriers.json`; rule committed (`1ab56a4`) before computing; agrees with human labels 62/64; results in EXPERIMENT_LOG / FINAL_REPORT and `docs/results/final_run_{1,2}/task_disruption*.csv` |
 | R2 | Run the same protocol on a hosted frontier model as a further SEPARATE condition (the 8B condition is done) | TODO / BLOCKED: needs the user's API key and a cost decision | new run id and EXPERIMENT_LOG entry; never mixed with the 1B run; held-out set is already spent for tuning purposes, so use a new held-out set for any further tuning |

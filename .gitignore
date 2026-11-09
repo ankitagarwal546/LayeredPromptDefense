@@ -5,28 +5,55 @@
 *.pem
 *.key
 
-# Python
+# Python environments and package builds
 .venv/
 venv/
+ENV/
+env/
 __pycache__/
 *.py[cod]
+*$py.class
 *.egg-info/
+*.egg
 build/
 dist/
+wheels/
+pip-wheel-metadata/
+
+# Testing and coverage
 .pytest_cache/
 .mypy_cache/
 .ruff_cache/
 .coverage
+.coverage.*
 htmlcov/
+.cache
 
-# Generated experiment artifacts (may contain model outputs)
+# Generated local experiment outputs (may contain unscrubbed model outputs)
 results/*
 !results/.gitkeep
 runs/
 *.log
 
-# Editor / OS
+# Temporary files and editor swap files
+*.tmp
+*.temp
+*.swp
+*.swo
+*~
+*.switching
+
+# Operating system artifacts
 .DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# IDE and editor settings
 .idea/
 .vscode/
-.claude/settings.local.json
+.claude/
+
